@@ -1,0 +1,54 @@
+//SPI definition
+int SPI_cfg_normal;
+int SPI_cfg_shutdown;
+int SPI_cfg_output_P16_17_18_19;
+int SPI_cfg_output_P20_21_22_23;
+int SPI_cfg_output_P24_25_26_27;
+int SPI_cfg_output_P28_29_30_31;
+int SPI_P16_on;
+int SPI_P16_off;
+int SPI_P17_on;
+int SPI_P17_off;
+int SPI_P18_on;
+int SPI_P18_off;
+int SPI_P19_on;
+int SPI_P19_off;
+int SPI_P20_on;
+int SPI_P20_off;
+int SPI_P21_on;
+int SPI_P21_off;
+int SPI_P22_on;
+int SPI_P22_off;
+int SPI_P23_on;
+int SPI_P23_off;
+int SPI_P24_on;
+int SPI_P24_off;
+int SPI_P25_on;
+int SPI_P25_off;
+int SPI_P26_on;
+int SPI_P26_off;
+int SPI_P27_on;
+int SPI_P27_off;
+int SPI_P28_on;
+int SPI_P28_off;
+int SPI_P29_on;
+int SPI_P29_off;
+int SPI_P30_on;
+int SPI_P30_off;
+int SPI_P31_on;
+int SPI_P31_off;
+
+int i;
+
+//Functions Definitions
+void initASP(void);
+void SPI_init_devices(int, int);
+void SPI_config_devices(int, int);
+void SPI_Send(unsigned, int, int);
+void setFilter(int, int, int);
+void setFEE(int, int, int, int);
+void setSplitAT(int, int, int);
+void setAT1(int, int, int);
+void setAT2(int, int, int);
+void initMIB(void);
+void setSPIconst(void);
