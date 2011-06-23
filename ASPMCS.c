@@ -20,6 +20,11 @@ SCLK on PE7
 DOUT (MOSI) on PC2
 DIN (MISO) on PE3
 CS on PB7
+
+$Rev$
+$LastChangedBy$
+$LastChangedDate$
+
 ************************************************/
 
 #class auto
@@ -53,42 +58,41 @@ udp_Socket sock;
 
 void main()
 {
-   initMIB();
-   setSPIconst();
-   brdInit();
-   WrPortI(PCFR,&PCFRShadow,PCFRShadow | 0x44);     	// Serial Port C
-   WrPortI(PEAHR,&PEAHRShadow,PEAHRShadow | 0xC0);    // Serial Port C
-   WrPortI(PEDDR,&PEDDRShadow,PEDDRShadow | 0x80);    // Serial Port C clock on PE7
-   WrPortI(PEFR,&PEFRShadow,PEFRShadow | 0x80);     	// Serial Port C
+	initMIB();
+	setSPIconst();
+	brdInit();
+	WrPortI(PCFR,&PCFRShadow,PCFRShadow | 0x44);     	// Serial Port C
+	WrPortI(PEAHR,&PEAHRShadow,PEAHRShadow | 0xC0);    // Serial Port C
+	WrPortI(PEDDR,&PEDDRShadow,PEDDRShadow | 0x80);    // Serial Port C clock on PE7
+	WrPortI(PEFR,&PEFRShadow,PEFRShadow | 0x80);     	// Serial Port C
 	SPIinit();
-   // Start network and wait for interface to come up (or error exit).
+	// Start network and wait for interface to come up (or error exit).
 	sock_init_or_exit(1);
-   //open RX port
+	//open RX port
 	if(!udp_open(&sock, LOCAL_PORT, resolve(REMOTE_IP), 0, NULL)) {
 		printf("udp_open failed!\n");
 		exit(0);
-   }
-   init = 0;	//boots up uninitialized
-   nBoards = 0;
-   nChP = 0;
+	}
+	init = 0;	//boots up uninitialized
+	nBoards = 0;
+	nChP = 0;
 	// receive & transmit packets/
 	for(;;) {
-      tcp_tick(NULL);
+		tcp_tick(NULL);
 		if (1 == receive_packet()){
-      	udp_close(&sock);		//close the RX port
-         //open TX port
+			udp_close(&sock);		//close the RX port
+			//open TX port
 			if(!udp_open(&sock, LOCAL_PORT, resolve(REMOTE_IP), REMOTE_PORT, NULL)) {
 				printf("udp_open failed!\n");
 				exit(0);
 			}
-      	send_packet();
-         udp_close(&sock);		//close the TX port
-      }
-      //reopen RX port
+			send_packet();
+			udp_close(&sock);		//close the TX port
+		}
+		//reopen RX port
 		if(!udp_open(&sock, LOCAL_PORT, resolve(REMOTE_IP), 0, NULL)) {
 			printf("udp_open failed!\n");
 			exit(0);
 		}
 	}
 }
-
