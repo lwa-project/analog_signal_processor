@@ -10,6 +10,10 @@
   * setATS - set the level of the split bandwidth mode attenuator
   * addToQueue - queue a command to run later
   * processQueue - monitor the queue and run the queued commands
+
+$Rev$
+$LastChangedBy$
+$LastChangedDate$
 */
 
 #include aspSPI.h

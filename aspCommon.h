@@ -1,5 +1,9 @@
 /*
   aspCommon.h - Header library to contain constants needed for ASP
+  
+$Rev$
+$LastChangedBy$
+$LastChangedDate$  
 */
 
 

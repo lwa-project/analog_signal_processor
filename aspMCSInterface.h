@@ -6,6 +6,10 @@
    * initMIB - create the default MIB database
    * receiveCommand - process in incoming MCS packet
    * sendResponse - respond to a MCS packet
+
+$Rev$
+$LastChangedBy$
+$LastChangedDate$
 */
 
 #include MIB.h

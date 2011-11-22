@@ -7,6 +7,9 @@
   * SPI_config_devices - configure SPI devices
   * SPI_Send - send a SPI command out
 
+$Rev$
+$LastChangedBy$
+$LastChangedDate$
 */
 
 //SPI definition
