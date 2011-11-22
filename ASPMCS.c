@@ -35,11 +35,6 @@ $LastChangedDate$
 
 #define MAX_UDP_SOCKET_BUFFERS 2
 
-#define LOCAL_PORT 	1738
-#define REMOTE_PORT 	1739
-
-#define REMOTE_IP 	"146.88.201.33"				//MCS IP Address
-
 #define SPI_SER_C
 #define SPI_RX_PORT SPI_RX_PE
 #define SPI_CLK_DIVISOR 100
@@ -50,24 +45,31 @@ $LastChangedDate$
 #memmap xmem
 #use "dcrtcp.lib"
 
+#use "SSCANF.LIB"
+
 udp_Socket sock;
 
 #include MIB.h
-#include funcDec.h
-#include func.h
+#include aspCommon.h
+#include aspFunctions.h
+#include aspMCSInterface.h
 
-void main()
-{
+void main() {
+	aspMIB mib;
+	
 	initMIB();
 	setSPIconst();
 	brdInit();
-	WrPortI(PCFR,&PCFRShadow,PCFRShadow | 0x44);     	// Serial Port C
-	WrPortI(PEAHR,&PEAHRShadow,PEAHRShadow | 0xC0);    // Serial Port C
-	WrPortI(PEDDR,&PEDDRShadow,PEDDRShadow | 0x80);    // Serial Port C clock on PE7
-	WrPortI(PEFR,&PEFRShadow,PEFRShadow | 0x80);     	// Serial Port C
+	
+	WrPortI(PCFR,&PCFRShadow,PCFRShadow | 0x44);		// Serial Port C
+	WrPortI(PEAHR,&PEAHRShadow,PEAHRShadow | 0xC0);	// Serial Port C
+	WrPortI(PEDDR,&PEDDRShadow,PEDDRShadow | 0x80);	// Serial Port C clock on PE7
+	WrPortI(PEFR,&PEFRShadow,PEFRShadow | 0x80);		// Serial Port C
 	SPIinit();
+	
 	// Start network and wait for interface to come up (or error exit).
 	sock_init_or_exit(1);
+	
 	//open RX port
 	if(!udp_open(&sock, LOCAL_PORT, resolve(REMOTE_IP), 0, NULL)) {
 		printf("udp_open failed!\n");
@@ -76,23 +78,36 @@ void main()
 	init = 0;	//boots up uninitialized
 	nBoards = 0;
 	nChP = 0;
-	// receive & transmit packets/
-	for(;;) {
-		tcp_tick(NULL);
-		if (1 == receive_packet()){
-			udp_close(&sock);		//close the RX port
-			//open TX port
-			if(!udp_open(&sock, LOCAL_PORT, resolve(REMOTE_IP), REMOTE_PORT, NULL)) {
+	
+	// Main program loop
+	while(1) {
+		costate {
+			// receive & transmit packets
+			tcp_tick(NULL);
+			if (1 == receive_packet()){
+				udp_close(&sock);
+				
+				// open TX port
+				if(!udp_open(&sock, LOCAL_PORT, resolve(REMOTE_IP), REMOTE_PORT, NULL)) {
+					printf("udp_open failed!\n");
+					exit(0);
+				}
+				
+				
+				send_packet();
+				udp_close(&sock);		//close the TX port
+			}
+			
+			//reopen RX port
+			if(!udp_open(&sock, LOCAL_PORT, resolve(REMOTE_IP), 0, NULL)) {
 				printf("udp_open failed!\n");
 				exit(0);
 			}
-			send_packet();
-			udp_close(&sock);		//close the TX port
 		}
-		//reopen RX port
-		if(!udp_open(&sock, LOCAL_PORT, resolve(REMOTE_IP), 0, NULL)) {
-			printf("udp_open failed!\n");
-			exit(0);
+		
+		costate {
+			// run command in the queue
+			processQueue();
 		}
 	}
 }

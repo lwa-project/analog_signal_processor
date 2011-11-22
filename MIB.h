@@ -7,7 +7,7 @@ $LastChangedDate$
 ************************************************/
 
 //Setup MIB as a structure
-struct {
+typedef struct {
 	struct {
 		char summary[8];
 		char info[257];
@@ -29,18 +29,18 @@ struct {
 	} index2;
 	
 	struct {
-		char FILTER[260][2];
+		int FILTER[260][2];
 	} index3;
 	
 	struct {
-		char AT1[260][3];
-		char AT2[260][3];
-		char ATS[260][3];
+		int AT1[260][3];
+		int AT2[260][3];
+		int ATS[260][3];
 	} index4;
 	
 	struct {
-		char FEEPOL1PWR[260][4];
-		char FEEPOL2PWR[260][4];
+		int FEEPOL1PWR[260];
+		int FEEPOL2PWR[260];
 	} index5;
 	
 	struct {
@@ -49,4 +49,4 @@ struct {
 		char SENSOR_NAME_1[257];
 		char SENSOR_DATA_1[11];
 	} index6;
-} mib;
+} aspMIB;
