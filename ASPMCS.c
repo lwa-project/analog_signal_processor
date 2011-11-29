@@ -27,13 +27,16 @@ $LastChangedDate$
 
 ************************************************/
 
-#class auto
 #define TCPCONFIG           1
-#define _PRIMARY_STATIC_IP  "146.88.201.40"		//ASP IP Address
-#define _PRIMARY_NETMASK    "255.255.255.0"
-#define MY_GATEWAY          "146.88.201.100"			//Network Gateway
+#define MY_IP_ADDRESS "10.1.1.40"		// ASP IP Address
+#define _PRIMARY_STATIC_IP "10.1.1.40"
+#define MY_NETMASK    "255.255.255.0"	// MCS network netmask
+#define _PRIMARY_NETMASK "255.255.255.0"
+#define MY_GATEWAY    "10.1.1.2"		// Network Gateway
+#define MY_NAMESERVER "10.1.1.2"		// Network nameserver
 
-#define MAX_UDP_SOCKET_BUFFERS 2
+#define UDP_BUF_SIZE 512
+#define MAX_UDP_SOCKET_BUFFERS 8
 
 #define SPI_SER_C
 #define SPI_RX_PORT SPI_RX_PE
@@ -45,69 +48,97 @@ $LastChangedDate$
 #memmap xmem
 #use "dcrtcp.lib"
 
-#use "SSCANF.LIB"
-
-udp_Socket sock;
-
-#include MIB.h
+#include aspMIB.h
 #include aspCommon.h
 #include aspFunctions.h
 #include aspMCSInterface.h
 
-void main() {
-	aspMIB mib;
-	
-	initMIB();
+
+// Initialize the socket and IP address for MCS
+udp_Socket sockIn, sockOut;
+longword ip;
+
+// Initialize the buffers
+char buf1[512];
+char buf2[512];
+
+// Initialize the MIB structure and command queue
+aspMIB mib;
+aspCommandQueue queue;
+
+main() {
+	int status;
+     unsigned long int T1, T2;
+     ip = resolve(REMOTE_IP);
+
+     initMIB(&mib);
+     initQueue(&queue);
 	setSPIconst();
 	brdInit();
-	
-	WrPortI(PCFR,&PCFRShadow,PCFRShadow | 0x44);		// Serial Port C
-	WrPortI(PEAHR,&PEAHRShadow,PEAHRShadow | 0xC0);	// Serial Port C
-	WrPortI(PEDDR,&PEDDRShadow,PEDDRShadow | 0x80);	// Serial Port C clock on PE7
-	WrPortI(PEFR,&PEFRShadow,PEFRShadow | 0x80);		// Serial Port C
+
+	WrPortI(PCFR,  &PCFRShadow,  PCFRShadow  | 0x44);		// Serial Port C
+	WrPortI(PEAHR, &PEAHRShadow, PEAHRShadow | 0xC0);		// Serial Port C
+	WrPortI(PEDDR, &PEDDRShadow, PEDDRShadow | 0x80);		// Serial Port C clock on PE7
+	WrPortI(PEFR,  &PEFRShadow,  PEFRShadow  | 0x80);		// Serial Port C
 	SPIinit();
-	
-	// Start network and wait for interface to come up (or error exit).
+
+	// Start network and wait for interface to come up.
 	sock_init_or_exit(1);
-	
-	//open RX port
-	if(!udp_open(&sock, LOCAL_PORT, resolve(REMOTE_IP), 0, NULL)) {
-		printf("udp_open failed!\n");
+
+	// Open RX port
+	if( !udp_open(&sockIn, LOCAL_PORT, ip, 0, NULL) ) {
+		printf("udp_open of inbound socket failed!\n");
 		exit(0);
 	}
-	init = 0;	//boots up uninitialized
-	nBoards = 0;
-	nChP = 0;
-	
+
+     // Open TX port
+     if( !udp_open(&sockOut, 0, ip, REMOTE_PORT, NULL) ) {
+	    printf("udp_open of outbound socket failed!\n");
+	    exit(0);
+	}
+
 	// Main program loop
-	while(1) {
-		costate {
-			// receive & transmit packets
-			tcp_tick(NULL);
-			if (1 == receive_packet()){
-				udp_close(&sock);
-				
-				// open TX port
-				if(!udp_open(&sock, LOCAL_PORT, resolve(REMOTE_IP), REMOTE_PORT, NULL)) {
-					printf("udp_open failed!\n");
-					exit(0);
-				}
-				
-				
-				send_packet();
-				udp_close(&sock);		//close the TX port
-			}
-			
-			//reopen RX port
-			if(!udp_open(&sock, LOCAL_PORT, resolve(REMOTE_IP), 0, NULL)) {
-				printf("udp_open failed!\n");
-				exit(0);
-			}
-		}
-		
+	for(;;) {
+     	costate {
+          	// Receive & transmit packets
+	          tcp_tick(NULL);
+
+	          // Receive UDP packet
+               T1 = MS_TIMER;
+               if( udp_recv(&sockIn, buf1, 512) != -1 ) {
+               	// Interpret the packet as a command
+	               status = interpertCommand(&mib, &queue, &buf1);
+
+                    if( status != -1 ) {
+                   		// Generate reply
+                         T2 = MS_TIMER;
+	                    generateResponse(&mib, (T2-T1), status, &buf2);
+
+	                    // Send reply
+	                    if( udp_send(&sockOut, buf2, 128) < 0 ) {
+	                         printf("Error sending datagram!  Closing and reopening socket...\n");
+	                    }
+
+	                    // Receive & transmit packets
+	              		tcp_tick(NULL);
+                   	}
+	          } else {
+	               yield;
+	          }
+          }
+
 		costate {
 			// run command in the queue
-			processQueue();
+			processQueue(&mib, &queue);
+               waitfor( DelayMs(500) );
 		}
+
+          /*
+          costate {
+          	// update power supply info
+               updatePS(mib);
+               waitfor( DelaySec(60) );
+          }
+          */
 	}
 }

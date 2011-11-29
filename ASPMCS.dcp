@@ -1,0 +1,249 @@
+[COMM]
+port=5
+coldload baud=2400
+pilot baud=57600
+bios baud=9600
+Max Negotiated Baud=460800
+stop bits=2
+use TCP=0
+TCP Port=0
+Serial Response Timeout=400
+Ethernet Response Timeout=8000
+Serial Retry Count=5
+Ethernet Retry Count=0
+Serial Poll Interval=3000
+Ethernet Poll Interval=30000
+Disable Baud Negotiation=0
+Verify DSR=1
+Use USB to Serial Converter=1
+USB to Serial Delay=500
+Begin Probe Delay=100
+End Probe Delay=300
+Begin Pilot Delay=0
+End Pilot Delay=0
+Flash erase timeout=10000
+TCP Name=
+Net Address=
+Pilot Bios Physical Address=0x4000
+Use RabbitLink=0
+RabbitLink Port=0
+RabbitLink Address=
+RabbitLink Name=
+[Compiler Options]
+All Serious None=A
+RTC Indices=1
+RTC Pointers=0
+Optimize For Size=0
+Prototypes=1
+Demotion=1
+Pointers=1
+Default Compile Mode=0
+Separate Instruction and Data=1
+Generate List Files=0
+Inline Internal IO Functions=1
+Detect Internal Memory=1
+Detect Memory=1
+Flash type=32
+Memory type=8
+Max Errors Shown=20
+Max Warnings Shown=20
+BIOS Memory Mode=0
+Restrict Watch Expressions=0
+[Dynamic C Files]
+Use Rabbit 4000 Libs=1
+LIB File=
+BIOS File=
+Default Source File=
+Use Lib File=0
+Use BIOS File=0
+Use Default Source File=0
+CS0 RAM Detect File=bios\checkRamCS0.bin
+Pre-Cold Loader File=bios\precoldload.bin
+Cold Loader File=bios\coldload.bin
+16-bit Cold Loader File=bios\coldload16bit.bin
+Serial Flash Cold Loader File=bios\coldloadserflash.bin
+Pilot BIOS File=bios\pilot.bin
+16-bit Pilot BIOS File=bios\pilot16bit.bin
+Serial Flash Pilot BIOS File=bios\pilotserflash.bin
+Start Dir=C:\Documents and Settings\Jayce Dowell\My Documents\ASP\
+[Include BIOS]
+Include BIOS=1
+[Include RST 28]
+Include RST=2
+[MRU Files]
+FileCount=4
+[MRU 1]
+MRU 1 Path=C:\Documents and Settings\Jayce Dowell\Desktop\ASP-alpha\ASPMCS.C
+MRU 1 Read Only=0
+MRU 1 X=335
+MRU 1 Y=200
+MRU 1 W=800
+MRU 1 H=500
+MRU 1 Top Row=55
+MRU 1 WindowState=0
+MRU 1 Cursor Row=75
+MRU 1 Cursor Col=6
+[MRU 2]
+MRU 2 Path=C:\Documents and Settings\Jayce Dowell\Desktop\ASP-alpha\func.h
+MRU 2 Read Only=0
+MRU 2 X=50
+MRU 2 Y=130
+MRU 2 W=800
+MRU 2 H=500
+MRU 2 Top Row=11
+MRU 2 WindowState=0
+MRU 2 Cursor Row=34
+MRU 2 Cursor Col=45
+[MRU 3]
+MRU 3 Path=C:\Documents and Settings\Jayce Dowell\My Documents\ASP\SSCANF.LIB
+MRU 3 Read Only=0
+MRU 3 X=254
+MRU 3 Y=37
+MRU 3 W=800
+MRU 3 H=500
+MRU 3 Top Row=7
+MRU 3 WindowState=1
+MRU 3 Cursor Row=7
+MRU 3 Cursor Col=37
+[MRU 4]
+MRU 4 Path=C:\Documents and Settings\Jayce Dowell\My Documents\ASP\MIB.h
+MRU 4 Read Only=0
+MRU 4 X=401
+MRU 4 Y=208
+MRU 4 W=800
+MRU 4 H=500
+MRU 4 Top Row=51
+MRU 4 WindowState=1
+MRU 4 Cursor Row=69
+MRU 4 Cursor Col=23
+[MRU 5]
+MRU 5 Path=C:\Documents and Settings\Jayce Dowell\My Documents\ASP\aspSPI.h
+MRU 5 Read Only=0
+MRU 5 X=154
+MRU 5 Y=203
+MRU 5 W=800
+MRU 5 H=500
+MRU 5 Top Row=125
+MRU 5 WindowState=1
+MRU 5 Cursor Row=151
+MRU 5 Cursor Col=0
+[MRU 6]
+MRU 6 Path=C:\Documents and Settings\Jayce Dowell\My Documents\ASP\aspFunctions.h
+MRU 6 Read Only=0
+MRU 6 X=70
+MRU 6 Y=207
+MRU 6 W=800
+MRU 6 H=500
+MRU 6 Top Row=62
+MRU 6 WindowState=1
+MRU 6 Cursor Row=82
+MRU 6 Cursor Col=38
+[MRU 7]
+MRU 7 Path=C:\Documents and Settings\Jayce Dowell\My Documents\ASP\aspMCSInterface.h
+MRU 7 Read Only=0
+MRU 7 X=349
+MRU 7 Y=181
+MRU 7 W=800
+MRU 7 H=500
+MRU 7 Top Row=214
+MRU 7 WindowState=0
+MRU 7 Cursor Row=181
+MRU 7 Cursor Col=18
+[OpenFile  1]
+OpenFile  1 Path=C:\Documents and Settings\Jayce Dowell\My Documents\ASP\aspMCSInterface.h
+OpenFile  1 Read Only=0
+OpenFile  1 X=91
+OpenFile  1 Y=118
+OpenFile  1 W=800
+OpenFile  1 H=500
+OpenFile  1 Top Row=0
+OpenFile  1 Top Col=0
+OpenFile  1 WindowState=0
+OpenFile  1 Cursor Row=13
+OpenFile  1 Cursor Col=16
+[Open Files]
+Number Open=5
+[Project Explorer]
+ProjEx Window Open=0
+ProjEx Window Y=50
+ProjEx Window X=50
+ProjEx Window W=600
+ProjEx Window H=400
+ProjEx Window State=0
+[Debug Options]
+Enable Breakpoints=1
+Enable Instruction Level Single Step=1
+Enable Watch Expressions=1
+Max Breakpoints=32
+Max Watch Expressions=8
+Watch Memory for Structs=512
+Enable Stack Tracing=1
+Stack Tracing Memory=4096
+Enable debug kernel=1
+[Poll Target]
+Poll target while running=1
+[Compression Utility]
+Zimport External Utility=ZCOMPRESS.EXE
+[INCLUDES]
+Includes=C:\Documents and Settings\Jayce Dowell\My Documents\ASP;C:\DCRABBIT_10.66\Include;
+[C FILES]
+C Files=C:\Documents and Settings\Jayce Dowell\My Documents\ASP\ASPMCS.c;
+[DEFINES]
+Defines=
+[Targetless Compile]
+Board ID=0x2900
+CPU ID=4000
+CPU Revision=0
+Crystal Speed MHz=29.4912
+RAM Size KBytes=512
+Flash Size KBytes=512
+Description=58MHz, RCM4200, 512K+512K SRAM, 512K Flash, analog, 8M serial flash
+Macros=CLK_DBL=1;BRD_OPT0=0x24;DFLASH0=0x11701;MD0=0x1;MD0_ID=0xBFD7;MD0_TYPE=0x1;MD0_SIZE=0x80;MD0_SECSIZE=0x1000;MD0_SECNUM=0x80;MD0_SPEED=0x46;MD0_MBC=0x0;MD2=0x1;MD2_ID=0x0;MD2_TYPE=0x0;MD2_SIZE=0x80;MD2_SECSIZE=0x0;MD2_SECNUM=0x0;MD2_SPEED=0xF;MD2_MBC=0xC6;MD3=0x1;MD3_ID=0x0;MD3_TYPE=0x0;MD3_SIZE=0x80;MD3_SECSIZE=0x0;MD3_SECNUM=0x0;MD3_SPEED=0x37;MD3_MBC=0x45
+[OpenFile  2]
+OpenFile  2 Path=C:\Documents and Settings\Jayce Dowell\My Documents\ASP\ASPMCS.c
+OpenFile  2 Read Only=0
+OpenFile  2 X=6
+OpenFile  2 Y=5
+OpenFile  2 W=800
+OpenFile  2 H=500
+OpenFile  2 Top Row=39
+OpenFile  2 Top Col=0
+OpenFile  2 WindowState=0
+OpenFile  2 Cursor Row=51
+OpenFile  2 Cursor Col=4
+[OpenFile  3]
+OpenFile  3 Path=C:\Documents and Settings\Jayce Dowell\My Documents\ASP\aspFunctions.h
+OpenFile  3 Read Only=0
+OpenFile  3 X=244
+OpenFile  3 Y=204
+OpenFile  3 W=800
+OpenFile  3 H=500
+OpenFile  3 Top Row=412
+OpenFile  3 Top Col=0
+OpenFile  3 WindowState=0
+OpenFile  3 Cursor Row=419
+OpenFile  3 Cursor Col=53
+[OpenFile  4]
+OpenFile  4 Path=C:\Documents and Settings\Jayce Dowell\My Documents\ASP\aspCommon.h
+OpenFile  4 Read Only=0
+OpenFile  4 X=359
+OpenFile  4 Y=234
+OpenFile  4 W=800
+OpenFile  4 H=500
+OpenFile  4 Top Row=0
+OpenFile  4 Top Col=0
+OpenFile  4 WindowState=0
+OpenFile  4 Cursor Row=19
+OpenFile  4 Cursor Col=29
+[OpenFile  5]
+OpenFile  5 Path=C:\Documents and Settings\Jayce Dowell\My Documents\ASP\aspSPI.h
+OpenFile  5 Read Only=0
+OpenFile  5 X=154
+OpenFile  5 Y=203
+OpenFile  5 W=800
+OpenFile  5 H=500
+OpenFile  5 Top Row=125
+OpenFile  5 Top Col=0
+OpenFile  5 WindowState=1
+OpenFile  5 Cursor Row=138
+OpenFile  5 Cursor Col=26

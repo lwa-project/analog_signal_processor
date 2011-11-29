@@ -1,3 +1,6 @@
+#ifndef __ASPSPI_H
+#define __ASPSPI_H
+
 /*
  aspSPI.h - Header library for interfacing wiht the SPI bus.
 
@@ -11,6 +14,13 @@ $Rev$
 $LastChangedBy$
 $LastChangedDate$
 */
+
+#define SPI_SER_C
+#define SPI_RX_PORT SPI_RX_PE
+#define SPI_CLK_DIVISOR 100
+
+#use "spi.lib"
+
 
 //SPI definition
 int SPI_cfg_normal;
@@ -105,7 +115,7 @@ void setSPIconst(void) {
 
 void SPI_init_devices(int num, int Config){
 	int i, SPI_read;
-	
+
 	for (i = 0; i < 2*num; i++) {
 		BitWrPortI(PBDR, &PBDRShadow, 0, 7);           	// chip select low
 		SPIWrRd(&Config, &SPI_read, 2);        	  		// setup for normal operation
@@ -116,7 +126,7 @@ void SPI_init_devices(int num, int Config){
 
 void SPI_config_devices(int num, int Config){
 	int i;
-	
+
 	for (i = 0; i < num; i++) {
 		SPI_Send(Config, i+1, num);
 	}
@@ -140,3 +150,6 @@ void SPI_Send(unsigned data, int device, int num) {
 	}
 	BitWrPortI(PBDR, &PBDRShadow, 1, 7);            // chip select high
 }
+
+#endif
+
