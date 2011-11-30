@@ -130,7 +130,7 @@ main() {
 		costate {
 			// run command in the queue
 			processQueue(&mib, &queue);
-               waitfor( DelayMs(500) );
+               waitfor( DelayMs(250) );
 		}
 
           /*

@@ -135,7 +135,7 @@ void initASP(aspMIB* mib) {
 	sprintf(mib->index1.info, "ASP initialized in %.3f s", (T2-T1)/1000.0);
 	strcpy(mib->index1.lastlog, "INI completed");
 
-     printf("ASP Initialized with %d ARX boards installed \n", mib->nBoards);
+     // printf("ASP Initialized with %d ARX boards installed \n", mib->nBoards);
 }
 
 

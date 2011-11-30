@@ -118,62 +118,61 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 	tstart_DATA = 38;
 
 	// Cycle through the message and strip off data
-     strncpy(RX_DEST, buf+tstart_DEST, tlength_DEST);
+	strncpy(RX_DEST, buf+tstart_DEST, tlength_DEST);
 	RX_DEST[tlength_DEST] = '\0';
-     // printf("  -> destination %s\n", RX_DEST);
+	// printf("  -> destination %s\n", RX_DEST);
 
-     strncpy(RX_SNDR, buf+tstart_SNDR, tlength_SNDR);
+	strncpy(RX_SNDR, buf+tstart_SNDR, tlength_SNDR);
 	RX_SNDR[tlength_SNDR] = '\0';
-     // printf("  -> sender %s\n", RX_SNDR);
+	// printf("  -> sender %s\n", RX_SNDR);
 
-     strncpy(RX_TYPE, buf+tstart_TYPE, tlength_TYPE);
-     RX_TYPE[tlength_TYPE] = '\0';
-     // printf("  -> type %s\n", RX_TYPE);
+	strncpy(RX_TYPE, buf+tstart_TYPE, tlength_TYPE);
+	RX_TYPE[tlength_TYPE] = '\0';
+	// printf("  -> type %s\n", RX_TYPE);
 
-     strncpy(RX_REF, buf+tstart_REF, tlength_REF);
-     RX_REF[tlength_REF] = '\0';
-     // printf("  -> reference %s\n", RX_REF);
+	strncpy(RX_REF, buf+tstart_REF, tlength_REF);
+	RX_REF[tlength_REF] = '\0';
+	// printf("  -> reference %s\n", RX_REF);
 
-     strncpy(RX_DLEN, buf+tstart_DLEN, tlength_DLEN);
-     RX_DLEN[tlength_DLEN] = '\0';
-     // printf("  -> datalen %s\n", RX_DLEN);
+	strncpy(RX_DLEN, buf+tstart_DLEN, tlength_DLEN);
+	RX_DLEN[tlength_DLEN] = '\0';
+	// printf("  -> datalen %s\n", RX_DLEN);
 
-     strncpy(RX_MJD, buf+tstart_MJD, tlength_MJD);
-     RX_MJD[tlength_MJD] = '\0';
-     // printf("  -> MJD %s\n", RX_MJD);
+	strncpy(RX_MJD, buf+tstart_MJD, tlength_MJD);
+	RX_MJD[tlength_MJD] = '\0';
+	// printf("  -> MJD %s\n", RX_MJD);
 
-     strncpy(RX_MPM, buf+tstart_MPM, tlength_MPM);
-     RX_MPM[tlength_MPM] = '\0';
-     // printf("  -> MPM %s\n", RX_MPM);
+	strncpy(RX_MPM, buf+tstart_MPM, tlength_MPM);
+	RX_MPM[tlength_MPM] = '\0';
+	// printf("  -> MPM %s\n", RX_MPM);
 
 	// Get the data portion of the message
 	tlength_DATA = strtol(RX_DLEN, NULL, 10);
 	if (tlength_DATA > 0) {
-		strcpy(RX_DATA, " ");
 		strncpy(RX_DATA, buf+tstart_DATA, tlength_DATA);
 		RX_DATA[tlength_DATA] = '\0';
-	     // printf("  -> data %s\n", RX_DATA);
-     } else {
-     	// printf("  -> data section empty\n");
-     }
+		// printf("  -> data %s\n", RX_DATA);
+	} else {
+		// printf("  -> data section empty\n");
+	}
 
      // Check the destinamtion (ASP or ALL)
-     if( strcmp(RX_DEST, aspSubsystem) && strcmp(RX_DEST, "ALL") ) {
-     	// printf("Command destined for %s, not %s or ALL, skipping\n", RX_DEST, aspSubsystem);
-     	return -1;
-     }
+     if( strncmp(RX_DEST, aspSubsystem, 3) && strncmp(RX_DEST, "ALL", 3) ) {
+		// printf("Command destined for %s, not %s or ALL, skipping\n", RX_DEST, aspSubsystem);
+		return -1;
+	}
 
 	// PNG
-	if( !strcmp(RX_TYPE, "PNG") ) {
+	if( !strncmp(RX_TYPE, "PNG", 3) ) {
 		// printf("Received a Ping \n");
 
-          returnCode = 1;
+		returnCode = 1;
 		strcpy(TX_DATA, "");;
 
 	// RPT
-	} else if( !strcmp(RX_TYPE, "RPT") ) {
-          // printf("Reporting on MIB Entry -> %s \n", RX_DATA);
-          returnCode = 1;
+	} else if( !strncmp(RX_TYPE, "RPT", 3) ) {
+		// printf("Reporting on MIB Entry -> %s \n", RX_DATA);
+		returnCode = 1;
 
 		if (!strcmp(RX_DATA, "SUMMARY"))
 			strcpy(TX_DATA, mib->index1.summary);      //add the summary entry to data
@@ -205,15 +204,15 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 			strcpy(TX_DATA, mib->index2.FEECURR);
 		//RPT FILTER
 		else if (strstr(RX_DATA, "FILTER") != 0) {
-               sscanf(RX_DATA, "FILTER%3i", &Stand);
+			sscanf(RX_DATA, "FILTER_%3i", &Stand);
 
 			if(1 <= Stand <= nStands) {
 				if( mib->index3.FILTER[Stand-1] == 0 ) {
-					sprintf(TX_DATA, "%02i", 3);
+					sprintf(TX_DATA, "%1i", 3);
 				} else if( mib->index3.FILTER[Stand-1] == 3 ) {
-					sprintf(TX_DATA, "%02i", 0);
+					sprintf(TX_DATA, "%1i", 0);
 				} else {
-					sprintf(TX_DATA, "%02i", mib->index3.FILTER[Stand-1]);
+					sprintf(TX_DATA, "%1i", mib->index3.FILTER[Stand-1]);
 				}
 
 			} else {
@@ -223,7 +222,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 		}
 	  	//RPT AT1
 	  	else if (strstr(RX_DATA, "AT1") != 0) {
-          	sscanf(RX_DATA, "AT1%3i", &Stand);
+			sscanf(RX_DATA, "AT1_%3i", &Stand);
 
 			if(1 <= Stand <= nStands){
 				sprintf(TX_DATA, "%02i", mib->index4.AT1[Stand-1]);
@@ -235,7 +234,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 		}
 		//RPT AT2
 		else if (strstr(RX_DATA, "AT2") != 0) {
-               sscanf(RX_DATA, "AT2%3i", &Stand);
+			sscanf(RX_DATA, "AT2_%3i", &Stand);
 
 			if(1 <= Stand <= nStands) {
 				sprintf(TX_DATA, "%02i", mib->index4.AT2[Stand-1]);
@@ -247,7 +246,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 		}
 		//RPT AT Split
 		else if (strstr(RX_DATA, "ATSPLIT") != 0) {
-               sscanf(RX_DATA, "ATSPLIT%3i", &Stand);
+			sscanf(RX_DATA, "ATSPLIT_%3i", &Stand);
 
 			if(1 <= Stand <= nStands) {
 				sprintf(TX_DATA, "%02i", mib->index4.ATS[Stand-1]);
@@ -259,7 +258,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 		}
 		//RPT FEE Pol 1 Pwr
 		else if (strstr(RX_DATA, "FEEPOL1PWR") != 0) {
-               sscanf(RX_DATA, "FEEPOL1PWR%3i", &Stand);
+			sscanf(RX_DATA, "FEEPOL1PWR_%3i", &Stand);
 
 			if(1 <= Stand <= nStands) {
 				if( mib->index5.FEEPOL1PWR[Stand-1] ) {
@@ -275,7 +274,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 		}
 		//RPT FEE Pol 2 Pwr
 		else if (strstr(RX_DATA, "FEEPOL2PWR") != 0) {
-               sscanf(RX_DATA, "FEEPOL2PWR%3i", &Stand);
+			sscanf(RX_DATA, "FEEPOL2PWR_%3i", &Stand);
 
 			if(1 <= Stand <= nStands) {
 				if( mib->index5.FEEPOL2PWR[Stand-1] ) {
@@ -285,7 +284,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 				}
 
 			} else {
-                    returnCode = 0;
+				returnCode = 0;
 				strcpy(TX_DATA, "Stand number out-of-range");
 			}
 		}
@@ -298,7 +297,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 		else if (!strcmp(RX_DATA, "SENSOR-DATA-1"))
 			strcpy(TX_DATA, mib->index6.SENSOR_DATA_1);
 		else {
-               returnCode = 0;
+			returnCode = 0;
 			sprintf(TX_DATA, "Invalid MIB Entry '%s'", RX_DATA);
 		}
 
@@ -307,9 +306,9 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 	*/
 
 	// INI command
-	} else if( !strcmp(RX_TYPE, "INI") ) {
+	} else if( !strncmp(RX_TYPE, "INI", 3) ) {
 		if (mib->init) {	//ASP already initialized
-               returnCode = 0;
+			returnCode = 0;
 			strcpy(TX_DATA, "ASP already initialized (issue SHT, then INI to reinitialize)");
 		} else {
 			mib->nBoards = strtol(RX_DATA, NULL, 10);
@@ -317,32 +316,32 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 				mib->nChP = 8*mib->nBoards;
 				mib->init = 1;
 
-                    returnCode = 1;
+				returnCode = 1;
 				strcpy(TX_DATA, "");
 
-                    strcpy(mib->index1.summary, "BOOTING");
-                    strcpy(mib->index1.info, "Initalizing ASP");
+				strcpy(mib->index1.summary, "BOOTING");
+				strcpy(mib->index1.info, "Initalizing ASP, please wait");
 				addToQueue(commandQueue, "initASP", 0, 0, Stand, mib->nChP);
 
 			} else {
-                    returnCode = 0;
+				returnCode = 0;
 				strcpy(TX_DATA, "ARX boards installed out of range");
 			}
 		}
 
 	// FIL command
-	} else if( !strcmp(RX_TYPE, "FIL") ) {
+	} else if( !strncmp(RX_TYPE, "FIL", 3) ) {
 		if (!mib->init) {
                returnCode = 0;
-			strcpy(TX_DATA, "ASP needs to be initialzed");
+			strcpy(TX_DATA, "ASP needs to be initialized");
 		} else {
 			printf("Filter Command Received, Data -> %s \n", RX_DATA);
 
 			if (strlen(RX_DATA) == 5) {
-                    returnCode = 1;
+				returnCode = 1;
 				strcpy(TX_DATA, "");
 
-                    sscanf(RX_DATA, "%3i%2i", &Stand, &nFset);
+				sscanf(RX_DATA, "%3i%2i", &Stand, &nFset);
 
 				if(nFset == 0) { //split BW
 					addToQueue(commandQueue, "setFilter", 3, 0, Stand, mib->nChP);
@@ -363,14 +362,14 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 		}
 
 	// AT1 command
-	} else if(!strcmp(RX_TYPE, "AT1")) {
+	} else if(!strncmp(RX_TYPE, "AT1", 3)) {
 		if (!mib->init) {
-               returnCode = 0;
-			strcpy(TX_DATA, "ASP needs to be initialzed");
+			returnCode = 0;
+			strcpy(TX_DATA, "ASP needs to be initialized");
 		} else {
 			printf("AT1 Command Received, Data -> %s \n", RX_DATA);
 			if (strlen(RX_DATA) == 5) {
-                    returnCode = 1;
+				returnCode = 1;
 				strcpy(TX_DATA, "");
 
                     sscanf(RX_DATA, "%3i%2i", &Stand, &nATset);
@@ -383,37 +382,37 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 		}
 
 	// AT2 command
-	} else if(!strcmp(RX_TYPE, "AT2")) {
+	} else if(!strncmp(RX_TYPE, "AT2", 3)) {
 		if (!mib->init) {
-               returnCode = 0;
-			strcpy(TX_DATA, "ASP needs to be initialzed");
+			returnCode = 0;
+			strcpy(TX_DATA, "ASP needs to be initialized");
 		} else {
 			printf("AT2 Command Received, Data -> %s \n", RX_DATA);
 			if (strlen(RX_DATA) == 5) {
-                    returnCode = 1;
+				returnCode = 1;
 				strcpy(TX_DATA, "");
 
-                    sscanf(RX_DATA, "%3i%2i", &Stand, &nATset);
+				sscanf(RX_DATA, "%3i%2i", &Stand, &nATset);
 
 				addToQueue(commandQueue, "setAT2", 2*nATset, 0, Stand, mib->nChP);
 			} else {
-	               returnCode = 0;
+				returnCode = 0;
 				strcpy(TX_DATA, "AT2 data field out of range");
 			}
 		}
 
 	// ATS command
-	} else if(!strcmp(RX_TYPE, "ATS")) {
+	} else if(!strncmp(RX_TYPE, "ATS", 3)) {
 		if (!mib->init) {
-               returnCode = 0;
+			returnCode = 0;
 			strcpy(TX_DATA, "ASP needs to be initialzed");
 		} else {
 			printf("ATS Command Received, Data -> %s \n", RX_DATA);
 			if (strlen(RX_DATA) == 5) {
-                    returnCode = 1;
+				returnCode = 1;
 				strcpy(TX_DATA, "");
 
-                    sscanf(RX_DATA, "%3i%2i", &Stand, &nATset);
+				sscanf(RX_DATA, "%3i%2i", &Stand, &nATset);
 
 				addToQueue(commandQueue, "setATS", 2*nATset, 0, Stand, mib->nChP);
 			} else {
@@ -423,17 +422,17 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 		}
 
 	// FPW command
-	} else if(!strcmp(RX_TYPE, "FPW")) {
+	} else if(!strncmp(RX_TYPE, "FPW", 3)) {
 		if (!mib->init) {
-               returnCode = 0;
-			strcpy(TX_DATA, "ASP needs to be initialzed");
+			returnCode = 0;
+			strcpy(TX_DATA, "ASP needs to be initialized");
 		} else {
 			printf("FPW Command Received, Data -> %s \n", RX_DATA);
 			if (strlen(RX_DATA) == 6) {
-                    returnCode = 1;
+				returnCode = 1;
 				strcpy(TX_DATA, "");
 
-                    sscanf(RX_DATA, "%3i%1i%2i", &Stand, &Pol, &State);
+				sscanf(RX_DATA, "%3i%1i%2i", &Stand, &Pol, &State);
 
 				if( Pol == 1 ) {	//Polarization 1
 					if( State == 11 ) {
@@ -441,7 +440,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 					} else if( State == 0 ) {
 						addToQueue(commandQueue, "setFEEPower", 1, 0, Stand, mib->nChP);
 					} else {
-                         	returnCode = 0;
+						returnCode = 0;
 						strcpy(TX_DATA, "FPW power setting out of range");
 					}
 
@@ -463,15 +462,15 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 		}
 
 	// SHT command
-	} else if(!strcmp(RX_TYPE, "SHT")) {
+	} else if(!strncmp(RX_TYPE, "SHT", 3)) {
 		if (!mib->init) {
-               returnCode = 0;
-			strcpy(TX_DATA, "ASP needs to be initialzed");
+			returnCode = 0;
+			strcpy(TX_DATA, "ASP needs to be initialized");
 		} else {
                returnCode = 1;
 			strcpy(TX_DATA, "");
 
-          	strcpy(mib->index1.summary, "SHUTDWN");
+			strcpy(mib->index1.summary, "SHUTDWN");
 			SPI_config_devices(mib->nChP, SPI_cfg_shutdown);			//into sleep mode
 
 			mib->init = 0;
@@ -479,7 +478,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 
 	// Reject unknown commands
 	} else {
-               returnCode = 0;
+			returnCode = 0;
 			sprintf(TX_DATA, "Invalid Command '%s'", RX_TYPE);
      }
 
@@ -493,7 +492,6 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 
 int generateResponse(aspMIB* mib, unsigned long int deltaT, int statusCode, char* buf) {
 	char status[2];
-
 	auto unsigned long int mjd, mpm;
 
      // Interperate the status code (0 -> R; 1 -> A)
