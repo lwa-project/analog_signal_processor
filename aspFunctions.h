@@ -2,17 +2,19 @@
 #define __ASPFUNCTIONS_H
 
 /*
- aspFunction.h - Header library to deal with the interaction with the ARX boards.
+ aspFunctions.h - Header library to deal with the interaction with the ARX boards.
 
  Function Defined:
-  * initQueue - initalize the ASP command queue
-  * initASP - initalize ASP
+  * initQueue - initialize the ASP command queue
+  * initASP - initialize ASP
+  * haltASP - shutdown ASP
   * setFEEPower - set the FEE power state for a certain antenna
   * setFilter - set the ARX filter
   * setAT1 - set the level of the first attenuator
   * setAT2 - set the level of the second attenuator
   * setATS - set the level of the split bandwidth mode attenuator
   * addToQueue - queue a command to run later
+  * addToQueueHighPriority - queue a command to run first
   * processQueue - monitor the queue and run the queued commands
 
 $Rev$
@@ -43,39 +45,42 @@ typedef struct {
 */
 typedef struct {
 	int nCommands;
-     int maxCommands;
-     pendingCommand queue[32];
+	int maxCommands;
+	pendingCommand queue[32];
 } aspCommandQueue;
 
 
+int initQueue(aspCommandQueue*);
 void initASP(aspMIB*);
+void haltASP(aspMIB*);
 void setFEEPower(int, int, int, int);
 void setFilter(int, int, int);
 void setAT1(int, int , int);
 void setAT2(int, int, int);
 void setATS(int, int, int);
 int addToQueue(aspCommandQueue*, char*, int, int, int, int);
+int addToQueueHighPriority(aspCommandQueue*, char*, int, int, int, int);
 int processQueue(aspMIB*, aspCommandQueue*);
 
 
 /*
- initQueue - initilize the command queue
+ initQueue - initialize the command queue
 */
 int initQueue(aspCommandQueue* commandQueue) {
 	auto int i;
 
 	commandQueue->nCommands = 0;
-     commandQueue->maxCommands = CMD_QUEUE_SIZE;
+	commandQueue->maxCommands = CMD_QUEUE_SIZE;
 
-     for(i=0; i<commandQueue->maxCommands; i++) {
-     	commandQueue->queue[i].status = -1;
-          commandQueue->queue[i].setting1 = 0;
-          commandQueue->queue[i].setting2 = 0;
-          commandQueue->queue[i].device = 0;
-          commandQueue->queue[i].num = 0;
-     }
+	for(i=0; i<commandQueue->maxCommands; i++) {
+		commandQueue->queue[i].status = -1;
+		commandQueue->queue[i].setting1 = 0;
+		commandQueue->queue[i].setting2 = 0;
+		commandQueue->queue[i].device = 0;
+		commandQueue->queue[i].num = 0;
+	}
 
-     return 1;
+	return 1;
 }
 
 
@@ -84,37 +89,19 @@ int initQueue(aspCommandQueue* commandQueue) {
 */
 
 void initASP(aspMIB* mib) {
-	int i;
-     unsigned long int T1, T2;
+	auto int i;
+	unsigned long int T1, T2;
 
-     T1 = MS_TIMER;
+	T1 = MS_TIMER;
 
-	//SPI device initialization routine
-	SPI_init_devices(mib->nChP, SPI_cfg_normal);               		//out of sleep mode
-	SPI_config_devices(mib->nChP, SPI_cfg_output_P16_17_18_19);  	//set outputs
-	SPI_config_devices(mib->nChP, SPI_cfg_output_P20_21_22_23);  	//set outputs
-	SPI_config_devices(mib->nChP, SPI_cfg_output_P24_25_26_27);  	//set outputs
-	SPI_config_devices(mib->nChP, SPI_cfg_output_P28_29_30_31);  	//set outputs
+	// SPI device initialization routine
+	SPI_init_devices(mib->nChP, SPI_cfg_normal);					// out of sleep mode
+	SPI_config_devices(mib->nChP, SPI_cfg_output_P16_17_18_19);  	// set outputs
+	SPI_config_devices(mib->nChP, SPI_cfg_output_P20_21_22_23);  	// set outputs
+	SPI_config_devices(mib->nChP, SPI_cfg_output_P24_25_26_27);  	// set outputs
+	SPI_config_devices(mib->nChP, SPI_cfg_output_P28_29_30_31);  	// set outputs
 
-     /*
-	//Set default values (full attenuation, filters off, FEEs off)
-	for(i=1; i<=8; i++) {
-		setFEEPower(1, 0, i, mib->nChP);
-		setFEEPower(2, 0, i, mib->nChP);
-	}
-
-	for(i=1; i<=8; i++) {
-		setAT1(30, i, mib->nChP);
-		setAT2(30, i, mib->nChP);
-		setATS(30, i, mib->nChP);
-	}
-
-	for(i=1; i<=8; i++) {
-		setFilter(0, i, mib->nChP);
-	}
-     */
-
-	//Initialize MIB entries
+	// Initialize MIB entries
 	strcpy(mib->index2.ARXSUPPLY, "OFF");
 	strcpy(mib->index2.ARXSUPPLY_NO, " 1");
 	strcpy(mib->index2.ARXPWRUNIT_1, "This is mock info about the ARX power supply");
@@ -129,13 +116,36 @@ void initASP(aspMIB* mib) {
 	strcpy(mib->index6.SENSOR_NAME_1, "mock sensor name here");
 	strcpy(mib->index6.SENSOR_DATA_1, "        25");
 
-     // Finish up by setting the ASP state
-     T2 = MS_TIMER;
-     strcpy(mib->index1.summary, "NORMAL");
+	// Finish up by setting the ASP state
+	T2 = MS_TIMER;
+	strcpy(mib->index1.summary, "NORMAL");
 	sprintf(mib->index1.info, "ASP initialized in %.3f s", (T2-T1)/1000.0);
 	strcpy(mib->index1.lastlog, "INI completed");
 
      // printf("ASP Initialized with %d ARX boards installed \n", mib->nBoards);
+}
+
+
+/*
+ haltASP - put ASP into a low power mode
+*/
+void haltASP(aspMIB* mib) {
+	unsigned long int T1, T2;
+
+	T1 = MS_TIMER;
+
+	// SPI device shtudown routine
+	SPI_config_devices(mib->nChP, SPI_cfg_shutdown);			//into sleep mode
+
+	// Finish up by setting the ASP state
+	T2 = MS_TIMER;
+
+	mib->init = 0;
+	strcpy(mib->index1.summary, "SHUTDWN");
+	sprintf(mib->index1.info, "ASP shutdown in %.3f s", (T2-T1)/1000.0);
+	strcpy(mib->index1.lastlog, "SHT completed");
+
+	// printf("ASP Shutdown\n");
 }
 
 
@@ -276,13 +286,15 @@ void setATS(int setting, int device, int num) {
 
 
 /*
- addToQue - add a command (and all of the necessary information) to the
-                   command queue to be executed by ASP when possible
+ addToQueue - add a command (and all of the necessary information) to the
+              command queue to be executed by ASP when possible
 */
 
 int addToQueue(aspCommandQueue* commandQueue, char *command, int setting1, int setting2, int device, int num) {
-	auto int i;
-	int accepted;
+	auto int i, accepted;
+
+	// Default is that the command has not been added to the queue
+	accepted = 0;
 
 	for(i=0; i<commandQueue->maxCommands; i++) {
 		// If we've found an empty entry, use it
@@ -296,14 +308,52 @@ int addToQueue(aspCommandQueue* commandQueue, char *command, int setting1, int s
 			commandQueue->queue[i].num = num;
 
 			commandQueue->queue[i].status = 1;
-               commandQueue->nCommands += 1;
+			commandQueue->nCommands += 1;
 			accepted = 1;
 
-			printf("Adding command '%s' to queue at slot %i\n", commandQueue->queue[i].command, i);
+			// printf("Adding command '%s' to queue at slot %i\n", commandQueue->queue[i].command, i);
 
 			break;
 		}
 	}
+
+	return accepted;
+}
+
+
+/*
+ addToQueueHighPriority - add a command (and all of the necessary information) to the
+                          first slot in the command queue.  This way the command is executed
+                          first the next time the command is processed.
+
+                          NOTE:  This automatically puts the command into the first slot,
+                          regardless of whether or not a command is there.  Thus, any previous
+                          command in slot on is disgarded.  The intention for this function is
+                          to deal with INI and SHT SCRAM commands.
+*/
+
+int addToQueueHighPriority(aspCommandQueue* commandQueue, char *command, int setting1, int setting2, int device, int num) {
+	auto int i, accepted;
+
+	// Default is that the command has not been added to the queue
+	accepted = 0;
+
+	// High priority commands go to the first slot and overwrite any existing command (if present)
+	i = 0;
+
+	commandQueue->queue[i].status = 0;
+
+	strcpy(commandQueue->queue[i].command, command);
+	commandQueue->queue[i].setting1 = setting1;
+	commandQueue->queue[i].setting2 = setting2;
+	commandQueue->queue[i].device = device;
+	commandQueue->queue[i].num = num;
+
+	commandQueue->queue[i].status = 1;
+	commandQueue->nCommands += 1;
+	accepted = 1;
+
+	// printf("Adding high-priority command '%s' to queue at slot %i\n", commandQueue->queue[i].command, i);
 
 	return accepted;
 }
@@ -316,127 +366,142 @@ int addToQueue(aspCommandQueue* commandQueue, char *command, int setting1, int s
 int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 	auto int i, j, Stand, nChP;
 
-     for(i=0; i<commandQueue->maxCommands; i++) {
-          if( commandQueue->nCommands == 0 ) {
+	for(i=0; i<commandQueue->maxCommands; i++) {
+		// Make sure we have command to process in the queue
+		if( commandQueue->nCommands == 0 ) {
      		break;
-	    	}
+		}
 
-		// Look for useable entries
+		// Look for usable entries
 		if( commandQueue->queue[i].status == 1 ) {
 			Stand = commandQueue->queue[i].device;
 			nChP = commandQueue->queue[i].num;
 
-			printf("Processing command '%s' at slot %i, stand %i (%i of %i)\n", commandQueue->queue[i].command, i, Stand, 1, commandQueue->nCommands);
+			// printf("Processing command '%s' at slot %i, stand %i (%i of %i)\n", commandQueue->queue[i].command, i, Stand, 1, commandQueue->nCommands);
 
-               if( !strcmp(commandQueue->queue[i].command, "initASP") ) {
-               	initASP(mib);
+			if( !strcmp(commandQueue->queue[i].command, "initASP") ) {
+				initASP(mib);
+				initQueue(commandQueue);
 
-                    commandQueue->queue[i].status = -1;
-                    commandQueue->nCommands -= 1;
+				/*
+				Not needed since the queue gets flushed by `initQueue`
+				commandQueue->queue[i].status = -1;
+				commandQueue->nCommands -= 1;
+				*/
 
 			} else if( !strcmp(commandQueue->queue[i].command, "setFEEPower") ) {
-               	// Single stand
-                    if( Stand != 0 ) {
+				// Single stand
+				if( Stand != 0 ) {
                     	setFEEPower(commandQueue->queue[i].setting1, commandQueue->queue[i].setting2, Stand, nChP);
-	                    if( commandQueue->queue[i].setting1 == 1 ) {
-	                         mib->index5.FEEPOL1PWR[Stand-1] = 1;
-	                    } else {
-	                         mib->index5.FEEPOL2PWR[Stand-1] = 1;
-	                    }
+					if( commandQueue->queue[i].setting1 == 1 ) {
+						mib->index5.FEEPOL1PWR[Stand-1] = 1;
+					} else {
+						mib->index5.FEEPOL2PWR[Stand-1] = 1;
+					}
 
-                   	// Stand "0" case
-                    } else {
+				// Stand "0" case
+				} else {
 					for(j=1; j<=260; j++) {
-                              setFEEPower(commandQueue->queue[i].setting1, commandQueue->queue[i].setting2, j, nChP);
-                        		if( commandQueue->queue[i].setting1 == 1 ) {
-	                         	mib->index5.FEEPOL1PWR[j-1] = 1;
-	                         } else {
-                              	mib->index5.FEEPOL2PWR[j-1] = 1;
-	                         }
-                         }
-                    }
+						setFEEPower(commandQueue->queue[i].setting1, commandQueue->queue[i].setting2, j, nChP);
+						if( commandQueue->queue[i].setting1 == 1 ) {
+							mib->index5.FEEPOL1PWR[j-1] = 1;
+						} else {
+							mib->index5.FEEPOL2PWR[j-1] = 1;
+						}
+					}
+				}
 
 				commandQueue->queue[i].status = -1;
-                    commandQueue->nCommands -= 1;
+				commandQueue->nCommands -= 1;
 
 			} else if( !strcmp(commandQueue->queue[i].command, "setFilter") ) {
-               	// Single Stand
+				// Single Stand
                	if( Stand != 0 ) {
 					setFilter(commandQueue->queue[i].setting1, Stand, nChP);
 					mib->index3.FILTER[Stand-1] = commandQueue->queue[i].setting1;
 
-                 	// Stand "0" case
-                 	} else {
-                    	for(j=1; j<=nStands; j++) {
-                              setFilter(commandQueue->queue[i].setting1, j, nChP);
+				// Stand "0" case
+				} else {
+					for(j=1; j<=nStands; j++) {
+						setFilter(commandQueue->queue[i].setting1, j, nChP);
 						mib->index3.FILTER[j-1] = commandQueue->queue[i].setting1;
-                         }
-                    }
+					}
+				}
 
 				commandQueue->queue[i].status = -1;
-                    commandQueue->nCommands -= 1;
+				commandQueue->nCommands -= 1;
 
 			} else if( !strcmp(commandQueue->queue[i].command, "setAT1") ) {
-               	// Single stand
-                    if( Stand != 0 ) {
+				// Single stand
+				if( Stand != 0 ) {
 					setAT1(commandQueue->queue[i].setting1, Stand, nChP);
 					mib->index4.AT1[Stand-1] = commandQueue->queue[i].setting1;
 
-                 	// Stand "0" case
-                    } else {
-                    	for(j=1; j<=nStands; j++) {
-                              setAT1(commandQueue->queue[i].setting1, j, nChP);
+				// Stand "0" case
+				} else {
+					for(j=1; j<=nStands; j++) {
+						setAT1(commandQueue->queue[i].setting1, j, nChP);
 						mib->index4.AT1[j-1] = commandQueue->queue[i].setting1;
-                         }
-                    }
+					}
+				}
 
 				commandQueue->queue[i].status = -1;
-                    commandQueue->nCommands -= 1;
+				commandQueue->nCommands -= 1;
 
 			} else if( !strcmp(commandQueue->queue[i].command, "setAT2") ) {
-               	// Single stand
-                    if( Stand != 0 ) {
+				// Single stand
+				if( Stand != 0 ) {
 					setAT2(commandQueue->queue[i].setting1, Stand, nChP);
 					mib->index4.AT2[Stand-1] = commandQueue->queue[i].setting1;
 
-                 	// Stand "0" case
-                    } else {
-                    	for(j=1; j<=nStands; j++) {
-                              setAT2(commandQueue->queue[i].setting1, j, nChP);
+				// Stand "0" case
+				} else {
+					for(j=1; j<=nStands; j++) {
+						setAT2(commandQueue->queue[i].setting1, j, nChP);
 						mib->index4.AT2[j-1] = commandQueue->queue[i].setting1;
-                         }
-                    }
+					}
+				}
 
 				commandQueue->queue[i].status = -1;
-                    commandQueue->nCommands -= 1;
+				commandQueue->nCommands -= 1;
 
 			} else if( !strcmp(commandQueue->queue[i].command, "setATS") ) {
-               	// Single stand
+				// Single stand
                     if( Stand != 0 ) {
 					setATS(commandQueue->queue[i].setting1, Stand, nChP);
 					mib->index4.ATS[Stand-1] = commandQueue->queue[i].setting1;
 
-                    // Stand "0" case
-                    } else {
-                    	for(j=1; j<=nStands; j++) {
-                              setATS(commandQueue->queue[i].setting1, j, nChP);
+				// Stand "0" case
+				} else {
+					for(j=1; j<=nStands; j++) {
+						setATS(commandQueue->queue[i].setting1, j, nChP);
 						mib->index4.ATS[j-1] = commandQueue->queue[i].setting1;
-                         }
-                    }
+					}
+				}
 
 				commandQueue->queue[i].status = -1;
-                    commandQueue->nCommands -= 1;
+				commandQueue->nCommands -= 1;
+
+			} else if( !strcmp(commandQueue->queue[i].command, "haltASP") ) {
+				haltASP(mib);
+				initQueue(commandQueue);
+
+				/*
+				Not needed since the queue gets flushed by `initQueue`
+				commandQueue->queue[i].status = -1;
+				commandQueue->nCommands -= 1;
+				*/
 
 			} else {
-				printf("Unrecognized command '%s' in queue at slot %i, skipping\n", commandQueue->queue[i].command, i);
+				// printf("Unrecognized command '%s' in queue at slot %i, skipping\n", commandQueue->queue[i].command, i);
 
 				commandQueue->queue[i].status = -1;
-                    commandQueue->nCommands -= 1;
+				commandQueue->nCommands -= 1;
 			}
 		}
 	}
 
-     return 1;
+	return 1;
 }
 
 #endif
