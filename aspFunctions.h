@@ -365,6 +365,7 @@ int addToQueueHighPriority(aspCommandQueue* commandQueue, char *command, int set
 
 int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 	auto int i, j, Stand, nChP;
+     unsigned long int T1, T2;
 
 	for(i=0; i<commandQueue->maxCommands; i++) {
 		// Make sure we have command to process in the queue
@@ -374,6 +375,8 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 
 		// Look for usable entries
 		if( commandQueue->queue[i].status == 1 ) {
+               T1 = MS_TIMER;
+
 			Stand = commandQueue->queue[i].device;
 			nChP = commandQueue->queue[i].num;
 
@@ -394,9 +397,19 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 				if( Stand != 0 ) {
                     	setFEEPower(commandQueue->queue[i].setting1, commandQueue->queue[i].setting2, Stand, nChP);
 					if( commandQueue->queue[i].setting1 == 1 ) {
-						mib->index5.FEEPOL1PWR[Stand-1] = 1;
+						mib->index5.FEEPOL1PWR[Stand-1] = commandQueue->queue[i].setting2;
+                              if( mib-> index5.FEEPOL1PWR[Stand-1] ) {
+                              	sprintf(mib->index1.lastlog, "Set FEE power to 'ON' for stand %i, pol 1", Stand);
+                              } else {
+                                   sprintf(mib->index1.lastlog, "Set FEE power to 'OFF' for stand %i, pol 1", Stand);
+                              }
 					} else {
-						mib->index5.FEEPOL2PWR[Stand-1] = 1;
+						mib->index5.FEEPOL2PWR[Stand-1] = commandQueue->queue[i].setting2;
+                              if( mib-> index5.FEEPOL2PWR[Stand-1] ) {
+                              	sprintf(mib->index1.lastlog, "Set FEE power to 'ON' for stand %i, pol 2", Stand);
+                              } else {
+                                   sprintf(mib->index1.lastlog, "Set FEE power to 'OFF' for stand %i, pol 2", Stand);
+                              }
 					}
 
 				// Stand "0" case
@@ -404,11 +417,25 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 					for(j=1; j<=260; j++) {
 						setFEEPower(commandQueue->queue[i].setting1, commandQueue->queue[i].setting2, j, nChP);
 						if( commandQueue->queue[i].setting1 == 1 ) {
-							mib->index5.FEEPOL1PWR[j-1] = 1;
+							mib->index5.FEEPOL1PWR[j-1] = commandQueue->queue[i].setting2;
 						} else {
-							mib->index5.FEEPOL2PWR[j-1] = 1;
+							mib->index5.FEEPOL2PWR[j-1] = commandQueue->queue[i].setting2;
 						}
-					}
+                         }
+
+                         if( commandQueue->queue[i].setting1 == 1 ) {
+                         	if( mib-> index5.FEEPOL1PWR[0] ) {
+                              	sprintf(mib->index1.lastlog, "Set FEE power to 'ON' for ALL stands, pol 1");
+                              } else {
+                                  	sprintf(mib->index1.lastlog, "Set FEE power to 'OFF' for ALL stands, pol 1");
+                              }
+                         } else {
+                         	if( mib-> index5.FEEPOL2PWR[0] ) {
+                              	sprintf(mib->index1.lastlog, "Set FEE power to 'ON' for ALL stands, pol 2");
+                              } else {
+                              	sprintf(mib->index1.lastlog, "Set FEE power to 'OFF' for ALL stands, pol 2");
+                              }
+                         }
 				}
 
 				commandQueue->queue[i].status = -1;
@@ -419,6 +446,7 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
                	if( Stand != 0 ) {
 					setFilter(commandQueue->queue[i].setting1, Stand, nChP);
 					mib->index3.FILTER[Stand-1] = commandQueue->queue[i].setting1;
+                         sprintf(mib->index1.lastlog, "Set filter to %i for stand %i", commandQueue->queue[i].setting1, Stand);
 
 				// Stand "0" case
 				} else {
@@ -426,6 +454,7 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 						setFilter(commandQueue->queue[i].setting1, j, nChP);
 						mib->index3.FILTER[j-1] = commandQueue->queue[i].setting1;
 					}
+                         sprintf(mib->index1.lastlog, "Set filter to %i for ALL stands", commandQueue->queue[i].setting1);
 				}
 
 				commandQueue->queue[i].status = -1;
@@ -436,6 +465,7 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 				if( Stand != 0 ) {
 					setAT1(commandQueue->queue[i].setting1, Stand, nChP);
 					mib->index4.AT1[Stand-1] = commandQueue->queue[i].setting1;
+                         sprintf(mib->index1.lastlog, "Set AT1 to %i dB for stand %i", commandQueue->queue[i].setting1, Stand);
 
 				// Stand "0" case
 				} else {
@@ -443,6 +473,7 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 						setAT1(commandQueue->queue[i].setting1, j, nChP);
 						mib->index4.AT1[j-1] = commandQueue->queue[i].setting1;
 					}
+                         sprintf(mib->index1.lastlog, "Set AT1 to %i dB for ALL stands", commandQueue->queue[i].setting1);
 				}
 
 				commandQueue->queue[i].status = -1;
@@ -453,6 +484,7 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 				if( Stand != 0 ) {
 					setAT2(commandQueue->queue[i].setting1, Stand, nChP);
 					mib->index4.AT2[Stand-1] = commandQueue->queue[i].setting1;
+                         sprintf(mib->index1.lastlog, "Set AT2 to %i dB for stand %i", commandQueue->queue[i].setting1, Stand);
 
 				// Stand "0" case
 				} else {
@@ -460,6 +492,7 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 						setAT2(commandQueue->queue[i].setting1, j, nChP);
 						mib->index4.AT2[j-1] = commandQueue->queue[i].setting1;
 					}
+                         sprintf(mib->index1.lastlog, "Set AT2 to %i dB for ALL stands", commandQueue->queue[i].setting1);
 				}
 
 				commandQueue->queue[i].status = -1;
@@ -470,6 +503,7 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
                     if( Stand != 0 ) {
 					setATS(commandQueue->queue[i].setting1, Stand, nChP);
 					mib->index4.ATS[Stand-1] = commandQueue->queue[i].setting1;
+                         sprintf(mib->index1.lastlog, "Set ATS to %i dB for stand %i", commandQueue->queue[i].setting1, Stand);
 
 				// Stand "0" case
 				} else {
@@ -477,6 +511,7 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 						setATS(commandQueue->queue[i].setting1, j, nChP);
 						mib->index4.ATS[j-1] = commandQueue->queue[i].setting1;
 					}
+                         sprintf(mib->index1.lastlog, "Set ATS to %i dB for ALL stands", commandQueue->queue[i].setting1);
 				}
 
 				commandQueue->queue[i].status = -1;
@@ -498,6 +533,9 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 				commandQueue->queue[i].status = -1;
 				commandQueue->nCommands -= 1;
 			}
+
+               T2 = MS_TIMER;
+               printf("Finished command '%s' in %.3f s\n", commandQueue->queue[i].command, (T2-T1)/1000.0);
 		}
 	}
 

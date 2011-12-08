@@ -89,9 +89,9 @@ int initMIB(aspMIB* mib) {
 
 	for(i=1; i<=260; i++) {
 		mib->index3.FILTER[i-1] = 0;
-		mib->index4.AT1[i-1] = 15;
-		mib->index4.AT2[i-1] = 15;
-		mib->index4.ATS[i-1] = 15;
+		mib->index4.AT1[i-1] = 30;
+		mib->index4.AT2[i-1] = 30;
+		mib->index4.ATS[i-1] = 30;
 		mib->index5.FEEPOL1PWR[i-1] = 0;
 		mib->index5.FEEPOL2PWR[i-1] = 0;
 	}
@@ -228,7 +228,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 			sscanf(RX_DATA, "AT1_%3i", &Stand);
 
 			if(1 <= Stand <= nStands){
-				sprintf(TX_DATA, "%02i", mib->index4.AT1[Stand-1]);
+				sprintf(TX_DATA, "%02i", mib->index4.AT1[Stand-1] / 2);
 
 			} else {
 				returnCode = 0;
@@ -240,7 +240,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 			sscanf(RX_DATA, "AT2_%3i", &Stand);
 
 			if(1 <= Stand <= nStands) {
-				sprintf(TX_DATA, "%02i", mib->index4.AT2[Stand-1]);
+				sprintf(TX_DATA, "%02i", mib->index4.AT2[Stand-1] / 2);
 
 			} else {
 				returnCode = 0;
@@ -252,7 +252,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 			sscanf(RX_DATA, "ATSPLIT_%3i", &Stand);
 
 			if(1 <= Stand <= nStands) {
-				sprintf(TX_DATA, "%02i", mib->index4.ATS[Stand-1]);
+				sprintf(TX_DATA, "%02i", mib->index4.ATS[Stand-1] / 2);
 
 			} else {
                     returnCode = 0;
@@ -345,7 +345,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
                returnCode = 0;
 			strcpy(TX_DATA, "ASP needs to be initialized");
 		} else {
-			printf("Filter Command Received, Data -> %s \n", RX_DATA);
+			// printf("Filter Command Received, Data -> %s \n", RX_DATA);
 
 			if (strlen(RX_DATA) == 5) {
 				returnCode = 1;
@@ -353,21 +353,21 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 
 				sscanf(RX_DATA, "%3i%2i", &Stand, &nFset);
 
-				if(nFset == 0) { //split BW
+				if(nFset == 0 && (0 <= Stand && Stand <= nStands) ) { //split BW
 					accepted = addToQueue(commandQueue, "setFilter", 3, 0, Stand, mib->nChP);
-				} else if (nFset == 1) { //full BW
+				} else if (nFset == 1 && (0 <= Stand && Stand <= nStands) ) { //full BW
 					accepted = addToQueue(commandQueue, "setFilter", 1, 0, Stand, mib->nChP);
-				} else if (nFset == 2) { //reduced BW
+				} else if (nFset == 2 && (0 <= Stand && Stand <= nStands) ) { //reduced BW
 					accepted = addToQueue(commandQueue, "setFilter", 2, 0, Stand, mib->nChP);
-				} else if (nFset == 3) { //filter off
+				} else if (nFset == 3 && (0 <= Stand && Stand <= nStands) ) { //filter off
 					accepted = addToQueue(commandQueue, "setFilter", 0, 0, Stand, mib->nChP);
 				} else {	//Stand Number out of range
 					returnCode = 0;
-                         strcpy(TX_DATA, "Filter setting out-of-range");
+                         strcpy(TX_DATA, "Filter and/or stand setting out of range");
 				}
 
 				// Make sure it make it into the queue
-				if( !accepted ) {
+				if( !accepted && returnCode ) {
 					returnCode = 0;
 					strcpy(TX_DATA, "SPI bus queue is full, re-submit command in 1 second");
 				}
@@ -384,20 +384,26 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 			returnCode = 0;
 			strcpy(TX_DATA, "ASP needs to be initialized");
 		} else {
-			printf("AT1 Command Received, Data -> %s \n", RX_DATA);
+			// printf("AT1 Command Received, Data -> %s \n", RX_DATA);
+
 			if (strlen(RX_DATA) == 5) {
 				returnCode = 1;
 				strcpy(TX_DATA, "");
 
 				sscanf(RX_DATA, "%3i%2i", &Stand, &nATset);
 
-				accepted = addToQueue(commandQueue, "setAT1", 2*nATset, 0, Stand, mib->nChP);
+                    if( (0 <= Stand && Stand <= nStands) && (0 <= nATset && nATset <= 30) ) {
+                    	accepted = addToQueue(commandQueue, "setAT1", 2*nATset, 0, Stand, mib->nChP);
 
-				// Make sure it make it into the queue
-				if( !accepted ) {
-					returnCode = 0;
-					strcpy(TX_DATA, "SPI bus queue is full, re-submit command in 1 second");
-				}
+					// Make sure it make it into the queue
+					if( !accepted ) {
+						returnCode = 0;
+						strcpy(TX_DATA, "SPI bus queue is full, re-submit command in 1 second");
+					}
+                    } else {
+                    	returnCode = 0;
+					strcpy(TX_DATA, "AT1 and/or stand setting out of range");
+                    }
 
 			} else {
                	returnCode = 0;
@@ -411,20 +417,26 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 			returnCode = 0;
 			strcpy(TX_DATA, "ASP needs to be initialized");
 		} else {
-			printf("AT2 Command Received, Data -> %s \n", RX_DATA);
+			// printf("AT2 Command Received, Data -> %s \n", RX_DATA);
+
 			if (strlen(RX_DATA) == 5) {
 				returnCode = 1;
 				strcpy(TX_DATA, "");
 
 				sscanf(RX_DATA, "%3i%2i", &Stand, &nATset);
 
-				accepted = addToQueue(commandQueue, "setAT2", 2*nATset, 0, Stand, mib->nChP);
+                    if( (0 <= Stand && Stand <= nStands) && (0 <= nATset && nATset <= 30) ) {
+                    	accepted = addToQueue(commandQueue, "setAT2", 2*nATset, 0, Stand, mib->nChP);
 
-				// Make sure it make it into the queue
-				if( !accepted ) {
-					returnCode = 0;
-					strcpy(TX_DATA, "SPI bus queue is full, re-submit command in 1 second");
-				}
+					// Make sure it make it into the queue
+					if( !accepted ) {
+						returnCode = 0;
+						strcpy(TX_DATA, "SPI bus queue is full, re-submit command in 1 second");
+					}
+                    } else {
+                         returnCode = 0;
+					strcpy(TX_DATA, "AT2 and/or stand setting out of range");
+                    }
 
 			} else {
 				returnCode = 0;
@@ -438,20 +450,26 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 			returnCode = 0;
 			strcpy(TX_DATA, "ASP needs to be initialized");
 		} else {
-			printf("ATS Command Received, Data -> %s \n", RX_DATA);
+			// printf("ATS Command Received, Data -> %s \n", RX_DATA);
+
 			if (strlen(RX_DATA) == 5) {
 				returnCode = 1;
 				strcpy(TX_DATA, "");
 
 				sscanf(RX_DATA, "%3i%2i", &Stand, &nATset);
 
-				accepted = addToQueue(commandQueue, "setATS", 2*nATset, 0, Stand, mib->nChP);
+                    if( (0 <= Stand && Stand <= nStands) && (0 <= nATset && nATset <= 30) ) {
+                    	accepted = addToQueue(commandQueue, "setATS", 2*nATset, 0, Stand, mib->nChP);
 
-				// Make sure it make it into the queue
-				if( !accepted ) {
-					returnCode = 0;
-					strcpy(TX_DATA, "SPI bus queue is full, re-submit command in 1 second");
-				}
+					// Make sure it make it into the queue
+					if( !accepted ) {
+						returnCode = 0;
+						strcpy(TX_DATA, "SPI bus queue is full, re-submit command in 1 second");
+					}
+                    } else {
+                    	returnCode = 0;
+                         strcpy(TX_DATA, "ATS and/or stand setting out of range");
+                    }
 
 			} else {
                	returnCode = 0;
@@ -465,14 +483,15 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 			returnCode = 0;
 			strcpy(TX_DATA, "ASP needs to be initialized");
 		} else {
-			printf("FPW Command Received, Data -> %s \n", RX_DATA);
+			// printf("FPW Command Received, Data -> %s \n", RX_DATA);
+
 			if (strlen(RX_DATA) == 6) {
 				returnCode = 1;
 				strcpy(TX_DATA, "");
 
 				sscanf(RX_DATA, "%3i%1i%2i", &Stand, &Pol, &State);
 
-				if( Pol == 1 ) {	//Polarization 1
+				if( Pol == 1 && (0 <= Stand && Stand <= nStands) ) {	//Polarization 1
 					if( State == 11 ) {
 						accepted = addToQueue(commandQueue, "setFEEPower", 1, 1, Stand, mib->nChP);
 					} else if( State == 0 ) {
@@ -483,12 +502,12 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 					}
 
 					// Make sure it make it into the queue
-					if( !accepted ) {
+					if( !accepted && returnCode ) {
 						returnCode = 0;
 						strcpy(TX_DATA, "SPI bus queue is full, re-submit command in 1 second");
 					}
 
-				} else if( Pol == 2 ) {	//Polarization 2
+				} else if( Pol == 2 && (0 <= Stand && Stand <= nStands) ) {	//Polarization 2
 					if ( State == 11 ) {
 						accepted = addToQueue(commandQueue, "setFEEPower", 2, 1, Stand, mib->nChP);
 					} else if( State == 0 ) {
@@ -499,14 +518,14 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 					}
 
 					// Make sure it make it into the queue
-					if( !accepted ) {
+					if( !accepted && returnCode ) {
 						returnCode = 0;
 						strcpy(TX_DATA, "SPI bus queue is full, re-submit command in 1 second");
 					}
 
 				} else { 	//FPW polarization out of range
 					returnCode = 0;
-					strcpy(TX_DATA, "FPW polarization out of range");
+					strcpy(TX_DATA, "FPW polarization and/or stand out of range");
 				}
 
 			}
