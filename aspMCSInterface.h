@@ -154,7 +154,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 	if (tlength_DATA > 0) {
 		strncpy(RX_DATA, buf+tstart_DATA, tlength_DATA);
 		RX_DATA[tlength_DATA] = '\0';
-		// printf("  -> data %s\n", RX_DATA);
+		// printf("  -> data '%s'\n", RX_DATA);
 	} else {
 		// printf("  -> data section empty\n");
 	}
@@ -207,15 +207,15 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 			strcpy(TX_DATA, mib->index2.FEECURR);
 		//RPT FILTER
 		else if (strstr(RX_DATA, "FILTER") != 0) {
-			sscanf(RX_DATA, "FILTER_%3i", &Stand);
+			sscanf(RX_DATA, "FILTER_%3d", &Stand);
 
-			if(1 <= Stand <= nStands) {
+			if(1 <= Stand <= mib->nStands) {
 				if( mib->index3.FILTER[Stand-1] == 0 ) {
-					sprintf(TX_DATA, "%1i", 3);
+					sprintf(TX_DATA, "%1d", 3);
 				} else if( mib->index3.FILTER[Stand-1] == 3 ) {
-					sprintf(TX_DATA, "%1i", 0);
+					sprintf(TX_DATA, "%1d", 0);
 				} else {
-					sprintf(TX_DATA, "%1i", mib->index3.FILTER[Stand-1]);
+					sprintf(TX_DATA, "%1d", mib->index3.FILTER[Stand-1]);
 				}
 
 			} else {
@@ -225,10 +225,10 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 		}
 	  	//RPT AT1
 	  	else if (strstr(RX_DATA, "AT1") != 0) {
-			sscanf(RX_DATA, "AT1_%3i", &Stand);
+			sscanf(RX_DATA, "AT1_%3d", &Stand);
 
-			if(1 <= Stand <= nStands){
-				sprintf(TX_DATA, "%02i", mib->index4.AT1[Stand-1] / 2);
+			if(1 <= Stand <= mib->nStands){
+				sprintf(TX_DATA, "%02d", mib->index4.AT1[Stand-1] / 2);
 
 			} else {
 				returnCode = 0;
@@ -237,10 +237,10 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 		}
 		//RPT AT2
 		else if (strstr(RX_DATA, "AT2") != 0) {
-			sscanf(RX_DATA, "AT2_%3i", &Stand);
+			sscanf(RX_DATA, "AT2_%3d", &Stand);
 
-			if(1 <= Stand <= nStands) {
-				sprintf(TX_DATA, "%02i", mib->index4.AT2[Stand-1] / 2);
+			if(1 <= Stand <= mib->nStands) {
+				sprintf(TX_DATA, "%02d", mib->index4.AT2[Stand-1] / 2);
 
 			} else {
 				returnCode = 0;
@@ -249,10 +249,10 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 		}
 		//RPT AT Split
 		else if (strstr(RX_DATA, "ATSPLIT") != 0) {
-			sscanf(RX_DATA, "ATSPLIT_%3i", &Stand);
+			sscanf(RX_DATA, "ATSPLIT_%3d", &Stand);
 
-			if(1 <= Stand <= nStands) {
-				sprintf(TX_DATA, "%02i", mib->index4.ATS[Stand-1] / 2);
+			if(1 <= Stand <= mib->nStands) {
+				sprintf(TX_DATA, "%02d", mib->index4.ATS[Stand-1] / 2);
 
 			} else {
                     returnCode = 0;
@@ -261,9 +261,9 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 		}
 		//RPT FEE Pol 1 Pwr
 		else if (strstr(RX_DATA, "FEEPOL1PWR") != 0) {
-			sscanf(RX_DATA, "FEEPOL1PWR_%3i", &Stand);
+			sscanf(RX_DATA, "FEEPOL1PWR_%3d", &Stand);
 
-			if(1 <= Stand <= nStands) {
+			if(1 <= Stand <= mib->nStands) {
 				if( mib->index5.FEEPOL1PWR[Stand-1] ) {
 					strcpy(TX_DATA, "ON ");
 				} else {
@@ -277,9 +277,9 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 		}
 		//RPT FEE Pol 2 Pwr
 		else if (strstr(RX_DATA, "FEEPOL2PWR") != 0) {
-			sscanf(RX_DATA, "FEEPOL2PWR_%3i", &Stand);
+			sscanf(RX_DATA, "FEEPOL2PWR_%3d", &Stand);
 
-			if(1 <= Stand <= nStands) {
+			if(1 <= Stand <= mib->nStands) {
 				if( mib->index5.FEEPOL2PWR[Stand-1] ) {
 					strcpy(TX_DATA, "ON ");
 				} else {
@@ -316,6 +316,10 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 		} else {
 			mib->nBoards = strtol(RX_DATA, NULL, 10);
 			if(0 < mib->nBoards && mib->nBoards < 34) {  //Do it
+               	mib->nStands = 8*mib->nBoards;
+                    if( mib->nStands > 260 ) {
+                    	mib->nStands = 260;
+                    }
 				mib->nChP = 8*mib->nBoards;
 				mib->init = 1;
 
@@ -351,19 +355,19 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 				returnCode = 1;
 				strcpy(TX_DATA, "");
 
-				sscanf(RX_DATA, "%3i%2i", &Stand, &nFset);
+				sscanf(RX_DATA, "%3d%2d", &Stand, &nFset);
 
-				if(nFset == 0 && (0 <= Stand && Stand <= nStands) ) { //split BW
+				if(nFset == 0 && (0 <= Stand && Stand <= mib->nStands) ) { //split BW
 					accepted = addToQueue(commandQueue, "setFilter", 3, 0, Stand, mib->nChP);
-				} else if (nFset == 1 && (0 <= Stand && Stand <= nStands) ) { //full BW
+				} else if (nFset == 1 && (0 <= Stand && Stand <= mib->nStands) ) { //full BW
 					accepted = addToQueue(commandQueue, "setFilter", 1, 0, Stand, mib->nChP);
-				} else if (nFset == 2 && (0 <= Stand && Stand <= nStands) ) { //reduced BW
+				} else if (nFset == 2 && (0 <= Stand && Stand <= mib->nStands) ) { //reduced BW
 					accepted = addToQueue(commandQueue, "setFilter", 2, 0, Stand, mib->nChP);
-				} else if (nFset == 3 && (0 <= Stand && Stand <= nStands) ) { //filter off
+				} else if (nFset == 3 && (0 <= Stand && Stand <= mib->nStands) ) { //filter off
 					accepted = addToQueue(commandQueue, "setFilter", 0, 0, Stand, mib->nChP);
 				} else {	//Stand Number out of range
 					returnCode = 0;
-                         strcpy(TX_DATA, "Filter and/or stand setting out of range");
+                         sprintf(TX_DATA, "Filter (%i) and/or stand (%i) setting out of range", nFset, Stand);
 				}
 
 				// Make sure it make it into the queue
@@ -390,9 +394,9 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 				returnCode = 1;
 				strcpy(TX_DATA, "");
 
-				sscanf(RX_DATA, "%3i%2i", &Stand, &nATset);
+				sscanf(RX_DATA, "%3d%2d", &Stand, &nATset);
 
-                    if( (0 <= Stand && Stand <= nStands) && (0 <= nATset && nATset <= 30) ) {
+                    if( (0 <= Stand && Stand <= mib->nStands) && (0 <= nATset && nATset <= 30) ) {
                     	accepted = addToQueue(commandQueue, "setAT1", 2*nATset, 0, Stand, mib->nChP);
 
 					// Make sure it make it into the queue
@@ -402,7 +406,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 					}
                     } else {
                     	returnCode = 0;
-					strcpy(TX_DATA, "AT1 and/or stand setting out of range");
+					sprintf(TX_DATA, "AT1 (%i) and/or stand (%i) setting out of range", nATset, Stand);
                     }
 
 			} else {
@@ -423,9 +427,9 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 				returnCode = 1;
 				strcpy(TX_DATA, "");
 
-				sscanf(RX_DATA, "%3i%2i", &Stand, &nATset);
+				sscanf(RX_DATA, "%3d%2d", &Stand, &nATset);
 
-                    if( (0 <= Stand && Stand <= nStands) && (0 <= nATset && nATset <= 30) ) {
+                    if( (0 <= Stand && Stand <= mib->nStands) && (0 <= nATset && nATset <= 30) ) {
                     	accepted = addToQueue(commandQueue, "setAT2", 2*nATset, 0, Stand, mib->nChP);
 
 					// Make sure it make it into the queue
@@ -435,7 +439,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 					}
                     } else {
                          returnCode = 0;
-					strcpy(TX_DATA, "AT2 and/or stand setting out of range");
+					sprintf(TX_DATA, "AT2 (%i) and/or stand (%i) setting out of range", nATset, Stand);
                     }
 
 			} else {
@@ -456,9 +460,9 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 				returnCode = 1;
 				strcpy(TX_DATA, "");
 
-				sscanf(RX_DATA, "%3i%2i", &Stand, &nATset);
+				sscanf(RX_DATA, "%3d%2d", &Stand, &nATset);
 
-                    if( (0 <= Stand && Stand <= nStands) && (0 <= nATset && nATset <= 30) ) {
+                    if( (0 <= Stand && Stand <= mib->nStands) && (0 <= nATset && nATset <= 30) ) {
                     	accepted = addToQueue(commandQueue, "setATS", 2*nATset, 0, Stand, mib->nChP);
 
 					// Make sure it make it into the queue
@@ -468,7 +472,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 					}
                     } else {
                     	returnCode = 0;
-                         strcpy(TX_DATA, "ATS and/or stand setting out of range");
+                         sprintf(TX_DATA, "ATS (%i) and/or stand (%i) setting out of range", nATset, Stand);
                     }
 
 			} else {
@@ -489,16 +493,16 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 				returnCode = 1;
 				strcpy(TX_DATA, "");
 
-				sscanf(RX_DATA, "%3i%1i%2i", &Stand, &Pol, &State);
+				sscanf(RX_DATA, "%3d%1d%2d", &Stand, &Pol, &State);
 
-				if( Pol == 1 && (0 <= Stand && Stand <= nStands) ) {	//Polarization 1
+				if( Pol == 1 && (0 <= Stand && Stand <= mib->nStands) ) {	//Polarization 1
 					if( State == 11 ) {
 						accepted = addToQueue(commandQueue, "setFEEPower", 1, 1, Stand, mib->nChP);
 					} else if( State == 0 ) {
 						accepted = addToQueue(commandQueue, "setFEEPower", 1, 0, Stand, mib->nChP);
 					} else {
 						returnCode = 0;
-						strcpy(TX_DATA, "FPW power setting out of range");
+						sprintf(TX_DATA, "FPW power (%i) and/or stand (%i) setting out of range", State, Stand);
 					}
 
 					// Make sure it make it into the queue
@@ -507,14 +511,14 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 						strcpy(TX_DATA, "SPI bus queue is full, re-submit command in 1 second");
 					}
 
-				} else if( Pol == 2 && (0 <= Stand && Stand <= nStands) ) {	//Polarization 2
+				} else if( Pol == 2 && (0 <= Stand && Stand <= mib->nStands) ) {	//Polarization 2
 					if ( State == 11 ) {
 						accepted = addToQueue(commandQueue, "setFEEPower", 2, 1, Stand, mib->nChP);
 					} else if( State == 0 ) {
 						accepted = addToQueue(commandQueue, "setFEEPower", 2, 0, Stand, mib->nChP);
 					} else {
 						returnCode = 0;
-						strcpy(TX_DATA, "FPW power setting out of range");
+						sprintf(TX_DATA, "FPW power (%i) and/or stand (%i) setting out of range", State, Stand);
 					}
 
 					// Make sure it make it into the queue
@@ -583,6 +587,7 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 			sprintf(TX_DATA, "Invalid Command '%s'", RX_TYPE);
 	}
 
+	// printf("%i -> %s\n", returnCode, TX_DATA);
 	return returnCode;
 }
 

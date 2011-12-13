@@ -60,6 +60,7 @@ typedef struct {
 typedef struct {
 	int init;           //initialization flag
      int nBoards;        //number of boards installed
+     int nStands;        //number of stands
      int nChP;           //number of channel pairs (SPI devices)
 
      mcsInfo index1;

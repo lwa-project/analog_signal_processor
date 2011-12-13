@@ -13,11 +13,7 @@ $LastChangedDate$
 // ASP identification
 const char *aspSubsystem = "ASP";
 const char *aspSerialNumber = "ASP01";
-const char *aspVersion = "0.1";
-
-
-// System information
-const int nStands = 260;
+const char *aspVersion = "0.2";
 
 
 // MCS communication

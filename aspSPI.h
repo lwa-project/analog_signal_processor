@@ -8,7 +8,8 @@
   * setSPIconst - some SPI mumbo-jumbo
   * SPI_init_devices - initalize SPI devices
   * SPI_config_devices - configure SPI devices
-  * SPI_Send - send a SPI command out
+  * SPI_Send - send a SPI command out to a particular device
+  * SPI_Send_All - send a SPI command to all devices
 
 $Rev$
 $LastChangedBy$
@@ -66,6 +67,7 @@ void setSPIconst(void);
 void SPI_init_devices(int, int);
 void SPI_config_devices(int, int);
 void SPI_Send(unsigned, int, int);
+void SPI_Send_All(unsigned, int);
 
 
 void setSPIconst(void) {
@@ -127,9 +129,7 @@ void SPI_init_devices(int num, int Config){
 void SPI_config_devices(int num, int Config){
 	int i;
 
-	for (i = 0; i < num; i++) {
-		SPI_Send(Config, i+1, num);
-	}
+	SPI_Send_All(Config, num);
 }
 
 
@@ -151,5 +151,17 @@ void SPI_Send(unsigned data, int device, int num) {
 	BitWrPortI(PBDR, &PBDRShadow, 1, 7);            // chip select high
 }
 
+
+void SPI_Send_All(unsigned data, int num) {
+	int SPI_read, i;
+
+	BitWrPortI(PBDR, &PBDRShadow, 0, 7);            // chip select low
+	//printf("device is %02X\n", device);
+	for (i = num; i > 0; i--) {
+		SPIWrRd(&data, &SPI_read, 2);             // write & read SPI
+		//printf("sent: %04X\n", data);
+	}
+	BitWrPortI(PBDR, &PBDRShadow, 1, 7);            // chip select high
+}
 #endif
 

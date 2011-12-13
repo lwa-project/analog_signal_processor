@@ -8,11 +8,16 @@
   * initQueue - initialize the ASP command queue
   * initASP - initialize ASP
   * haltASP - shutdown ASP
-  * setFEEPower - set the FEE power state for a certain antenna
+  * setFEEPower - set the FEE power state for a certain stand,pol
+  * setFEEPowerAll - set the FEE power state for all stands, particular pol
   * setFilter - set the ARX filter
+  * setFilterAll - set the ARX filter for all stands
   * setAT1 - set the level of the first attenuator
+  * setAT1All - set the level of the first attenuator for all stands
   * setAT2 - set the level of the second attenuator
+  * setAT2All - set the level of the second attenuator for all stands
   * setATS - set the level of the split bandwidth mode attenuator
+  * setATSAll - set the level of the split bandwidth mode attenuator for all stands
   * addToQueue - queue a command to run later
   * addToQueueHighPriority - queue a command to run first
   * processQueue - monitor the queue and run the queued commands
@@ -54,10 +59,15 @@ int initQueue(aspCommandQueue*);
 void initASP(aspMIB*);
 void haltASP(aspMIB*);
 void setFEEPower(int, int, int, int);
+void setFEEPowerAll(int, int, int);
 void setFilter(int, int, int);
+void setFilterAll(int, int);
 void setAT1(int, int , int);
+void setAT1All(int, int);
 void setAT2(int, int, int);
+void setAT2All(int, int);
 void setATS(int, int, int);
+void setATSAll(int, int);
 int addToQueue(aspCommandQueue*, char*, int, int, int, int);
 int addToQueueHighPriority(aspCommandQueue*, char*, int, int, int, int);
 int processQueue(aspMIB*, aspCommandQueue*);
@@ -171,6 +181,27 @@ void setFEEPower(int channel, int power, int device, int num) {
 
 
 /*
+ setFEEPowerAll - set the FEE for all stands, a particular pol
+ */
+
+void setFEEPowerAll(int channel, int power, int num) {
+	if (power == 1){
+		if (channel == 1){
+			SPI_Send_All(SPI_P17_on, num);
+		} else if (channel == 2) {
+			SPI_Send_All(SPI_P16_on, num);
+		}
+	} else if (power == 0) {
+		if (channel == 1) {
+			SPI_Send_All(SPI_P17_off, num);
+		} else if (channel == 2) {
+			SPI_Send_All(SPI_P16_off, num);
+		}
+	}
+}
+
+
+/*
  setFilter - set the filter for particular stand (as a device, num pair)
 */
 
@@ -196,31 +227,104 @@ void setFilter(int setting, int device, int num) {
 
 
 /*
+ setFilterAll - set the filter for all stands
+*/
+
+void setFilterAll(int setting, int num) {
+	if (setting == 0) {
+		// Set Filters OFF
+		SPI_Send_All(SPI_P19_on, num);
+		SPI_Send_All(SPI_P18_on, num);
+	} else if (setting == 1) {
+		// Set Filter to Full Bandwidth
+		SPI_Send_All(SPI_P19_off, num);
+		SPI_Send_All(SPI_P18_on, num);
+	} else if (setting == 2) {
+		// Set Filter to Reduced Bandwidth
+		SPI_Send_All(SPI_P19_on, num);
+		SPI_Send_All(SPI_P18_off, num);
+	} else if (setting == 3) {
+		// Set Filter to Split Bandwidth
+		SPI_Send_All(SPI_P19_off, num);
+		SPI_Send_All(SPI_P18_off, num);
+	}
+}
+
+
+/*
  setAT1 - set the first attenuator for particular stand (as a device, num pair)
 */
 
 void setAT1(int setting, int device, int num) {
-	// Set all to Zero
-	SPI_Send(SPI_P27_off, device, num); // 16dB
-	SPI_Send(SPI_P24_off, device, num); // 8dB
-	SPI_Send(SPI_P25_off, device, num); // 4dB
-	SPI_Send(SPI_P26_off, device, num); // 2dB
-
+	// 16 dB
 	if (setting >= 16) {
-		SPI_Send(SPI_P27_on, device, num); // 16dB
+		SPI_Send(SPI_P27_on, device, num);
 		setting = setting - 16;
+	} else {
+		SPI_Send(SPI_P27_off, device, num);
 	}
+
+	// 8 dB
 	if (setting >= 8) {
-		SPI_Send(SPI_P24_on, device, num); // 8dB
+		SPI_Send(SPI_P24_on, device, num);
 		setting = setting - 8;
+	} else {
+		SPI_Send(SPI_P24_off, device, num);
 	}
+
+	// 4 dB
 	if (setting >= 4) {
-		SPI_Send(SPI_P25_on, device, num); // 4dB
+		SPI_Send(SPI_P25_on, device, num);
 		setting = setting - 4;
+	} else {
+		SPI_Send(SPI_P25_off, device, num);
 	}
+
+	// 2 dB
 	if (setting >= 2) {
-		SPI_Send(SPI_P26_on, device, num); // 2dB
+		SPI_Send(SPI_P26_on, device, num);
 		setting = setting - 2;
+	} else {
+		SPI_Send(SPI_P26_off, device, num);
+	}
+}
+
+
+/*
+ setAT1All - set the first attenuator all stands
+*/
+
+void setAT1All(int setting, int num) {
+	// 16 dB
+	if (setting >= 16) {
+		SPI_Send_All(SPI_P27_on, num);
+		setting = setting - 16;
+	} else {
+		SPI_Send_All(SPI_P27_off, num);
+	}
+
+	// 8 dB
+	if (setting >= 8) {
+		SPI_Send_All(SPI_P24_on, num);
+		setting = setting - 8;
+	} else {
+		SPI_Send_All(SPI_P24_off, num);
+	}
+
+	// 4 dB
+	if (setting >= 4) {
+		SPI_Send_All(SPI_P25_on, num);
+		setting = setting - 4;
+	} else {
+		SPI_Send_All(SPI_P25_off, num);
+	}
+
+	// 2 dB
+	if (setting >= 2) {
+		SPI_Send_All(SPI_P26_on, num);
+		setting = setting - 2;
+	} else {
+		SPI_Send_All(SPI_P26_off, num);
 	}
 }
 
@@ -230,27 +334,75 @@ void setAT1(int setting, int device, int num) {
 */
 
 void setAT2(int setting, int device, int num) {
-	// Set all to Zero
-	SPI_Send(SPI_P23_off, device, num); // 16dB
-	SPI_Send(SPI_P21_off, device, num); // 8dB
-	SPI_Send(SPI_P20_off, device, num); // 4dB
-	SPI_Send(SPI_P22_off, device, num); // 2dB
-
+	// 16 dB
 	if (setting >= 16 ) {
-		SPI_Send(SPI_P23_on, device, num); // 16dB
+		SPI_Send(SPI_P23_on, device, num);
 		setting = setting - 16;
+	} else {
+		SPI_Send(SPI_P23_off, device, num);
 	}
+
+	// 8 dB
 	if (setting >= 8) {
-		SPI_Send(SPI_P21_on, device, num); // 8dB
+		SPI_Send(SPI_P21_on, device, num);
 		setting = setting - 8;
+	} else {
+		SPI_Send(SPI_P21_off, device, num);
 	}
+
+	// 4 dB
 	if (setting >= 4) {
-		SPI_Send(SPI_P20_on, device, num); // 4dB
+		SPI_Send(SPI_P20_on, device, num);
 		setting = setting - 4;
+	} else {
+		SPI_Send(SPI_P20_off, device, num);
 	}
+
+	// 2 dB
 	if (setting >= 2) {
-		SPI_Send(SPI_P22_on, device, num); // 2dB
+		SPI_Send(SPI_P22_on, device, num);
 		setting = setting - 2;
+	} else {
+		SPI_Send(SPI_P22_off, device, num);
+	}
+}
+
+
+/*
+ setAT2All - set the second attenuator for all stands
+ */
+
+void setAT2All(int setting, int num) {
+	// 16 dB
+	if (setting >= 16 ) {
+		SPI_Send_All(SPI_P23_on, num);
+		setting = setting - 16;
+	} else {
+		SPI_Send_All(SPI_P23_off, num);
+	}
+
+	// 8 dB
+	if (setting >= 8) {
+		SPI_Send_All(SPI_P21_on, num);
+		setting = setting - 8;
+	} else {
+		SPI_Send_All(SPI_P21_off, num);
+	}
+
+	// 4 dB
+	if (setting >= 4) {
+		SPI_Send_All(SPI_P20_on, num);
+		setting = setting - 4;
+	} else {
+		SPI_Send_All(SPI_P20_off, num);
+	}
+
+	// 2 dB
+	if (setting >= 2) {
+		SPI_Send_All(SPI_P22_on, num);
+		setting = setting - 2;
+	} else {
+		SPI_Send_All(SPI_P22_off, num);
 	}
 }
 
@@ -260,27 +412,75 @@ void setAT2(int setting, int device, int num) {
 */
 
 void setATS(int setting, int device, int num) {
-	// Set all to Zero
-	SPI_Send(SPI_P31_off, device, num); // 16dB
-	SPI_Send(SPI_P28_off, device, num); // 8dB
-	SPI_Send(SPI_P29_off, device, num); // 4dB
-	SPI_Send(SPI_P30_off, device, num); // 2dB
-
+	// 16 dB
 	if (setting >= 16) {
-		SPI_Send(SPI_P31_on, device, num); // 16dB
+		SPI_Send(SPI_P31_on, device, num);
 		setting = setting - 16;
+	} else {
+		SPI_Send(SPI_P31_off, device, num);
 	}
+
+	// 8 dB
 	if (setting >= 8) {
-		SPI_Send(SPI_P28_on, device, num); // 8dB
+		SPI_Send(SPI_P28_on, device, num);
 		setting = setting - 8;
+	} else {
+		SPI_Send(SPI_P28_off, device, num);
 	}
+
+	// 4 dB
 	if (setting >= 4) {
-		SPI_Send(SPI_P29_on, device, num); // 4dB
+		SPI_Send(SPI_P29_on, device, num);
 		setting = setting - 4;
+	} else {
+		SPI_Send(SPI_P29_off, device, num);
 	}
+
+	// 2 dB
 	if (setting >= 2) {
-		SPI_Send(SPI_P30_on, device, num); // 2dB
+		SPI_Send(SPI_P30_on, device, num);
 		setting = setting - 2;
+	} else {
+		SPI_Send(SPI_P30_off, device, num);
+	}
+}
+
+
+/*
+ setATSAll - set the split bandwidth mode attenuator for all stands
+ */
+
+void setATSAll(int setting, int num) {
+	// 16 dB
+	if (setting >= 16) {
+		SPI_Send_All(SPI_P31_on, num);
+		setting = setting - 16;
+	} else {
+		SPI_Send_All(SPI_P31_off, num);
+	}
+
+	// 8 dB
+	if (setting >= 8) {
+		SPI_Send_All(SPI_P28_on, num);
+		setting = setting - 8;
+	} else {
+		SPI_Send_All(SPI_P28_off, num);
+	}
+
+	// 4 dB
+	if (setting >= 4) {
+		SPI_Send_All(SPI_P29_on, num);
+		setting = setting - 4;
+	} else {
+		SPI_Send_All(SPI_P29_off, num);
+	}
+
+	// 2 dB
+	if (setting >= 2) {
+		SPI_Send_All(SPI_P30_on, num);
+		setting = setting - 2;
+	} else {
+		SPI_Send_All(SPI_P30_off, num);
 	}
 }
 
@@ -395,10 +595,10 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 			} else if( !strcmp(commandQueue->queue[i].command, "setFEEPower") ) {
 				// Single stand
 				if( Stand != 0 ) {
-                    	setFEEPower(commandQueue->queue[i].setting1, commandQueue->queue[i].setting2, Stand, nChP);
+					setFEEPower(commandQueue->queue[i].setting1, commandQueue->queue[i].setting2, Stand, nChP);
 					if( commandQueue->queue[i].setting1 == 1 ) {
 						mib->index5.FEEPOL1PWR[Stand-1] = commandQueue->queue[i].setting2;
-                              if( mib-> index5.FEEPOL1PWR[Stand-1] ) {
+							if( mib-> index5.FEEPOL1PWR[Stand-1] ) {
                               	sprintf(mib->index1.lastlog, "Set FEE power to 'ON' for stand %i, pol 1", Stand);
                               } else {
                                    sprintf(mib->index1.lastlog, "Set FEE power to 'OFF' for stand %i, pol 1", Stand);
@@ -414,8 +614,8 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 
 				// Stand "0" case
 				} else {
+					setFEEPowerAll(commandQueue->queue[i].setting1, commandQueue->queue[i].setting2, nChP);
 					for(j=1; j<=260; j++) {
-						setFEEPower(commandQueue->queue[i].setting1, commandQueue->queue[i].setting2, j, nChP);
 						if( commandQueue->queue[i].setting1 == 1 ) {
 							mib->index5.FEEPOL1PWR[j-1] = commandQueue->queue[i].setting2;
 						} else {
@@ -450,8 +650,8 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 
 				// Stand "0" case
 				} else {
-					for(j=1; j<=nStands; j++) {
-						setFilter(commandQueue->queue[i].setting1, j, nChP);
+					setFilterAll(commandQueue->queue[i].setting1, nChP);
+					for(j=1; j<=mib->nStands; j++) {
 						mib->index3.FILTER[j-1] = commandQueue->queue[i].setting1;
 					}
                          sprintf(mib->index1.lastlog, "Set filter to %i for ALL stands", commandQueue->queue[i].setting1);
@@ -469,8 +669,8 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 
 				// Stand "0" case
 				} else {
-					for(j=1; j<=nStands; j++) {
-						setAT1(commandQueue->queue[i].setting1, j, nChP);
+					setAT1All(commandQueue->queue[i].setting1, nChP);
+					for(j=1; j<=mib->nStands; j++) {
 						mib->index4.AT1[j-1] = commandQueue->queue[i].setting1;
 					}
                          sprintf(mib->index1.lastlog, "Set AT1 to %i dB for ALL stands", commandQueue->queue[i].setting1);
@@ -488,8 +688,8 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 
 				// Stand "0" case
 				} else {
-					for(j=1; j<=nStands; j++) {
-						setAT2(commandQueue->queue[i].setting1, j, nChP);
+					setAT2All(commandQueue->queue[i].setting1, nChP);
+					for(j=1; j<=mib->nStands; j++) {
 						mib->index4.AT2[j-1] = commandQueue->queue[i].setting1;
 					}
                          sprintf(mib->index1.lastlog, "Set AT2 to %i dB for ALL stands", commandQueue->queue[i].setting1);
@@ -507,8 +707,8 @@ int processQueue(aspMIB* mib, aspCommandQueue* commandQueue) {
 
 				// Stand "0" case
 				} else {
-					for(j=1; j<=nStands; j++) {
-						setATS(commandQueue->queue[i].setting1, j, nChP);
+					setATSAll(commandQueue->queue[i].setting1, nChP);
+					for(j=1; j<=mib->nStands; j++) {
 						mib->index4.ATS[j-1] = commandQueue->queue[i].setting1;
 					}
                          sprintf(mib->index1.lastlog, "Set ATS to %i dB for ALL stands", commandQueue->queue[i].setting1);
