@@ -621,6 +621,7 @@ int generateResponse(aspMIB* mib, unsigned long int deltaT, int statusCode, char
      sprintf(buf, "%3s%3s%3s%9s%4i%6lu%9lu %1s%7s%s", \
      	"MCS", aspSubsystem, RX_TYPE, RX_REF, (strlen(TX_DATA)+8), \
           mjd, mpm, status, mib->index1.summary, TX_DATA);
+	// printf("Sent to MCS '%s'\n", buf);
 
 	return 1;
 }
