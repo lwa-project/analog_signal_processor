@@ -122,6 +122,10 @@ main() {
 	                    // Receive & transmit packets
 	              		tcp_tick(NULL);
                    	}
+
+			// Close and re-open
+			udp_close(&sockIn);
+			udp_open(&sockIn, LOCAL_PORT, ip, 0, NULL);
 	          } else {
 	               yield;
 	          }

@@ -117,9 +117,6 @@ int interpertCommand(aspMIB* mib, aspCommandQueue* commandQueue, char* buf) {
 	int Stand, Pol, State;
     	int nFset, nATset;
 
-	//Define packet message index & length
-
-
 	// Cycle through the message and strip off data
 	strncpy(RX_DEST, buf+tstart_DEST, tlength_DEST);
 	RX_DEST[tlength_DEST] = '\0';
