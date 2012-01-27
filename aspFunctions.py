@@ -457,7 +457,7 @@ class AnalogProcessor(object):
 				time.sleep(WAIT_SPI_RETRY*attempt*attempt)
 			
 			status = True
-			setting = 1*attenSetting
+			setting = 2*attenSetting
 			
 			if mode == 1:
 				if setting >= 16:

@@ -65,10 +65,13 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "initARXDevices - get config - %s\n", sub_strerror(sub_errno));
 	}
 	
-	success = sub_spi_config(fh, SPI_ENABLE|SPI_CPOL_FALL|SPI_SETUP_SMPL|SPI_MSB_FIRST|SPI_CLK_250KHZ, NULL);
-	if( success ) {
-		fprintf(stderr, "initARXDevices - set config - %s\n", sub_strerror(sub_errno));
-		exit(1);
+	success = 1;
+	while( success ) {
+		success = sub_spi_config(fh, SPI_ENABLE|SPI_CPOL_FALL|SPI_SETUP_SMPL|SPI_MSB_FIRST|SPI_CLK_250KHZ, NULL);
+		if( success ) {
+			fprintf(stderr, "initARXDevices - set config - %s\n", sub_strerror(sub_errno));
+			// exit(1);
+		}
 	}
 
 	for(i=0; i<2*num; i++) {
@@ -76,8 +79,8 @@ int main(int argc, char* argv[]) {
 		success = sub_spi_transfer(fh, simpleData, simpleResponse, 2, SS_CONF(0, SS_LO));
 		
 		if( success ) {
-			fprintf(stderr, "initARXDevices - SPI write - %s\n", sub_strerror(sub_errno));
-			exit(1);
+			fprintf(stderr, "initARXDevices - SPI write %i of %i - %s\n", i+1, 2*num, sub_strerror(sub_errno));
+			i -= 1;
 		}
 	}
 
