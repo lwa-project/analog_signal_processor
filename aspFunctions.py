@@ -278,7 +278,7 @@ class AnalogProcessor(object):
 		self.currentState['activeProcess'].append('SHT')
 		self.currentState['ready'] = False
 		
-		# Stop all threads.  If the don't exist yet, create them.
+		# Stop all threads.
 		if self.currentState['tempThread'] is not None:
 			self.currentState['tempThread'].stop()
 		if self.currentState['arxPowerThread'] is not None:

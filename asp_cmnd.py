@@ -72,7 +72,7 @@ def parseOptions(args):
 
 	config = {}
 	# Default parameters
-	config['configFilename'] = '/lwa/software/defaults.cfg'
+	config['configFilename'] = DEFAULTS_FILENAME
 	config['logFilename'] = None
 	config['debugMessages'] = False
 	
@@ -181,9 +181,10 @@ class MCSCommunicate(object):
 	Class to deal with the communcating with MCS.
 	"""
 	
-	def __init__(self, config, opts):
+	def __init__(self, ASPInstance, config, opts):
 		self.config = config
 		self.opts = opts
+		self.ASPInstance = ASPInstance
 		
 		# Update the socket configuration
 		self.updateConfig()
@@ -237,7 +238,7 @@ class MCSCommunicate(object):
 		self.socketIn.close()
 		self.socketOut.close()
 		
-	def sendResponse(self, destination, status, systemStatus, command, reference, data):
+	def sendResponse(self, destination, status, command, reference, data):
 		"""
 		Send a response to MCS via UDP.
 		"""
@@ -253,6 +254,9 @@ class MCSCommunicate(object):
 		# Get current time
 		(mjd, mpm) = getTime()
 
+		# Get the current system status
+		systemStatus = self.ASPInstance.currentState['status']
+
 		# Build the payload
 		payload = destination+sender+command+string.rjust(str(reference),9)
 		payload = payload + string.rjust(str(len(data)+8),4)+string.rjust(str(mjd),6)+string.rjust(str(mpm),9)+' '
@@ -261,7 +265,7 @@ class MCSCommunicate(object):
 		bytes_sent = self.socketOut.sendto(payload, self.destAddress)
 		self.logger.debug("mcsSend - Sent to MCS '%s'", payload)
 		
-	def receiveCommand(self, ASPInstance):
+	def receiveCommand(self):
 		"""
 		Recieve and process MCS command over the network.
 		"""
@@ -278,7 +282,7 @@ class MCSCommunicate(object):
 		data        = data[38:38+datalen]
 	
 		# check destination and sender
-		if destination in (ASPInstance.subSystem, 'ALL'):
+		if destination in (self.ASPInstance.subSystem, 'ALL'):
 			# PNG
 			if command == 'PNG':
 				status = True
@@ -291,48 +295,48 @@ class MCSCommunicate(object):
 				
 				## General Info.
 				if data == 'SUMMARY':
-					summary = ASPInstance.currentState['status'][:7]
+					summary = self.ASPInstance.currentState['status'][:7]
 					self.logger.debug('summary = %s', summary)
 					packed_data = summary
 				elif data == 'INFO':
 					### Trim down as needed
-					if len(ASPInstance.currentState['info']) > 256:
-						infoMessage = "%s..." % ASPInstance.currentState['info'][:253]
+					if len(self.ASPInstance.currentState['info']) > 256:
+						infoMessage = "%s..." % self.ASPInstance.currentState['info'][:253]
 					else:
-						infoMessage = ASPInstance.currentState['info'][:256]
+						infoMessage = self.ASPInstance.currentState['info'][:256]
 						
 					self.logger.debug('info = %s', infoMessage)
 					packed_data = infoMessage
 				elif data == 'LASTLOG':
 					### Trim down as needed
-					if len(ASPInstance.currentState['lastLog']) > 256:
-						lastLogEntry = "%s..." % ASPInstance.currentState['lastLog'][:253]
+					if len(self.ASPInstance.currentState['lastLog']) > 256:
+						lastLogEntry = "%s..." % self.ASPInstance.currentState['lastLog'][:253]
 					else:
-						lastLogEntry =  ASPInstance.currentState['lastLog'][:256]
+						lastLogEntry =  self.ASPInstance.currentState['lastLog'][:256]
 					if len(lastLogEntry) == 0:
 						lastLogEntry = 'no log entry'
 					
 					self.logger.debug('lastlog = %s', lastLogEntry)
 					packed_data = lastLogEntry
 				elif data == 'SUBSYSTEM':
-					self.logger.debug('subsystem = %s', ASPInstance.subSystem)
-					packed_data = ASPInstance.subSystem
+					self.logger.debug('subsystem = %s', self.ASPInstance.subSystem)
+					packed_data = self.ASPInstance.subSystem
 				elif data == 'SERIALNO':
-					self.logger.debug('serialno = %s', ASPInstance.serialNumber)
-					packed_data = ASPInstance.serialNumber
+					self.logger.debug('serialno = %s', self.ASPInstance.serialNumber)
+					packed_data = self.ASPInstance.serialNumber
 				elif data == 'VERSION':
-					self.logger.debug('version = %s', ASPInstance.version)
-					packed_data = ASPInstance.version
+					self.logger.debug('version = %s', self.ASPInstance.version)
+					packed_data = self.ASPInstance.version
 					
 				## Analog chain state - Filter
 				elif data[0:7] == 'FILTER_':
 					stand = int(data[7:])
 					
-					status, filt = ASPInstance.getFilter(stand)
+					status, filt = self.ASPInstance.getFilter(stand)
 					if status:
 						packed_data = str(filt)
 					else:
-						packed_data = ASPInstance.currentState['lastLog']
+						packed_data = self.ASPInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 					
@@ -340,31 +344,31 @@ class MCSCommunicate(object):
 				elif data[0:4] == 'AT1_':
 					stand = int(data[4:])
 					
-					status, attens = ASPInstance.getAttenuators(stand)
+					status, attens = self.ASPInstance.getAttenuators(stand)
 					if status:
 						packed_data = str(attens[0])
 					else:
-						packed_data = ASPInstance.currentState['lastLog']
+						packed_data = self.ASPInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data[0:4] == 'AT2_':
 					stand = int(data[4:])
 					
-					status, attens = ASPInstance.getAttenuators(stand)
+					status, attens = self.ASPInstance.getAttenuators(stand)
 					if status:
 						packed_data = str(attens[1])
 					else:
-						packed_data = ASPInstance.currentState['lastLog']
+						packed_data = self.ASPInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data[0:8] == 'ATSPLIT_':
 					stand = int(data[8:])
 					
-					status, attens = ASPInstance.getAttenuators(stand)
+					status, attens = self.ASPInstance.getAttenuators(stand)
 					if status:
 						packed_data = str(attens[2])
 					else:
-						packed_data = ASPInstance.currentState['lastLog']
+						packed_data = self.ASPInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 					
@@ -372,131 +376,131 @@ class MCSCommunicate(object):
 				elif data[0:11] == 'FEEPOL1PWR_':
 					stand = int(data[11:])
 					
-					status, power = ASPInstance.getFEEPowerState(stand)
+					status, power = self.ASPInstance.getFEEPowerState(stand)
 					if status:
 						if power[0]:
 							packed_data = 'ON '
 						else:
 							packed_data = 'OFF'
 					else:
-						packed_data = packed_data = ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data[0:11] == 'FEEPOL2PWR_':
 					stand = int(data[11:])
 					
-					status, power = ASPInstance.getFEEPowerState(stand)
+					status, power = self.ASPInstance.getFEEPowerState(stand)
 					if status:
 						if power[1]:
 							packed_data = 'ON '
 						else:
 							packed_data = 'OFF'
 					else:
-						packed_data = packed_data = ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				
 				## ARX power supplies
 				elif data == 'ARXSUPPLY':
-					status, value = ASPInstance.getARXPowerSupplyStatus()
+					status, value = self.ASPInstance.getARXPowerSupplyStatus()
 					if status:
 						packed_data = value
 						
 					else:
-						packed_data = packed_data = ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'ARXSUPPLY-NO':
-					packed_data = str(ASPInstance.currentState['nAPS'])
+					packed_data = str(self.ASPInstance.currentState['nAPS'])
 					self.logger.debug('%s = %s' % (data, packed_data))
 				elif data[0:11] == 'ARXPWRUNIT_':
 					psNumb = int(data[11:])
 					
-					status, value = ASPInstance.getARXPowerSupplyInfo(psNumb)
+					status, value = self.ASPInstance.getARXPowerSupplyInfo(psNumb)
 					if status:
 						packed_data = value
 						
 					else:
-						packed_data = packed_data = ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'ARXCURR':
-					status, value = ASPInstance.getARXCurrentDraw()
+					status, value = self.ASPInstance.getARXCurrentDraw()
 					if status:
 						packed_data = "%-7i" % value
 						
 					else:
-						packed_data = packed_data = ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				
 				## FEE power supplies
 				elif data == 'FEESUPPLY':
-					status, value = ASPInstance.getFEEPowerSupplyStatus()
+					status, value = self.ASPInstance.getFEEPowerSupplyStatus()
 					if status:
 						packed_data = value
 						
 					else:
-						packed_data = packed_data = ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'FEESUPPLY_NO':
-					packed_data = str(ASPInstance.currentState['nFPS'])
+					packed_data = str(self.ASPInstance.currentState['nFPS'])
 					self.logger.debug('%s = %s' % (data, packed_data))
 				elif data[0:11] == 'FEEPWRUNIT_':
 					psNumb = int(data[11:])
 					
-					status, value = ASPInstance.getFEEPowerSupplyInfo(psNumb)
+					status, value = self.ASPInstance.getFEEPowerSupplyInfo(psNumb)
 					if status:
 						packed_data = value
 						
 					else:
-						packed_data = packed_data = ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'FEECURR':
-					status, value = ASPInstance.getFEECurrentDraw()
+					status, value = self.ASPInstance.getFEECurrentDraw()
 					if status:
 						packed_data = "%-7i" % value
 						
 					else:
-						packed_data = packed_data = ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 					
 				## Temperatue sensors
 				elif data == 'TEMP-STATUS':
-					status, value = ASPInstance.getTemperatureStatus()
+					status, value = self.ASPInstance.getTemperatureStatus()
 					if status:
 						packed_data = value
 						
 					else:
-						packed_data = packed_data = ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'TEMP-SENSE-NO':
-					packed_data = str(ASPInstance.currentState['nTS'])
+					packed_data = str(self.ASPInstance.currentState['nTS'])
 					self.logger.debug('%s = %s' % (data, packed_data))
 				elif data[0:12] == 'SENSOR-NAME-':
 					sensorNumb = int(data[12:])
 					
-					status, values = ASPInstance.getTempSensorInfo(sensorNumb)
+					status, values = self.ASPInstance.getTempSensorInfo(sensorNumb)
 					if status:
 						packed_data = values[0]
 						
 					else:
-						packed_data = packed_data = ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data[0:12] == 'SENSOR-DATA-':
 					sensorNumb = int(data[12:])
 					
-					status, values = ASPInstance.getTempSensorInfo(sensorNumb)
+					status, values = self.ASPInstance.getTempSensorInfo(sensorNumb)
 					if status:
 						packed_data = "%-10f" % values[1]
 						
 					else:
-						packed_data = packed_data = ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				
@@ -517,34 +521,34 @@ class MCSCommunicate(object):
 		
 				# Refresh the configuration for the communicator and ASP
 				self.updateConfig(config)
-				ASPInstance.updateConfig(config)
+				self.ASPInstance.updateConfig(config)
 				
 				# Go
 				nBoards = int(data)
-				status, exitCode = ASPInstance.ini(nBoards)
+				status, exitCode = self.ASPInstance.ini(nBoards)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
 			
 			# SHT
 			elif command == 'SHT':
-				status, exitCode = ASPInstance.sht(mode=data)
+				status, exitCode = self.ASPInstance.sht(mode=data)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
 					
 			# FIL
 			elif command == 'FIL':
 				stand = int(data[:-2])
 				filterCode = int(data[-2:])
 				
-				status, exitCode = ASPInstance.setFilter(stand, filterCode)
+				status, exitCode = self.ASPInstance.setFilter(stand, filterCode)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
 					
 			# AT1
 			elif command == 'AT1':
@@ -552,11 +556,11 @@ class MCSCommunicate(object):
 				stand = int(data[:-2])
 				attenSetting = int(data[-2:])
 				
-				status, exitCode = ASPInstance.setAttenuator(mode, stand, attenSetting)
+				status, exitCode = self.ASPInstance.setAttenuator(mode, stand, attenSetting)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
 					
 			# AT2
 			elif command == 'AT2':
@@ -564,11 +568,11 @@ class MCSCommunicate(object):
 				stand = int(data[:-2])
 				attenSetting = int(data[-2:])
 				
-				status, exitCode = ASPInstance.setAttenuator(mode, stand, attenSetting)
+				status, exitCode = self.ASPInstance.setAttenuator(mode, stand, attenSetting)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
 					
 			# ATS
 			elif command == 'ATS':
@@ -576,11 +580,11 @@ class MCSCommunicate(object):
 				stand = int(data[:-2])
 				attenSetting = int(data[-2:])
 				
-				status, exitCode = ASPInstance.setAttenuator(mode, stand, attenSetting)
+				status, exitCode = self.ASPInstance.setAttenuator(mode, stand, attenSetting)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
 					
 			# FPW
 			elif command == 'FPW':
@@ -588,30 +592,30 @@ class MCSCommunicate(object):
 				pol = int(data[-3])
 				state = int(data[-2:])
 				
-				status, exitCode = ASPInstance.setFEEPowerState(stand, pol, state)
+				status, exitCode = self.ASPInstance.setFEEPowerState(stand, pol, state)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
 					
 			# RXP
 			elif command == 'RXP':
 				state = int(data)
 				
-				status, exitCode = ASPInstance.setARXPowerState(state)
+				status, exitCode = self.ASPInstance.setARXPowerState(state)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
 					
 			elif command == 'FEP':
 				state = int(data)
 				
-				status, exitCode = ASPInstance.getFEPPowerState(state)
+				status, exitCode = self.ASPInstance.getFEPPowerState(state)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
 					
 			# 
 			# Unknown command catch
@@ -668,23 +672,24 @@ def main(args):
 	# Read in the configuration file
 	config = parseConfigFile(opts['configFilename'])
 	
-	# Setup the communications channels
-	mcsComms = MCSCommunicate(config, opts)
-	mcsComms.start()
-	
 	# Setup ASP control
 	lwaASP = AnalogProcessor(config)
 
+	# Setup the communications channels
+	mcsComms = MCSCommunicate(lwaASP, config, opts)
+	mcsComms.start()
+
 	# Setup handler for SIGTERM so that we aren't left in a funny state
-	def HandleSignalExit(signum, frame, logger=logger, MCSInstance=mcsComms, ASPInstance=lwaASP):
+	def HandleSignalExit(signum, frame, logger=logger, MCSInstance=mcsComms):
 		logger.info('Exiting on signal %i', signum)
 
 		# Shutdown ASP and close the communications channels
 		tStop = time.time()
 		logger.info('Shutting down ASP, please wait...')
-		ASPInstance.__shtProcess(mode='SCRAM')
-		while ASPInstance.currentState['info'] != 'System has been shut down':
-			time.sleep(1)
+		MCSInstance.ASPInstance.sht(mode='SCRAM')
+		while MCSInstance.ASPInstance.currentState['info'] != 'System has been shut down':
+			time.sleep(5)
+			MCSInstance.ASPInstance.sht(mode='SCRAM')
 		logger.info('Shutdown completed in %.3f seconds', time.time() - tStop)
 		MCSInstance.stop()
 		
@@ -701,8 +706,8 @@ def main(args):
 	logger.info('Ready to communicate')
 	while True:
 		try:
-			destination, status, command, reference, response = mcsComms.receiveCommand(lwaASP)
-			mcsComms.sendResponse(destination, status, lwaASP.currentState['status'], command, reference, response)
+			destination, status, command, reference, response = mcsComms.receiveCommand()
+			mcsComms.sendResponse(destination, status, command, reference, response)
 			
 		except KeyboardInterrupt:
 			logger.info('Exiting on ctrl-c')
