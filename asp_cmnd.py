@@ -203,7 +203,7 @@ class MCSCommunicate(Communicate):
 		data        = data[38:38+datalen]
 	
 		# check destination and sender
-		if destination in (self.ASPInstance.subSystem, 'ALL'):
+		if destination in (self.SubSystemInstance.subSystem, 'ALL'):
 			# PNG
 			if command == 'PNG':
 				status = True
@@ -216,48 +216,48 @@ class MCSCommunicate(Communicate):
 				
 				## General Info.
 				if data == 'SUMMARY':
-					summary = self.ASPInstance.currentState['status'][:7]
+					summary = self.SubSystemInstance.currentState['status'][:7]
 					self.logger.debug('summary = %s', summary)
 					packed_data = summary
 				elif data == 'INFO':
 					### Trim down as needed
-					if len(self.ASPInstance.currentState['info']) > 256:
-						infoMessage = "%s..." % self.ASPInstance.currentState['info'][:253]
+					if len(self.SubSystemInstance.currentState['info']) > 256:
+						infoMessage = "%s..." % self.SubSystemInstance.currentState['info'][:253]
 					else:
-						infoMessage = self.ASPInstance.currentState['info'][:256]
+						infoMessage = self.SubSystemInstance.currentState['info'][:256]
 						
 					self.logger.debug('info = %s', infoMessage)
 					packed_data = infoMessage
 				elif data == 'LASTLOG':
 					### Trim down as needed
-					if len(self.ASPInstance.currentState['lastLog']) > 256:
-						lastLogEntry = "%s..." % self.ASPInstance.currentState['lastLog'][:253]
+					if len(self.SubSystemInstance.currentState['lastLog']) > 256:
+						lastLogEntry = "%s..." % self.SubSystemInstance.currentState['lastLog'][:253]
 					else:
-						lastLogEntry =  self.ASPInstance.currentState['lastLog'][:256]
+						lastLogEntry =  self.SubSystemInstance.currentState['lastLog'][:256]
 					if len(lastLogEntry) == 0:
 						lastLogEntry = 'no log entry'
 					
 					self.logger.debug('lastlog = %s', lastLogEntry)
 					packed_data = lastLogEntry
 				elif data == 'SUBSYSTEM':
-					self.logger.debug('subsystem = %s', self.ASPInstance.subSystem)
-					packed_data = self.ASPInstance.subSystem
+					self.logger.debug('subsystem = %s', self.SubSystemInstance.subSystem)
+					packed_data = self.SubSystemInstance.subSystem
 				elif data == 'SERIALNO':
-					self.logger.debug('serialno = %s', self.ASPInstance.serialNumber)
-					packed_data = self.ASPInstance.serialNumber
+					self.logger.debug('serialno = %s', self.SubSystemInstance.serialNumber)
+					packed_data = self.SubSystemInstance.serialNumber
 				elif data == 'VERSION':
-					self.logger.debug('version = %s', self.ASPInstance.version)
-					packed_data = self.ASPInstance.version
+					self.logger.debug('version = %s', self.SubSystemInstance.version)
+					packed_data = self.SubSystemInstance.version
 					
 				## Analog chain state - Filter
 				elif data[0:7] == 'FILTER_':
 					stand = int(data[7:])
 					
-					status, filt = self.ASPInstance.getFilter(stand)
+					status, filt = self.SubSystemInstance.getFilter(stand)
 					if status:
 						packed_data = str(filt)
 					else:
-						packed_data = self.ASPInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 					
@@ -265,31 +265,31 @@ class MCSCommunicate(Communicate):
 				elif data[0:4] == 'AT1_':
 					stand = int(data[4:])
 					
-					status, attens = self.ASPInstance.getAttenuators(stand)
+					status, attens = self.SubSystemInstance.getAttenuators(stand)
 					if status:
 						packed_data = str(attens[0])
 					else:
-						packed_data = self.ASPInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data[0:4] == 'AT2_':
 					stand = int(data[4:])
 					
-					status, attens = self.ASPInstance.getAttenuators(stand)
+					status, attens = self.SubSystemInstance.getAttenuators(stand)
 					if status:
 						packed_data = str(attens[1])
 					else:
-						packed_data = self.ASPInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data[0:8] == 'ATSPLIT_':
 					stand = int(data[8:])
 					
-					status, attens = self.ASPInstance.getAttenuators(stand)
+					status, attens = self.SubSystemInstance.getAttenuators(stand)
 					if status:
 						packed_data = str(attens[2])
 					else:
-						packed_data = self.ASPInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 					
@@ -297,131 +297,131 @@ class MCSCommunicate(Communicate):
 				elif data[0:11] == 'FEEPOL1PWR_':
 					stand = int(data[11:])
 					
-					status, power = self.ASPInstance.getFEEPowerState(stand)
+					status, power = self.SubSystemInstance.getFEEPowerState(stand)
 					if status:
 						if power[0]:
 							packed_data = 'ON '
 						else:
 							packed_data = 'OFF'
 					else:
-						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data[0:11] == 'FEEPOL2PWR_':
 					stand = int(data[11:])
 					
-					status, power = self.ASPInstance.getFEEPowerState(stand)
+					status, power = self.SubSystemInstance.getFEEPowerState(stand)
 					if status:
 						if power[1]:
 							packed_data = 'ON '
 						else:
 							packed_data = 'OFF'
 					else:
-						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				
 				## ARX power supplies
 				elif data == 'ARXSUPPLY':
-					status, value = self.ASPInstance.getARXPowerSupplyStatus()
+					status, value = self.SubSystemInstance.getARXPowerSupplyStatus()
 					if status:
 						packed_data = value
 						
 					else:
-						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'ARXSUPPLY-NO':
-					packed_data = str(self.ASPInstance.currentState['nAPS'])
+					packed_data = str(self.SubSystemInstance.currentState['nAPS'])
 					self.logger.debug('%s = %s' % (data, packed_data))
 				elif data[0:11] == 'ARXPWRUNIT_':
 					psNumb = int(data[11:])
 					
-					status, value = self.ASPInstance.getARXPowerSupplyInfo(psNumb)
+					status, value = self.SubSystemInstance.getARXPowerSupplyInfo(psNumb)
 					if status:
 						packed_data = value
 						
 					else:
-						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'ARXCURR':
-					status, value = self.ASPInstance.getARXCurrentDraw()
+					status, value = self.SubSystemInstance.getARXCurrentDraw()
 					if status:
 						packed_data = "%-7i" % value
 						
 					else:
-						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				
 				## FEE power supplies
 				elif data == 'FEESUPPLY':
-					status, value = self.ASPInstance.getFEEPowerSupplyStatus()
+					status, value = self.SubSystemInstance.getFEEPowerSupplyStatus()
 					if status:
 						packed_data = value
 						
 					else:
-						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'FEESUPPLY_NO':
-					packed_data = str(self.ASPInstance.currentState['nFPS'])
+					packed_data = str(self.SubSystemInstance.currentState['nFPS'])
 					self.logger.debug('%s = %s' % (data, packed_data))
 				elif data[0:11] == 'FEEPWRUNIT_':
 					psNumb = int(data[11:])
 					
-					status, value = self.ASPInstance.getFEEPowerSupplyInfo(psNumb)
+					status, value = self.SubSystemInstance.getFEEPowerSupplyInfo(psNumb)
 					if status:
 						packed_data = value
 						
 					else:
-						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'FEECURR':
-					status, value = self.ASPInstance.getFEECurrentDraw()
+					status, value = self.SubSystemInstance.getFEECurrentDraw()
 					if status:
 						packed_data = "%-7i" % value
 						
 					else:
-						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 					
 				## Temperatue sensors
 				elif data == 'TEMP-STATUS':
-					status, value = self.ASPInstance.getTemperatureStatus()
+					status, value = self.SubSystemInstance.getTemperatureStatus()
 					if status:
 						packed_data = value
 						
 					else:
-						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'TEMP-SENSE-NO':
-					packed_data = str(self.ASPInstance.currentState['nTS'])
+					packed_data = str(self.SubSystemInstance.currentState['nTS'])
 					self.logger.debug('%s = %s' % (data, packed_data))
 				elif data[0:12] == 'SENSOR-NAME-':
 					sensorNumb = int(data[12:])
 					
-					status, values = self.ASPInstance.getTempSensorInfo(sensorNumb)
+					status, values = self.SubSystemInstance.getTempSensorInfo(sensorNumb)
 					if status:
 						packed_data = values[0]
 						
 					else:
-						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data[0:12] == 'SENSOR-DATA-':
 					sensorNumb = int(data[12:])
 					
-					status, values = self.ASPInstance.getTempSensorInfo(sensorNumb)
+					status, values = self.SubSystemInstance.getTempSensorInfo(sensorNumb)
 					if status:
 						packed_data = "%-10f" % values[1]
 						
 					else:
-						packed_data = packed_data = self.ASPInstance.currentState['lastLog']
+						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				
@@ -442,34 +442,34 @@ class MCSCommunicate(Communicate):
 		
 				# Refresh the configuration for the communicator and ASP
 				self.updateConfig(config)
-				self.ASPInstance.updateConfig(config)
+				self.SubSystemInstance.updateConfig(config)
 				
 				# Go
 				nBoards = int(data)
-				status, exitCode = self.ASPInstance.ini(nBoards)
+				status, exitCode = self.SubSystemInstance.ini(nBoards)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.SubSystemInstance.currentState['lastLog'])
 			
 			# SHT
 			elif command == 'SHT':
-				status, exitCode = self.ASPInstance.sht(mode=data)
+				status, exitCode = self.SubSystemInstance.sht(mode=data)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.SubSystemInstance.currentState['lastLog'])
 					
 			# FIL
 			elif command == 'FIL':
 				stand = int(data[:-2])
 				filterCode = int(data[-2:])
 				
-				status, exitCode = self.ASPInstance.setFilter(stand, filterCode)
+				status, exitCode = self.SubSystemInstance.setFilter(stand, filterCode)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.SubSystemInstance.currentState['lastLog'])
 					
 			# AT1
 			elif command == 'AT1':
@@ -477,11 +477,11 @@ class MCSCommunicate(Communicate):
 				stand = int(data[:-2])
 				attenSetting = int(data[-2:])
 				
-				status, exitCode = self.ASPInstance.setAttenuator(mode, stand, attenSetting)
+				status, exitCode = self.SubSystemInstance.setAttenuator(mode, stand, attenSetting)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.SubSystemInstance.currentState['lastLog'])
 					
 			# AT2
 			elif command == 'AT2':
@@ -489,11 +489,11 @@ class MCSCommunicate(Communicate):
 				stand = int(data[:-2])
 				attenSetting = int(data[-2:])
 				
-				status, exitCode = self.ASPInstance.setAttenuator(mode, stand, attenSetting)
+				status, exitCode = self.SubSystemInstance.setAttenuator(mode, stand, attenSetting)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.SubSystemInstance.currentState['lastLog'])
 					
 			# ATS
 			elif command == 'ATS':
@@ -501,11 +501,11 @@ class MCSCommunicate(Communicate):
 				stand = int(data[:-2])
 				attenSetting = int(data[-2:])
 				
-				status, exitCode = self.ASPInstance.setAttenuator(mode, stand, attenSetting)
+				status, exitCode = self.SubSystemInstance.setAttenuator(mode, stand, attenSetting)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.SubSystemInstance.currentState['lastLog'])
 					
 			# FPW
 			elif command == 'FPW':
@@ -513,30 +513,30 @@ class MCSCommunicate(Communicate):
 				pol = int(data[-3])
 				state = int(data[-2:])
 				
-				status, exitCode = self.ASPInstance.setFEEPowerState(stand, pol, state)
+				status, exitCode = self.SubSystemInstance.setFEEPowerState(stand, pol, state)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.SubSystemInstance.currentState['lastLog'])
 					
 			# RXP
 			elif command == 'RXP':
 				state = int(data)
 				
-				status, exitCode = self.ASPInstance.setARXPowerState(state)
+				status, exitCode = self.SubSystemInstance.setARXPowerState(state)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.SubSystemInstance.currentState['lastLog'])
 					
 			elif command == 'FEP':
 				state = int(data)
 				
-				status, exitCode = self.ASPInstance.getFEPPowerState(state)
+				status, exitCode = self.SubSystemInstance.getFEPPowerState(state)
 				if status:
 					packed_data = ''
 				else:
-					packed_data = "0x%02X! %s" % (exitCode, self.ASPInstance.currentState['lastLog'])
+					packed_data = "0x%02X! %s" % (exitCode, self.SubSystemInstance.currentState['lastLog'])
 					
 			# 
 			# Unknown command catch
