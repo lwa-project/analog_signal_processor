@@ -37,7 +37,7 @@ from aspFunctions import  AnalogProcessor
 
 
 __version__ = '0.3'
-__revision__ = '$Rev: 1 $'
+__revision__ = '$Rev$'
 __date__ = '$LastChangedDate$'
 __all__ = ['DEFAULTS_FILENAME', 'parseConfigFile', 'MCSCommunicate', '__version__', '__revision__', '__date__', '__all__']
 
