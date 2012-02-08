@@ -30,6 +30,8 @@ except ImportError:
 	import StringIO
 
 
+from MCS import *
+
 from aspCommon import *
 from aspFunctions import  AnalogProcessor
 
@@ -176,101 +178,20 @@ def parseConfigFile(filename):
 	return config
 
 
-class MCSCommunicate(object):
+class MCSCommunicate(Communicate):
 	"""
 	Class to deal with the communcating with MCS.
 	"""
 	
-	def __init__(self, ASPInstance, config, opts):
-		self.config = config
-		self.opts = opts
-		self.ASPInstance = ASPInstance
+	def __init__(self, SubSystemInstance, config, opts):
+			super(MCSCommunicate, self).__init__(SubSystemInstance, config, opts)
 		
-		# Update the socket configuration
-		self.updateConfig()
-		
-		# Set the logger
-		self.logger = logging.getLogger(__name__)
-		
-	def updateConfig(self, config=None):
+	def processCommand(self, data):
 		"""
-		Using the configuration file, update the list of boards.
+		Interperate the data of a UDP packet as a SHL MCS command.
 		"""
 		
-		# Update the current configuration
-		if config is not None:
-			self.config = config
-		
-	def start(self):
-		"""
-		Start the recieve thread - send will run only when needed.
-		"""
-		
-		# Setup the various sockets
-		## Receive
-		try:
-			self.socketIn =  socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-			self.socketIn.bind(("0.0.0.0", self.config['MESSAGEINPORT']))
-		except socket.error, err:
-			code, e = err
-			self.logger.critical('Cannot bind to listening port %i: %s', self.config['MESSAGEINPORT'], str(e))
-			self.logger.critical('Exiting on previous error')
-			logging.shutdown()
-			sys.exit(1)
-		
-		## Send
-		try:
-			self.socketOut = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-			self.destAddress = (self.config['MESSAGEHOST'], self.config['MESSAGEOUTPORT'])
-		except socket.error, err:
-			code, e = err
-			self.logger.critical('Cannot bind to sending port %i: %s', self.config['MESSAGEOUTPORT'], str(e))
-			self.logger.critical('Exiting on previous error')
-			logging.shutdown()
-			sys.exit(1)
-
-	def stop(self):
-		"""
-		Stop the antenna statistics thread, waiting until it's finished.
-		"""
-		
-		# Close the various sockets
-		self.socketIn.close()
-		self.socketOut.close()
-		
-	def sendResponse(self, destination, status, command, reference, data):
-		"""
-		Send a response to MCS via UDP.
-		"""
-	
-		if status:
-			response = 'A'
-		else:
-			response = 'R'
-			
-		# Set the sender
-		sender = 'ASP'
-
-		# Get current time
-		(mjd, mpm) = getTime()
-
-		# Get the current system status
-		systemStatus = self.ASPInstance.currentState['status']
-
-		# Build the payload
-		payload = destination+sender+command+string.rjust(str(reference),9)
-		payload = payload + string.rjust(str(len(data)+8),4)+string.rjust(str(mjd),6)+string.rjust(str(mpm),9)+' '
-		payload = payload + response + string.rjust(str(systemStatus),7) + data
-	
-		bytes_sent = self.socketOut.sendto(payload, self.destAddress)
-		self.logger.debug("mcsSend - Sent to MCS '%s'", payload)
-		
-	def receiveCommand(self):
-		"""
-		Recieve and process MCS command over the network.
-		"""
-		
-		data = self.socketIn.recv(MCS_RCV_BYTES)
+		destination, sender, command, reference, datalen, mjd, mpm, data = self.parsePacket(data)
 			
 		destination = data[:3]
 		sender      = data[3:6]
@@ -686,10 +607,10 @@ def main(args):
 		# Shutdown ASP and close the communications channels
 		tStop = time.time()
 		logger.info('Shutting down ASP, please wait...')
-		MCSInstance.ASPInstance.sht(mode='SCRAM')
-		while MCSInstance.ASPInstance.currentState['info'] != 'System has been shut down':
+		MCSInstance.SubSystemInstance.sht(mode='SCRAM')
+		while MCSInstance.SubSystemInstance.currentState['info'] != 'System has been shut down':
 			time.sleep(5)
-			MCSInstance.ASPInstance.sht(mode='SCRAM')
+			MCSInstance.SubSystemInstance.sht(mode='SCRAM')
 		logger.info('Shutdown completed in %.3f seconds', time.time() - tStop)
 		MCSInstance.stop()
 		
