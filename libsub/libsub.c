@@ -2133,7 +2133,7 @@ int usb_transaction( sub_handle hndl,
 	int		rc;
 	int		transferred,status=-1;
 
-#define ASYNC_OUT
+// #define ASYNC_OUT
 #ifdef ASYNC_OUT
 	/* Allocate OUT Transfer */
 	struct libusb_transfer* transfer;
