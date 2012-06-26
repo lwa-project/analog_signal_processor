@@ -618,8 +618,7 @@ def main(args):
 	logger.info('Ready to communicate')
 	while True:
 		try:
-			destination, status, command, reference, response = mcsComms.receiveCommand()
-			mcsComms.sendResponse(destination, status, command, reference, response)
+			mcsComms.receiveCommand()
 			
 		except KeyboardInterrupt:
 			logger.info('Exiting on ctrl-c')
