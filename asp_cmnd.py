@@ -192,15 +192,6 @@ class MCSCommunicate(Communicate):
 		"""
 		
 		destination, sender, command, reference, datalen, mjd, mpm, data = self.parsePacket(data)
-			
-		destination = data[:3]
-		sender      = data[3:6]
-		command     = data[6:9]
-		reference   = int(data[9:18])
-		datalen     = int(data[18:22]) 
-		mjd         = int(data[22:28]) 
-		mpm         = int(data[28:37]) 
-		data        = data[38:38+datalen]
 	
 		# check destination and sender
 		if destination in (self.SubSystemInstance.subSystem, 'ALL'):
