@@ -13,8 +13,9 @@ int main(int argc, char* argv[]) {
 	* Command line parsing   *
 	*************************/
 	char *endptr;
-	int success, num, device, temp;
-	char sn[20], simpleData[2], simpleNoOp[2];
+	int success, num, device;
+	unsigned short temp;
+	char sn[20], simpleData[2], simpleNoOp[2], simpleMarker[2];
 
 	// Make sure we have the right number of arguments to continue
 	if( argc != 3+1 ) {
@@ -27,6 +28,7 @@ int main(int argc, char* argv[]) {
 	device = strtod(argv[2], &endptr);
 	hex_to_array(argv[3], simpleData);
 	hex_to_array("0x0000", simpleNoOp);
+	ushort_to_array(marker, simpleMarker);
 
 	// Make sure we have a device number that makes sense
 	if( device < 0 || device > num ) {
@@ -35,11 +37,11 @@ int main(int argc, char* argv[]) {
 	}
 
 	// Report on where we are at
-	temp = array_to_int(simpleData);
+	temp = array_to_ushort(simpleData);
 	if( device != 0 ) {
-		fprintf(stderr, "Sending data 0x%04x (%u) to device %i of %i\n", temp, temp, device, num);
+		fprintf(stderr, "Sending data 0x%04X (%u) to device %i of %i\n", temp, temp, device, num);
 	} else {
-		fprintf(stderr, "Sending data 0x%04x (%u) to all %i devices\n", temp, temp, num);
+		fprintf(stderr, "Sending data 0x%04X (%u) to all %i devices\n", temp, temp, num);
 	}
 
 
@@ -79,31 +81,36 @@ int main(int argc, char* argv[]) {
 	
 	success = 1;
 	while( success ) {
-		success = sub_spi_config(fh, SPI_ENABLE|SPI_CPOL_FALL|SPI_SETUP_SMPL|SPI_MSB_FIRST|SPI_CLK_250KHZ, NULL);
+		success = sub_spi_config(fh, ARX_SPI_CONFIG, NULL);
 		if( success ) {
 			fprintf(stderr, "sendARXDevice - set config - %s\n", sub_strerror(sub_errno));
-			// exit(1);
+			exit(1);
 		}
 	}
 
 	// Read & write 2 bytes at a time making sure to return chip select to high 
 	// when we are done.
+	success = sub_spi_transfer(fh, simpleMarker, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
+	if( success ) {
+		fprintf(stderr, "sendARXDevice - SPI write %i of %i - %s\n", 0, num, sub_strerror(sub_errno));
+	}
+	
 	j = 1;
 	for(i=num; i>0; i--) {
 		if( i == device || device == 0 ) {
 			if( j == num ) {
 				// Final set of 2 bytes - chip select to high after transmitting
-				success = sub_spi_transfer(fh, simpleData, simpleResponse, 2, SS_CONF(0, SS_LO));
+				success = sub_spi_transfer(fh, simpleData, simpleResponse, 2, TRANS_SPI_FINAL);
 			} else {
-				success = sub_spi_transfer(fh, simpleData, simpleResponse, 2, SS_CONF(0, SS_L));
+				success = sub_spi_transfer(fh, simpleData, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
 			}
 			
 		} else {
 			if( j == num ) {
 				// Final set of 2 bytes - chip select to high after transmitting
-				success = sub_spi_transfer(fh, simpleNoOp, simpleResponse, 2, SS_CONF(0, SS_LO));
+				success = sub_spi_transfer(fh, simpleNoOp, simpleResponse, 2, TRANS_SPI_FINAL);
 			} else {
-				success = sub_spi_transfer(fh, simpleNoOp, simpleResponse, 2, SS_CONF(0, SS_L));
+				success = sub_spi_transfer(fh, simpleNoOp, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
 			}
 		}
 		
@@ -114,7 +121,12 @@ int main(int argc, char* argv[]) {
 		
 		j += 1;
 	}
-
+	
+	temp = array_to_ushort(simpleResponse);
+	if( temp != marker ) {
+		fprintf(stderr, "sendARXDevice - SPI write returned a marker of 0x%04X instead of 0x%04X\n", temp, marker);
+		exit(1);
+	}
 
 	/*******************
 	* Cleanup and exit *

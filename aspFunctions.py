@@ -11,9 +11,11 @@ import os
 import time
 import logging
 import threading
+import subprocess
 
 from aspCommon import *
 from aspSPI import *
+from aspThreads import *
 
 
 __version__ = '0.3'
@@ -74,27 +76,9 @@ class AnalogProcessor(object):
 		self.currentState['at2'] = [30 for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
 		self.currentState['ats'] = [30 for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
 		
-		## Operational state - ARX power supplies
-		self.currentState['nAPS'] = NUM_ARX_PS
-		self.currentState['APSName'] = ['Faux ARX power supply',]
-		self.currentState['APSState'] = ['OFF',]
-		self.currentState['APSCurrent'] = [0,]
-		
-		## Operational state - FEE power supplied
-		self.currentState['nFPS'] = NUM_FEE_PS
-		self.currentState['FPSName'] = ['Faux FEE power supply',]
-		self.currentState['FPSState'] = ['OFF',]
-		self.currentState['FPSCurrent'] = [0,]
-		
-		## Operational state - Temperature sensors
-		self.currentState['nTS'] = NUM_TEMP_SENSORS
-		self.currentState['TSName'] = ['Faux temperature sensor',]
-		self.currentState['TSData'] = [25.0,]
-		
 		## Monitoring and background threads
 		self.currentState['tempThread'] = None
-		self.currentState['arxPowerThread'] = None
-		self.currentState['fepPowerThread'] = None
+		self.currentState['powerThread'] = None
 		
 		# Board and stand counts
 		self.num_boards = 0
@@ -168,7 +152,7 @@ class AnalogProcessor(object):
 		self.currentState['activeProcess'].append('INI')
 		
 		# Board and stand counts.  NOTE: Stand counts are capped at 260
-		self.num_boards = nBoards
+		self.num_boards = os.system("countBoards") / 256
 		self.num_stands = nBoards * STANDS_PER_BOARD
 		if self.num_stands > 260:
 			self.num_stands = 260
@@ -178,19 +162,14 @@ class AnalogProcessor(object):
 		# Stop all threads.  If the don't exist yet, create them.
 		if self.currentState['tempThread'] is not None:
 			self.currentState['tempThread'].stop()
+			self.currentState['tempThread'].upateConfig(self.config)
 		else:
-			#self.currentState['tempThread'] = ...
-			pass
-		if self.currentState['arxPowerThread'] is not None:
-			self.currentState['arxPowerThread'].stop()
+			self.currentState['tempThread'] = TemperatureSensors(self.config, ASPCallbackInstance=self)
+		if self.currentState['powerThread'] is not None:
+			self.currentState['powerThread'].stop()
+			self.currentState['powerThread'].upateConfig(self.config)
 		else:
-			#self.currentState['arxPowerThread'] = ...
-			pass
-		if self.currentState['fepPowerThread'] is not None:
-			self.currentState['fepPowerThread'].stop()
-		else:
-			#self.currentState['fepPowerThread'] = ...
-			pass
+			self.currentState['powerThread'] = PowerStatus(self.config, ASPCallbackInstance=self)
 		
 		# Update the analog signal chain state
 		for i in xrange(self.num_stands):
@@ -215,6 +194,10 @@ class AnalogProcessor(object):
 			status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P28_29_30_31)		# Set outputs
 			
 			attempt += 1
+		
+		# Start the threads
+		self.currentState['tempThread'].start()
+		self.currentState['powerThread'].start()
 		
 		if status:
 			self.currentState['status'] = 'NORMAL'
@@ -281,10 +264,8 @@ class AnalogProcessor(object):
 		# Stop all threads.
 		if self.currentState['tempThread'] is not None:
 			self.currentState['tempThread'].stop()
-		if self.currentState['arxPowerThread'] is not None:
-			self.currentState['arxPowerThread'].stop()
-		if self.currentState['fepPowerThread'] is not None:
-			self.currentState['fepPowerThread'].stop()
+		if self.currentState['powerThread'] is not None:
+			self.currentState['powerThread'].stop()
 			
 		# Do SPI bus stuff
 		attempt = 0
@@ -771,9 +752,20 @@ class AnalogProcessor(object):
 		"""
 		
 		status = 'ON '
-		for s in self.currentState['APSState']:
+		for i in xrange(self.config['powerThread'].getPSUCount()):
+			voltage = self.config['powerThread'].getVoltage(i)
+			if voltage is None:
+				continue
+			if voltage > 9:
+				continue
+			
+			s = self.config['powerThread'].getOnOff(i)
+			
 			if s == 'OFF':
 				status = 'OFF'
+				break
+			elif s == 'UNK':
+				status = 'UNK'
 				break
 			else:
 				pass
@@ -788,8 +780,10 @@ class AnalogProcessor(object):
 		returned success value is False.
 		"""
 		
-		if psNumb > 0 and psNumb <= self.currentState['nAPS']:
-			return True, self.currentState['APSName'][psNumb-1]
+		if psNumb > 0 and psNumb <= self.config['powerThread'].getPSUCount():
+			name = self.config['powerThread'].getDescription(psNumbNumb-1)
+		
+			return True, name
 			
 		else:
 			self.currentState['lastLog'] = 'Invalid ARX power supply (%i)' % psNumb
@@ -804,10 +798,43 @@ class AnalogProcessor(object):
 		"""
 		
 		curr = 0.0
-		for c in self.currentState['APSCurrent']:
-			c += c
+		for i in xrange(self.config['powerThread'].getPSUCount()):
+			voltage = self.config['powerThread'].getVoltage(i)
+			if voltage is None:
+				continue
+			if voltage > 9:
+				continue
+			
+			c += self.config['powerThread'].getCurrent(i)
 			
 		return True, c*1000.0
+		
+	def getARXVoltage():
+		"""
+		Return the ARX output voltage (in V) as a two-element tuple (success, value) where
+		success is a boolean related to if the current value was found.  See the 
+		currentState['lastLog'] entry for the reason for failure if the returned success 
+		value is False.
+		"""
+		
+		volt = 0.0
+		count = 0
+		for v in xrange(self.config['powerThread'].getPSUCount()):
+			voltage = self.config['powerThread'].getVoltage(i)
+			if voltage is None:
+				continue
+			if voltage > 9:
+				continue
+			
+			volt += voltage
+			count += 1
+		
+		try:
+			volt /= float(count)
+		except:
+			volt = 0.0
+			
+		return True, volt
 		
 	def getFEEPowerSupplyStatus(self):
 		"""
@@ -818,9 +845,20 @@ class AnalogProcessor(object):
 		"""
 		
 		status = 'ON '
-		for s in self.currentState['FPSState']:
+		for i in xrange(self.config['powerThread'].getPSUCount()):
+			voltage = self.config['powerThread'].getVoltage(i)
+			if voltage is None:
+				continue
+			if voltage < 9:
+				continue
+			
+			s = self.config['powerThread'].getOnOff(i)
+			
 			if s == 'OFF':
 				status = 'OFF'
+				break
+			elif s == 'UNK':
+				status = 'UNK'
 				break
 			else:
 				pass
@@ -835,8 +873,10 @@ class AnalogProcessor(object):
 		returned success value is False.
 		"""
 		
-		if psNumb > 0 and psNumb <= self.currentState['nFPS']:
-			return True, self.currentState['FPSName'][psNumb-1]
+		if psNumb > 0 and psNumb <= self.config['powerThread'].getPSUCount():
+			name = self.config['powerThread'].getDescription(psNumbNumb-1)
+		
+			return True, name
 			
 		else:
 			self.currentState['lastLog'] = 'Invalid FEE power supply (%i)' % psNumb
@@ -851,10 +891,43 @@ class AnalogProcessor(object):
 		"""
 		
 		curr = 0.0
-		for c in self.currentState['FPSCurrent']:
-			c += c
+		for i in xrange(self.config['powerThread'].getPSUCount()):
+			voltage = self.config['powerThread'].getVoltage(i)
+			if voltage is None:
+				continue
+			if voltage < 9:
+				continue
+			
+			c += self.config['powerThread'].getCurrent(i)
 			
 		return True, c*1000.0
+		
+	def getFEEVoltage():
+		"""
+		Return the ARX output voltage (in V) as a two-element tuple (success, value) where
+		success is a boolean related to if the current value was found.  See the 
+		currentState['lastLog'] entry for the reason for failure if the returned success 
+		value is False.
+		"""
+		
+		volt = 0.0
+		count = 0
+		for v in xrange(self.config['powerThread'].getPSUCount()):
+			voltage = self.config['powerThread'].getVoltage(i)
+			if voltage is None:
+				continue
+			if voltage < 9:
+				continue
+			
+			volt += voltage
+			count += 1
+		
+		try:
+			volt /= float(count)
+		except:
+			volt = 0.0
+			
+		return True, volt
 		
 	def getTemperatureStatus(self):
 		"""
@@ -865,7 +938,11 @@ class AnalogProcessor(object):
 		"""
 		
 		summary = 'IN_RANGE'
-		for temp in self.currentState['TSData']:
+		for i in xrange(self.config['tempThread'].getSensorCount()):
+			temp = self.config['tempThread'].getTemperature(i)
+			if temp is None:
+				continue
+			
 			if temp < self.config['TEMPMIN']:
 				summary = 'UNDER_TEMP'
 				break
@@ -885,8 +962,11 @@ class AnalogProcessor(object):
 		the returned success value is False.
 		"""
 		
-		if sensorNumb > 0 and sensorNumb <= self.currentState['nTS']:
-			return True, (self.currentState['TSName'][sensorNumb-1], self.currentState['TSData'][sensorNumb-1])
+		if sensorNumb > 0 and sensorNumb <= self.config['tempThread'].getSensorCount():
+			name = self.config['tempThread'].getDescription(sensorNumb-1)
+			temp = self.config['tempThread'].getTemperature(sensorNumb-1)
+		
+			return True, (name, temp)
 			
 		else:
 			self.currentState['lastLog'] = 'Invalid temperature sensor (%i)' % sensorNumb

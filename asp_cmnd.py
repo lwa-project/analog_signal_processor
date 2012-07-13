@@ -121,7 +121,9 @@ def parseConfigFile(filename):
 			   'MESSAGEOUTPORT'           : int,
 			   'MESSAGEINPORT'            : int, 
 			   'TEMPMIN'                  : float, 
-			   'TEMPMAX'                  : float}
+			   'TEMPMAX'                  : float, 
+			   'TEMPPERIOD'               : float, 
+			   'POWERPERIOD'              : float}
 	config = {}
 
 	#
@@ -323,7 +325,7 @@ class MCSCommunicate(Communicate):
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'ARXSUPPLY-NO':
-					packed_data = str(self.SubSystemInstance.currentState['nAPS'])
+					packed_data = str(self.SubSystemInstance.currentState['powerThread'].getPSUCount())
 					self.logger.debug('%s = %s' % (data, packed_data))
 				elif data[0:11] == 'ARXPWRUNIT_':
 					psNumb = int(data[11:])
@@ -345,6 +347,15 @@ class MCSCommunicate(Communicate):
 						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
+				elif data == 'ARXVOLT':
+					status, value = self.SubSystemInstance.getARXVoltage()
+					if status:
+						packed_data = "%-7i" % value
+						
+					else:
+						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
+						
+					self.logger.debug('%s = exited with status %s', data, str(status))
 				
 				## FEE power supplies
 				elif data == 'FEESUPPLY':
@@ -357,7 +368,7 @@ class MCSCommunicate(Communicate):
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'FEESUPPLY_NO':
-					packed_data = str(self.SubSystemInstance.currentState['nFPS'])
+					packed_data = str(self.SubSystemInstance.currentState['powerThread'].getPSUCount())
 					self.logger.debug('%s = %s' % (data, packed_data))
 				elif data[0:11] == 'FEEPWRUNIT_':
 					psNumb = int(data[11:])
@@ -379,6 +390,15 @@ class MCSCommunicate(Communicate):
 						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
+				elif data == 'FEEVOLT':
+					status, value = self.SubSystemInstance.getFEEVoltage()
+					if status:
+						packed_data = "%-7i" % value
+						
+					else:
+						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
+						
+					self.logger.debug('%s = exited with status %s', data, str(status))
 					
 				## Temperatue sensors
 				elif data == 'TEMP-STATUS':
@@ -391,7 +411,7 @@ class MCSCommunicate(Communicate):
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'TEMP-SENSE-NO':
-					packed_data = str(self.SubSystemInstance.currentState['nTS'])
+					packed_data = str(self.SubSystemInstance.currentState['tempThread'].getSensorCount())
 					self.logger.debug('%s = %s' % (data, packed_data))
 				elif data[0:12] == 'SENSOR-NAME-':
 					sensorNumb = int(data[12:])

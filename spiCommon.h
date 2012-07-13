@@ -16,9 +16,24 @@ $LastChangedDate$
 
 #include <stdlib.h>
 
+// SPI bus configuration settings
+#define ARX_SPI_CONFIG SPI_ENABLE|SPI_CPOL_FALL|SPI_SETUP_SMPL|SPI_MSB_FIRST|SPI_CLK_250KHZ
+#define TRANS_SPI_INTERMEDIATE SS_CONF(0, SS_L)
+#define TRANS_SPI_FINAL SS_CONF(0, SS_LO)
 
+
+// ARX board configuration
+#define STANDS_PER_BOARD 8
+
+
+// Command verification marker
+unsigned short marker = 0x0120;
+
+
+// Pack and Unpack functions
 void hex_to_array(char*, char*);
-int array_to_int(char*);
+void ushort_to_array(unsigned short, char*);
+int array_to_ushort(char*);
 
 
 /*
@@ -36,14 +51,22 @@ void hex_to_array(char* in, char* out) {
 
 
 /*
-  array_to_int - Convert a 2-byte arry to an integer
+  short_to_array - Convert an unsigned short to a 2-byte array
 */
-int array_to_int(char* in) {
-	int value;
+void ushort_to_array(unsigned short value, char* out) {
+	out[1] = (unsigned int) ((value >>  8) & 0xFF);
+	out[0] = (unsigned int) (value & 0xFF);    
+}
 
-	value  =  (int) (in[1] << 8);
-	value |=  (int) in[0];
-	value &= 0xFFFF;
+
+/*
+  array_to_short - Convert a 2-byte arry to an integer
+*/
+int array_to_ushort(char* in) {
+	unsigned short value;
+
+	value  =  (unsigned short) ((in[1] & 0xFF)<< 8);
+	value |=  (unsigned short) (in[0] & 0xFF);
 
 	return value;
 }

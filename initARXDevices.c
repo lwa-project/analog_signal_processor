@@ -13,7 +13,8 @@ int main(int argc, char* argv[]) {
 	* Command line parsing   *
 	*************************/
 	char *endptr;
-	int success, num, temp;
+	int success, num;
+	unsigned short temp;
 	char sn[20], simpleData[2];
 
 	// Make sure we have the right number of arguments to continue
@@ -27,8 +28,8 @@ int main(int argc, char* argv[]) {
 	hex_to_array(argv[2], simpleData);
 
 	// Report on where we are at
-	temp = array_to_int(simpleData);
-	fprintf(stderr, "Sending data 0x%04x (%u) to all %i devices\n", temp, temp, num);
+	temp = array_to_ushort(simpleData);
+	fprintf(stderr, "Sending data 0x%04X (%u) to all %i devices\n", temp, temp, num);
 
 
 	/************************************
@@ -67,16 +68,16 @@ int main(int argc, char* argv[]) {
 	
 	success = 1;
 	while( success ) {
-		success = sub_spi_config(fh, SPI_ENABLE|SPI_CPOL_FALL|SPI_SETUP_SMPL|SPI_MSB_FIRST|SPI_CLK_250KHZ, NULL);
+		success = sub_spi_config(fh, ARX_SPI_CONFIG, NULL);
 		if( success ) {
 			fprintf(stderr, "initARXDevices - set config - %s\n", sub_strerror(sub_errno));
-			// exit(1);
+			exit(1);
 		}
 	}
 
 	for(i=0; i<2*num; i++) {
 		// Read & write
-		success = sub_spi_transfer(fh, simpleData, simpleResponse, 2, SS_CONF(0, SS_LO));
+		success = sub_spi_transfer(fh, simpleData, simpleResponse, 2, TRANS_SPI_FINAL);
 		
 		if( success ) {
 			fprintf(stderr, "initARXDevices - SPI write %i of %i - %s\n", i+1, 2*num, sub_strerror(sub_errno));

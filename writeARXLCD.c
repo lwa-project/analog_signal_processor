@@ -32,9 +32,10 @@ int main(int argc, char* argv[]) {
 	// Open the USB device (or die trying)
 	dev = NULL;
 	fh = sub_open(dev);
-	if( !fh ) {
+	while( !fh ) {
 		fprintf(stderr, "writeARXLCD - open - %s\n", sub_strerror(sub_errno));
-		exit(1);
+		usleep(50000);
+		fh = sub_open(dev);
 	}
 	
 	success = sub_get_serial_number(fh, sn, sizeof(sn));
