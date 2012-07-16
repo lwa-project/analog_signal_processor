@@ -2,12 +2,13 @@
 #define __SPICOMMON_H
 
 /*
-  spiCommon.h - Header library to carry out a few simple hexidecimal to array 
+  spiCommon.h - Header library to carry out a few simple hexadecimal to array 
   operations
   
   Functions defined:
     * hex_to_array - convert a hexadecimal string to an 2-byte array
-    * array_to_int - convert a 2-byte array to an integer
+    * ushort_to_array - convert an unsigned short to a 2-byte array
+    * array_to_ushort - convert a 2-byte array to an unsigned short
     
 $Rev$
 $LastChangedBy$
@@ -51,7 +52,7 @@ void hex_to_array(char* in, char* out) {
 
 
 /*
-  short_to_array - Convert an unsigned short to a 2-byte array
+  ushort_to_array - Convert an unsigned short to a 2-byte array
 */
 void ushort_to_array(unsigned short value, char* out) {
 	out[1] = (unsigned int) ((value >>  8) & 0xFF);
@@ -60,7 +61,7 @@ void ushort_to_array(unsigned short value, char* out) {
 
 
 /*
-  array_to_short - Convert a 2-byte arry to an integer
+  array_to_ushort - Convert a 2-byte array to an integer
 */
 int array_to_ushort(char* in) {
 	unsigned short value;

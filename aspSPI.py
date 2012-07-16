@@ -91,7 +91,7 @@ def SPI_init_devices(num, Config):
 
 def SPI_config_devices(num, Config):
 	"""
-	Configure a given number fo SPI bus devices (ARX boards) with the specified state.
+	Configure a given number of SPI bus devices (ARX boards) with the specified state.
 
 	Return the status of the operation as a boolean.
 	"""

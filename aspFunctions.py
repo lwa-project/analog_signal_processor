@@ -867,20 +867,21 @@ class AnalogProcessor(object):
 		
 	def getFEEPowerSupplyInfo(self, psNumb):
 		"""
-		Return information (name) about the  various FEE power supplies as a two-element 
-		tuple (success, values) where success is a boolean related to if the values were 
-		found.  See the currentState['lastLog'] entry for the reason for failure if the 
-		returned success value is False.
+		Return information (name and status) about the  various FEE power supplies as a three-
+		element tuple (success, name, status string) where success is a boolean related to if 
+		the values were found.  See the currentState['lastLog'] entry for the reason for 
+		failure if the returned success value is False.
 		"""
 		
 		if psNumb > 0 and psNumb <= self.config['powerThread'].getPSUCount():
 			name = self.config['powerThread'].getDescription(psNumbNumb-1)
+			status = self.config['powerThread'].getDescription(psNumbNumb-1)
 		
-			return True, name
+			return True, name, status
 			
 		else:
 			self.currentState['lastLog'] = 'Invalid FEE power supply (%i)' % psNumb
-			return False, None
+			return False, None, None
 			
 	def getFEECurrentDraw(self):
 		"""

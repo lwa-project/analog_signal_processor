@@ -3,8 +3,7 @@
 #------------------------------------------------------------------------------
 all: LIBSUB initARXDevices sendARXDevice writeARXLCD \
      countBoards countPSUs countThermometers \
-     readPSUs readThermometers \
-     updatePython
+     readPSUs readThermometers
 
 #------------------------------------------------------------------------------
 # Config
@@ -73,9 +72,6 @@ readPSUs: readPSUs.o
 
 readThermometers: readThermometers.o
 	$(CC) -o $@ $^ $(LDFLAGS)
-
-updatePython: spiCommon.h
-	cat spiCommon.h | grep STANDS | sed -e 's/.*BOARD //;'
 
 install:
 	cp sendARXDevice /usr/local/bin

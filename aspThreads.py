@@ -159,7 +159,7 @@ class TemperatureSensors(object):
 		
 	def getDescription(self, sensor=0):
 		"""
-		Cnvenience function to get the description of the temperature sensor.
+		Convenience function to get the description of the temperature sensor.
 		"""
 		
 		if self.temp is None:
@@ -307,7 +307,7 @@ class PowerStatus(object):
 				
 			# Stop time
 			tStop = time.time()
-			aspThreadsLogger.debug('Finished updating temperatures in %.3f seconds', tStop - tStart)
+			aspThreadsLogger.debug('Finished updating PSU status in %.3f seconds', tStop - tStart)
 			
 			# Sleep for a bit
 			sleepCount = 0
