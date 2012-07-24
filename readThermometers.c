@@ -1,3 +1,23 @@
+/*****************************************************
+readThermometers - Program to pull information about 
+temperature sensors found on the I2C bus.  The data 
+polled includes temperatures from:
+  * case
+  * primary side input
+  * modules
+ 
+Usage:
+  readThermometers
+
+Options:
+  None
+
+$Rev$
+$LastChangedBy$
+$LastChangedDate$
+*****************************************************/
+
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>

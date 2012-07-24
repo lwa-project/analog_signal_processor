@@ -1,3 +1,23 @@
+/*****************************************************
+initARXDevices - Send SPI commands to the specified 
+devices.  An exit code of zero indicates that no errors
+were encountered.
+ 
+Usage:
+  initARXDevices <total stand count> <command>
+
+  * Command is a four digit hexadecimal values (i.e., 
+  0x1234)
+  
+Options:
+  None
+
+$Rev$
+$LastChangedBy$
+$LastChangedDate$
+*****************************************************/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

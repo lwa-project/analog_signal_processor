@@ -1,3 +1,23 @@
+/*****************************************************
+sendARXDevice - Send a SPI command to the specified 
+device.  An exit code of zero indicates that no errors
+were encountered.
+ 
+Usage:
+  sendARXDevice <total stand count> <device> <command>
+
+  * Command is a four digit hexadecimal values (i.e., 
+  0x1234)
+  
+Options:
+  None
+
+$Rev$
+$LastChangedBy$
+$LastChangedDate$
+*****************************************************/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

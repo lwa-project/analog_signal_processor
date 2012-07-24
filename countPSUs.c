@@ -1,3 +1,23 @@
+/*****************************************************
+countPSUs - Utility for identifying the power supply
+modules connected to the I2C bus. The exit code 
+contains the number of modules found.
+
+Note:  There can be more than one module per power
+       supply chassis.
+ 
+Usage:
+  countPSUs
+
+Options:
+  None
+
+$Rev$
+$LastChangedBy$
+$LastChangedDate$
+*****************************************************/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

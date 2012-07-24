@@ -1,3 +1,23 @@
+/*****************************************************
+countThermometers - Utility for identifying the 
+temperature sensors associated with each power supply.
+The exit code contains the number of sensors found.
+
+Note:  There can be more than one temperature sensor
+       per power supply.
+ 
+Usage:
+  countThermometers
+
+Options:
+  None
+
+$Rev$
+$LastChangedBy$
+$LastChangedDate$
+*****************************************************/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

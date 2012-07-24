@@ -1,3 +1,20 @@
+/*****************************************************
+countBoards - Utility for identifying the number of 
+ARX boards connected to the SPI bus.  The exit code 
+contains the number of boards found.
+ 
+Usage:
+  countBoards
+
+Options:
+  None
+
+$Rev$
+$LastChangedBy$
+$LastChangedDate$
+*****************************************************/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,7 +81,7 @@ int main(int argc, char* argv[]) {
 
 	num = 0;
 	temp = array_to_ushort(simpleResponse);
-	while( temp != marker ) {
+	while( temp != marker && num < 272) {
 		num += STANDS_PER_BOARD;
 
 		// Read & write 2 bytes at a time making sure to return chip select to high 
@@ -92,7 +109,10 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	
-	// Convert stands to boards
+	// Convert stands to boards (making sure that we are in range for the board count)
+	if( num > 264 ){
+		num = 0;
+	}
 	num /= STANDS_PER_BOARD;
 	
 	// Report

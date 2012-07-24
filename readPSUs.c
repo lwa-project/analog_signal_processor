@@ -1,3 +1,24 @@
+/*****************************************************
+readPSUs - Program to pull information about all power
+supplies found on the I2C bus.  The data polled 
+includes:
+ * on/off status
+ * general module health (DC OK, over current, etc.)
+ * output voltage
+ * output current
+ 
+Usage:
+  readPSUs
+
+Options:
+  None
+
+$Rev$
+$LastChangedBy$
+$LastChangedDate$
+*****************************************************/
+
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -157,13 +178,17 @@ int main(int argc, char* argv[]) {
 						if( (status >> 4) & 1 ) {
 							printf("OverTemperature ");
 						} else {
-							if( (status >> 6) & 1 ) {
-								printf("OverVolt ");
+							if( (status >> 5) & 1 ) {
+								printf("WarningTemperature ");
 							} else {
-								if( (status >> 7) & 1 ) {
-									printf("ModuleFault ");
+								if( (status >> 6) & 1 ) {
+									printf("OverVolt ");
 								} else {
-									printf("UNK ");
+									if( (status >> 7) & 1 ) {
+										printf("ModuleFault ");
+									} else {
+										printf("UNK ");
+									}
 								}
 							}
 						}
