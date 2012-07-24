@@ -68,7 +68,7 @@ countPSUs: countPSUs.o
 countThermometers: countThermometers.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
-readPSUs: readPSU.o
+readPSU: readPSU.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 readThermometers: readThermometers.o
