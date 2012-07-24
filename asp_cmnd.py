@@ -330,7 +330,7 @@ class MCSCommunicate(Communicate):
 				elif data[0:11] == 'ARXPWRUNIT_':
 					psNumb = int(data[11:])
 					
-					status, value, junk = self.SubSystemInstance.getARXPowerSupplyInfo(psNumb)
+					status, value = self.SubSystemInstance.getARXPowerSupplyInfo(psNumb)
 					if status:
 						packed_data = value
 						
@@ -384,18 +384,7 @@ class MCSCommunicate(Communicate):
 				elif data[0:11] == 'FEEPWRUNIT_':
 					psNumb = int(data[11:])
 					
-					status, value, junk = self.SubSystemInstance.getFEEPowerSupplyInfo(psNumb)
-					if status:
-						packed_data = value
-						
-					else:
-						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
-						
-					self.logger.debug('%s = exited with status %s', data, str(status))
-				elif data[0:11] == 'FEEPWRSTAT_':
-					psNumb = int(data[11:])
-					
-					status, junk, value = self.SubSystemInstance.getFEEPowerSupplyInfo(psNumb)
+					status, value = self.SubSystemInstance.getFEEPowerSupplyInfo(psNumb)
 					if status:
 						packed_data = value
 						
@@ -685,6 +674,7 @@ def main(args):
 	print '\nShutting down ASP, please wait...'
 	logger.info('Shutting down ASP, please wait...')
 	lwaASP.sht()
+	time.sleep(5)
 	while lwaASP.currentState['info'] != 'System has been shut down':
 		time.sleep(5)
 		lwaASP.sht()

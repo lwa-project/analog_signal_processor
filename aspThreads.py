@@ -109,14 +109,14 @@ class TemperatureSensors(object):
 				
 				if p.returncode != 0:
 					aspThreadsLogger.warning("readThermometers: command returned %i; '%s;%s'", p.returncode, output, output2)
-					self.lastError = str(ouput2)
-				
-				for i,line in enumerate(output.split('\n')):
-					if len(line) < 4:
-						continue
-					psu, desc, tempC = line.split(None, 2)
-					self.description[i] = '%s %s' % (psu, desc)
-					self.temp[i] = float(tempC)
+					self.lastError = str(output2)
+				else:
+					for i,line in enumerate(output.split('\n')):
+						if len(line) < 4:
+							continue
+						psu, desc, tempC = line.split(None, 2)
+						self.description[i] = '%s %s' % (psu, desc)
+						self.temp[i] = float(tempC)
 				
 			except Exception, e:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -136,12 +136,12 @@ class TemperatureSensors(object):
 			
 			# Make sure we aren't critical (on either side of good)
 			if self.ASPCallbackInstance is not None and self.temp is not None:
-				if max(self.temp) > maxTemp:
+				if max(self.temp) > self.maxTemp:
 					aspThreadsLogger.critical('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
 					
 					self.ASPCallbackInstance.processCriticalTemperature(high=True)
 					
-				elif min(self.temp) < minTemp:
+				elif min(self.temp) < self.minTemp:
 					aspThreadsLogger.critical('%s: monitorThread min. temperature is %.1f C', type(self).__name__, min(self.temp))
 					
 					self.ASPCallbackInstance.processCriticalTemperature(low=True)
@@ -278,19 +278,22 @@ class PowerStatus(object):
 				
 				if p.returncode != 0:
 					aspThreadsLogger.warning("readPSU: command returned %i; '%s;%s'", p.returncode, output, output2)
-					self.temp = None
-					self.lastError = str(ouput2)
-				
-				psu, desc, onoffHuh, statusHuh, voltageV, currentA, = output.split(None, 5)
-				self.description[i] = '%s %s' % (psu, desc)
-				self.voltage[i] = float(voltageV)
-				self.current[i] = float(currentA)
-				self.onoff[i] = '%3s' % onoffHuh
-				self.status[i] = statusHuh
+					self.voltage = 0.0
+					self.current = 0.0
+					self.onoff = "UNK"
+					self.status = "UNK"
+					self.lastError = str(output2)
+				else:
+					psu, desc, onoffHuh, statusHuh, voltageV, currentA, = output.replace('\n', '').split(None, 5)
+					self.description = '%s %s' % (psu, desc)
+					self.voltage = float(voltageV)
+					self.current = float(currentA)
+					self.onoff = '%-3s' % onoffHuh
+					self.status = statusHuh
 				
 			except Exception, e:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
-				aspThreadsLogger.error("%s: monitorThread failed with: %s at line %i", type(self).__name__, str(e), traceback.tb_lineno(exc_traceback))
+				aspThreadsLogger.error("%s: monitorThread 0x%02X failed with: %s at line %i", type(self).__name__, self.deviceAddress, str(e), traceback.tb_lineno(exc_traceback))
 				
 				## Grab the full traceback and save it to a string via StringIO
 				fileObject = StringIO.StringIO()
