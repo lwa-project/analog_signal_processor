@@ -3,7 +3,7 @@
 #------------------------------------------------------------------------------
 all: LIBSUB initARXDevices sendARXDevice writeARXLCD \
      countBoards countPSUs countThermometers \
-     readPSUs readThermometers \
+     readPSU readThermometers \
      onoffPSU
 
 #------------------------------------------------------------------------------
@@ -68,7 +68,7 @@ countPSUs: countPSUs.o
 countThermometers: countThermometers.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
-readPSUs: readPSUs.o
+readPSUs: readPSU.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 readThermometers: readThermometers.o
@@ -84,16 +84,16 @@ install:
 	cp countBoards /usr/local/bin
 	cp countPSUs /usr/local/bin
 	cp countThermometers /usr/local/bin
-	cp readPSUs /usr/local/bin
+	cp readPSU /usr/local/bin
 	cp readThermometers /usr/local/bin
 	cp onoffPSU /usr/local/bin
 	chown root:root /usr/local/bin/sendARXDevice /usr/local/bin/initARXDevices /usr/local/bin/writeARXLCD \
                         /usr/local/bin/countBoards /usr/local/bin/countPSUs /usr/local/bin/countThermometers \
-                        /usr/local/bin/readPSUs /usr/local/bin/readThermometers \
+                        /usr/local/bin/readPSU /usr/local/bin/readThermometers \
                         /usr/local/bin/onoffPSU
 	chmod +s /usr/local/bin/sendARXDevice /usr/local/bin/initARXDevices /usr/local/bin/writeARXLCD \
                  /usr/local/bin/countBoards /usr/local/bin/countPSUs /usr/local/bin/countThermometers \
-                 /usr/local/bin/readPSUs /usr/local/bin/readThermometers \
+                 /usr/local/bin/readPSU /usr/local/bin/readThermometers \
                  /usr/local/bin/onoffPSU
 
 clean:

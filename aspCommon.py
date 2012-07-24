@@ -16,7 +16,7 @@ __version__ = '0.1'
 __revision__ = '$Rev$'
 __all__ = ['STANDS_PER_BOARD', 'MAX_BOARDS', 'MAX_STANDS', 'MAX_ATTEN', 
 		 'MAX_SPI_RETRY', 'WAIT_SPI_RETRY', 
-		 'NUM_ARX_PS', 'NUM_FEE_PS', 'NUM_TEMP_SENSORS', 
+		 'ARX_PS_ADDRESS', 'FEE_PS_ADDRESS',
 		 '__version__', '__revision__', '__all__']
 
 
@@ -37,10 +37,8 @@ MAX_SPI_RETRY = 3
 WAIT_SPI_RETRY = 0.2
 
 # Number of ARX power supplies
-NUM_ARX_PS = 1
+ARX_PS_ADDRESS = 0x1F
 
 # Number of FEE power supplies
-NUM_FEE_PS = 1
+FEE_PS_ADDRESS = 0x2F
 
-# Number of temperature sensors
-NUM_TEMP_SENSORS = 1

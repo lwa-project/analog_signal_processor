@@ -20,7 +20,7 @@ try:
 except ImportError:
         import StringIO
 
-__version__ = '0.1'
+__version__ = '0.2'
 __revision__ = '$Rev$'
 __all__ = ['TemperatureSensors', 'PowerStatus', '__version__', '__revision__', '__all__']
 
@@ -58,7 +58,7 @@ class TemperatureSensors(object):
 			
 		self.monitorPeriod = config['TEMPPERIOD']
 		self.minTemp = config['TEMPMIN']
-		self.minTemp = config['TEMPMAX']
+		self.maxTemp = config['TEMPMAX']
 		
 	def start(self):
 		"""
@@ -133,15 +133,22 @@ class TemperatureSensors(object):
 				
 				self.temp = None
 				self.lastError = str(e)
-				
+			
+			# Make sure we aren't critical (on either side of good)
+			if self.ASPCallbackInstance is not None and self.temp is not None:
+				if max(self.temp) > maxTemp:
+					aspThreadsLogger.critical('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
+					
+					self.ASPCallbackInstance.processCriticalTemperature(high=True)
+					
+				elif min(self.temp) < minTemp:
+					aspThreadsLogger.critical('%s: monitorThread min. temperature is %.1f C', type(self).__name__, min(self.temp))
+					
+					self.ASPCallbackInstance.processCriticalTemperature(low=True)
+					
 			# Stop time
 			tStop = time.time()
 			aspThreadsLogger.debug('Finished updating temperatures in %.3f seconds', tStop - tStart)
-			
-			## Make sure we aren't critical
-			#if self.ASPCallbackInstance is not None and self.temp is not None:
-			#	if max(self.temp) >= self.maxTemp():
-			#		pass
 			
 			# Sleep for a bit
 			sleepCount = 0
@@ -193,7 +200,8 @@ class PowerStatus(object):
 	for the power supplies via the I2C interface.
 	"""
 	
-	def __init__(self, config, ASPCallbackInstance=None):
+	def __init__(self, deviceAddress, config, ASPCallbackInstance=None):
+		self.deviceAddress = int(deviceAddress)
 		self.updateConfig(config)
 		
 		# Setup the callback
@@ -229,12 +237,11 @@ class PowerStatus(object):
 		if self.thread is not None:
 			self.stop()
 			
-		self.nPSUs = os.system("countPSUs") / 256
-		self.description = ["UNK" for i in xrange(self.nPSUs)]
-		self.voltage     = [0.0 for i in xrange(self.nPSUs)]
-		self.current     = [0.0 for i in xrange(self.nPSUs)]
-		self.onoff       = ["UNK" for i in xrange(self.nPSUs)]
-		self.status      = ["UNK" for i in xrange(self.nPSUs)]
+		self.description = "UNK"
+		self.voltage     = 0.0
+		self.current     = 0.0
+		self.onoff       = "UNK"
+		self.status      = "UNK"
 			
 		self.thread = threading.Thread(target=self.monitorThread)
 		self.thread.setDaemon(1)
@@ -247,8 +254,6 @@ class PowerStatus(object):
 		"""
 		Stop the monitor thread, waiting until it's finished.
 		"""
-
-		os.system("pkill readPSUs")
 
 		if self.thread is not None:
 			self.alive.clear()          #clear alive event for thread
@@ -266,25 +271,22 @@ class PowerStatus(object):
 			tStart = time.time()
 			
 			try:
-				p = subprocess.Popen(['readPSUs',], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				p = subprocess.Popen(['readPSU', "0x%02X" % self.deviceAddress], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 				p.wait()
 					
 				output, output2 = p.communicate()
 				
 				if p.returncode != 0:
-					aspThreadsLogger.warning("readThermometers: command returned %i; '%s;%s'", p.returncode, output, output2)
+					aspThreadsLogger.warning("readPSU: command returned %i; '%s;%s'", p.returncode, output, output2)
 					self.temp = None
 					self.lastError = str(ouput2)
 				
-				for i,line in enumerate(output.split('\n')):
-					if len(line) < 4:
-						continue
-					psu, desc, onoffHuh, statusHuh, voltageV, currentA, = line.split(None, 5)
-					self.description[i] = '%s %s' % (psu, desc)
-					self.voltage[i] = float(voltageV)
-					self.current[i] = float(currentA)
-					self.onoff[i] = '%3s' % onoffHuh
-					self.status[i] = statusHuh
+				psu, desc, onoffHuh, statusHuh, voltageV, currentA, = output.split(None, 5)
+				self.description[i] = '%s %s' % (psu, desc)
+				self.voltage[i] = float(voltageV)
+				self.current[i] = float(currentA)
+				self.onoff[i] = '%3s' % onoffHuh
+				self.status[i] = statusHuh
 				
 			except Exception, e:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -299,15 +301,21 @@ class PowerStatus(object):
 				for line in tbString.split('\n'):
 					aspThreadsLogger.debug("%s", line)
 				
-				self.voltage = [0.0 for v in self.voltage]
-				self.current = [0.0 for c in self.current]
-				self.onoff = ["UNK" for o in self.onoff]
-				self.status = ["UNK" for s in self.status]
+				self.voltage = 0.0
+				self.current = 0.0
+				self.onoff = "UNK"
+				self.status = "UNK"
 				self.lastError = str(e)
 				
+			# Deal with power supplies that are over temperature, current, or voltage; 
+			# or under voltage; or has a module fault
+			if self.ASPCallbackInstance is not None:
+				if self.status in ('OverTemperature', 'OverCurrent', 'OverVolt', 'UnderVolt', 'ModuleFault'):
+					self.ASPCallbackInstance.processCriticalPowerSupply(self.deviceAddress, self.status)
+					
 			# Stop time
 			tStop = time.time()
-			aspThreadsLogger.debug('Finished updating PSU status in %.3f seconds', tStop - tStart)
+			aspThreadsLogger.debug('Finished updating PSU status for 0x%02X in %.3f seconds', self.deviceAddress, tStop - tStart)
 			
 			# Sleep for a bit
 			sleepCount = 0
@@ -316,76 +324,46 @@ class PowerStatus(object):
 				time.sleep(0.2)
 				sleepCount += 0.2
 				
-	def getPSUCount(self):
+	def getDeviceAddress(self):
 		"""
-		Convenience function to get the number of PSUs/modules.
+		Convenience function to get the I2C address of the PSU.
 		"""
 		
-		return self.nPSUs
+		return self.deviceAddress
 		
-	def getDescription(self, module=0):
+	def getDescription(self):
 		"""
 		Convenience function to get the description of the module.
 		"""
 		
-		if self.description is None:
-			return None
-			
-		if module < 0 or module >= self.nPSUs:
-			return None
-			
-		return self.description[module]
+		return self.description
 		
-	def getVoltage(self, module=0):
+	def getVoltage(self):
 		"""
 		Convenience function to get the voltage in volts.
 		"""
 
-		if self.voltage is None:
-			return None
-			
-		if module < 0 or module >= self.nPSUs:
-			return None
-
-		return self.voltage[module]
+		return self.voltage
 		
-	def getCurrent(self, module=0):
+	def getCurrent(self):
 		"""
 		Convenience function to get the current in amps.
 		"""
 
-		if self.current is None:
-			return None
-			
-		if module < 0 or module >= self.nPSUs:
-			return None
-
-		return self.current[module]
+		return self.current
 		
-	def getOnOff(self, module=0):
+	def getOnOff(self):
 		"""
 		Convenience function to get the module on/off status as a human-readable 
 		string.
 		"""
 		
-		if self.onoff is None:
-			return None
-			
-		if module < 0 or module >= self.nPSUs:
-			return None
-
-		return self.onoff[module]
+		return self.onoff
 		
-	def getStatus(self, module=0):
+	def getStatus(self):
 		"""
 		Convenience function to get the module status as a human-readable 
 		string.
 		"""
 
-		if self.status is None:
-			return None
-			
-		if module < 0 or module >= self.nPSUs:
-			return None
-
-		return self.status[module]
+		return self.status

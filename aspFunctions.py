@@ -18,7 +18,7 @@ from aspSPI import *
 from aspThreads import *
 
 
-__version__ = '0.3'
+__version__ = '0.4'
 __revision__ = '$Rev$'
 __all__ = ['modeDict', 'commandExitCodes', 'AnaloglProcessor', '__version__', '__revision__', '__all__']
 
@@ -50,7 +50,10 @@ subsystemErrorCodes = {0x00: 'Subsystem operating normally',
 				   0x05: 'PS over current warning', 
 				   0x06: 'PS module fault error',
 				   0x07: 'Failed to process SPI commands',
-				   0x08: 'Board count mis-match',}
+				   0x08: 'Failed to process I2C commands', 
+				   0x09: 'Board count mis-match',
+				   0x0A: 'Temperature over TempMax',
+				   0x0B: 'Temperature under TempMin',}
 
 
 class AnalogProcessor(object):
@@ -88,7 +91,7 @@ class AnalogProcessor(object):
 		
 		## Monitoring and background threads
 		self.currentState['tempThread'] = None
-		self.currentState['powerThread'] = None
+		self.currentState['powerThreads'] = None
 		
 		# Board and stand counts
 		self.num_boards = 0
@@ -178,11 +181,14 @@ class AnalogProcessor(object):
 				self.currentState['tempThread'].upateConfig(self.config)
 			else:
 				self.currentState['tempThread'] = TemperatureSensors(self.config, ASPCallbackInstance=self)
-			if self.currentState['powerThread'] is not None:
-				self.currentState['powerThread'].stop()
-				self.currentState['powerThread'].upateConfig(self.config)
+			if self.currentState['powerThreads'] is not None:
+				for t in self.currentState['powerThreads']:
+					t.stop()
+					t.upateConfig(self.config)
 			else:
-				self.currentState['powerThread'] = PowerStatus(self.config, ASPCallbackInstance=self)
+				self.currentState['powerThreads'] = []
+				self.currentState['powerThreads'].append( PowerStatus(ARX_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
+				self.currentState['powerThreads'].append( PowerStatus(FEE_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
 			
 			# Update the analog signal chain state
 			for i in xrange(self.num_stands):
@@ -210,7 +216,8 @@ class AnalogProcessor(object):
 			
 			# Start the threads
 			self.currentState['tempThread'].start()
-			self.currentState['powerThread'].start()
+			for t in self.currentState['powerThreads']:
+				t.start()
 			
 			if status:
 				self.currentState['status'] = 'NORMAL'
@@ -230,7 +237,7 @@ class AnalogProcessor(object):
 				aspFunctionsLogger.critical("INI failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
 		else:
 			self.currentState['status'] = 'ERROR'
-			self.currentState['info'] = 'SUMMARY! 0x%02X %s - Found %i boards, expected %i' % (0x08, subsystemErrorCodes[0x08], boardsFound, nBoards)
+			self.currentState['info'] = 'SUMMARY! 0x%02X %s - Found %i boards, expected %i' % (0x09, subsystemErrorCodes[0x09], boardsFound, nBoards)
 			self.currentState['lastLog'] = 'INI: finished with error'
 			self.currentState['ready'] = False
 			
@@ -285,8 +292,9 @@ class AnalogProcessor(object):
 		# Stop all threads.
 		if self.currentState['tempThread'] is not None:
 			self.currentState['tempThread'].stop()
-		if self.currentState['powerThread'] is not None:
-			self.currentState['powerThread'].stop()
+		if self.currentState['powerThreads'] is not None:
+			for t in self.currentState['powerThreads']:
+				t.start()
 			
 		# Do SPI bus stuff
 		attempt = 0
@@ -309,7 +317,7 @@ class AnalogProcessor(object):
 			
 		else:
 			self.currentState['status'] = 'ERROR'
-			self.currentState['info'] = 'SHT failed sending SPI bus commands after %i attempts' % MAX_SPI_RETRY
+			self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
 			self.currentState['lastLog'] = 'SHT: failed in %.3f s' % (time.time() - tStart,)
 			self.currentState['ready'] = False
 			
@@ -649,9 +657,6 @@ class AnalogProcessor(object):
 	def setARXPowerState(self, state):
 		"""
 		Set the ARX power supply power state.
-		
-		.. note::
-			This is currently not implemented.
 		"""
 		
 		# Check the operational status of the system
@@ -661,10 +666,6 @@ class AnalogProcessor(object):
 		if 'RXP' in self.currentState['activeProcess']:
 			self.currentState['lastLog'] = 'RXP: %s' % commandExitCodes[0x08]
 			return False, 0x08
-			
-		# NOTE: Not implemented
-		self.currentState['lastLog'] = 'RXP: %s' % commandExitCodes[0x0B]
-		return False, 0x0B
 			
 		# Validate inputs
 		if state not in (0, 11):
@@ -681,12 +682,32 @@ class AnalogProcessor(object):
 		
 		return True, 0
 		
+	def __rxpProcess(self, state):
+		"""
+		Background function to toggle the power state of the ARX power 
+		supply.
+		"""
+		
+		p = subprocess.Popen(['onoffPSU', ARX_PS_ADDRESS, str(state)], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		p.wait()
+		
+		output, output2 = p.communicate()
+		
+		if p.returncode != 0:
+			self.currentState['lastLog'] = 'RXP: Failed to change ARX power supply status'
+			aspFunctionsLogger.error('RXP - Failed to change ARX power supply status'
+		else:
+			LCD_Write("ARX PS\n%s" % 'OFF' if status == 0 else 'ON')
+			
+		# Cleanup
+		self.currentState['activeProcess'].remove('RXP')
+		
+		return True, 0
+		
+		
 	def setFEPPowerState(self, state):
 		"""
 		Set the FEE power supply power state.
-		
-		.. note::
-			This is currently not implemented.
 		"""
 		
 		# Check the operational status of the system
@@ -696,10 +717,6 @@ class AnalogProcessor(object):
 		if 'FEP' in self.currentState['activeProcess']:
 			self.currentState['lastLog'] = 'FEP: %s' % commandExitCodes[0x08]
 			return False, 0x08
-			
-		# NOTE: Not implemented
-		self.currentState['lastLog'] = 'FEP: %s' % commandExitCodes[0x0B]
-		return False, 0x0B
 			
 		# Validate inputs
 		if state not in (0, 11):
@@ -713,6 +730,30 @@ class AnalogProcessor(object):
 		thread = threading.Thread(target=self.__fepProcess, args=(stand, pol, state))
 		thread.setDaemon(1)
 		thread.start()
+		
+		return True, 0
+		
+	def __fepProcess(self, state):
+		"""
+		Background function to toggle the power state of the FEE power 
+		supply.
+		"""
+		
+		p = subprocess.Popen(['onoffPSU', FEE_PS_ADDRESS, str(state)], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		p.wait()
+		
+		output, output2 = p.communicate()
+		
+		if p.returncode != 0:
+			self.currentState['lastLog'] = 'FEP: Failed to change ARX power supply status'
+			aspFunctionsLogger.error('FEP - Failed to change ARX power supply status'
+		else:
+			LCD_Write("FEE PS\n%s" % 'OFF' if status == 0 else 'ON')
+			if state != 0:
+				self.currentState['power'] = [[0,0] for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
+			
+		# Cleanup
+		self.currentState['activeProcess'].remove('FEP')
 		
 		return True, 0
 		
@@ -772,39 +813,30 @@ class AnalogProcessor(object):
 		value is False.
 		"""
 		
-		status = 'ON '
-		for i in xrange(self.config['powerThread'].getPSUCount()):
-			voltage = self.config['powerThread'].getVoltage(i)
-			if voltage is None:
-				continue
-			if voltage > 9:
-				continue
-			
-			s = self.config['powerThread'].getOnOff(i)
-			
-			if s == 'OFF':
-				status = 'OFF'
-				break
-			elif s == 'UNK':
-				status = 'UNK'
-				break
-			else:
-				pass
+		status = 'UNK'
+		for t in self.config['powerThreads']:
+			if t.getDeviceAddress() == ARX_PS_ADDRESS:
+				status = t.getOnOff()
 			
 		return True, status
 		
 	def getARXPowerSupplyInfo(self, psNumb):
 		"""
-		Return information (name) about the  various ARX power supplies as a two-element 
-		tuple (success, values) where success is a boolean related to if the values were 
-		found.  See the currentState['lastLog'] entry for the reason for failure if the 
-		returned success value is False.
+		Return information (name - status) about the  various ARX power supplies as a two-
+		element tuple (success, values) where success is a boolean related to if the values 
+		were found.  See the currentState['lastLog'] entry for the reason for failure if 
+		the returned success value is False.
 		"""
 		
-		if psNumb > 0 and psNumb <= self.config['powerThread'].getPSUCount():
-			name = self.config['powerThread'].getDescription(psNumbNumb-1)
+		if psNumb < 0 or psNumb > 1:
+			info = 'UNK - UNK'
+			for t in self.config['powerThreads']:
+				if t.getDeviceAddress() == ARX_PS_ADDRESS:
+					info1 = t.getDescription()
+					info2 = t.getStatus()
+					info = "%s - %s" % (info1, info2)
 		
-			return True, name
+			return True, info
 			
 		else:
 			self.currentState['lastLog'] = 'Invalid ARX power supply (%i)' % psNumb
@@ -819,15 +851,10 @@ class AnalogProcessor(object):
 		"""
 		
 		curr = 0.0
-		for i in xrange(self.config['powerThread'].getPSUCount()):
-			voltage = self.config['powerThread'].getVoltage(i)
-			if voltage is None:
-				continue
-			if voltage > 9:
-				continue
-			
-			c += self.config['powerThread'].getCurrent(i)
-			
+		for t in self.config['powerThreads']:
+			if t.getDeviceAddress() == ARX_PS_ADDRESS:
+				curr = t.getCurrent()
+				
 		return True, c*1000.0
 		
 	def getARXVoltage():
@@ -839,22 +866,10 @@ class AnalogProcessor(object):
 		"""
 		
 		volt = 0.0
-		count = 0
-		for v in xrange(self.config['powerThread'].getPSUCount()):
-			voltage = self.config['powerThread'].getVoltage(i)
-			if voltage is None:
-				continue
-			if voltage > 9:
-				continue
-			
-			volt += voltage
-			count += 1
-		
-		try:
-			volt /= float(count)
-		except:
-			volt = 0.0
-			
+		for t in self.config['powerThreads']:
+			if t.getDeviceAddress() == ARX_PS_ADDRESS:
+				curr = t.getVoltage()
+				
 		return True, volt
 		
 	def getFEEPowerSupplyStatus(self):
@@ -865,24 +880,10 @@ class AnalogProcessor(object):
 		value is False.
 		"""
 		
-		status = 'ON '
-		for i in xrange(self.config['powerThread'].getPSUCount()):
-			voltage = self.config['powerThread'].getVoltage(i)
-			if voltage is None:
-				continue
-			if voltage < 9:
-				continue
-			
-			s = self.config['powerThread'].getOnOff(i)
-			
-			if s == 'OFF':
-				status = 'OFF'
-				break
-			elif s == 'UNK':
-				status = 'UNK'
-				break
-			else:
-				pass
+		status = 'UNK'
+		for t in self.config['powerThreads']:
+			if t.getDeviceAddress() == FEE_PS_ADDRESS:
+				status = t.getOnOff()
 			
 		return True, status
 		
@@ -894,15 +895,19 @@ class AnalogProcessor(object):
 		failure if the returned success value is False.
 		"""
 		
-		if psNumb > 0 and psNumb <= self.config['powerThread'].getPSUCount():
-			name = self.config['powerThread'].getDescription(psNumbNumb-1)
-			status = self.config['powerThread'].getDescription(psNumbNumb-1)
+		if psNumb < 0 or psNumb > 1:
+			info = 'UNK - UNK'
+			for t in self.config['powerThreads']:
+				if t.getDeviceAddress() == FEE_PS_ADDRESS:
+					info1 = t.getDescription()
+					info2 = t.getStatus()
+					info = "%s - %s" % (info1, info2)
 		
-			return True, name, status
+			return True, info
 			
 		else:
-			self.currentState['lastLog'] = 'Invalid FEE power supply (%i)' % psNumb
-			return False, None, None
+			self.currentState['lastLog'] = 'Invalid ARX power supply (%i)' % psNumb
+			return False, None
 			
 	def getFEECurrentDraw(self):
 		"""
@@ -913,15 +918,10 @@ class AnalogProcessor(object):
 		"""
 		
 		curr = 0.0
-		for i in xrange(self.config['powerThread'].getPSUCount()):
-			voltage = self.config['powerThread'].getVoltage(i)
-			if voltage is None:
-				continue
-			if voltage < 9:
-				continue
-			
-			c += self.config['powerThread'].getCurrent(i)
-			
+		for t in self.config['powerThreads']:
+			if t.getDeviceAddress() == FEE_PS_ADDRESS:
+				curr = t.getCurrent()
+				
 		return True, c*1000.0
 		
 	def getFEEVoltage():
@@ -933,22 +933,10 @@ class AnalogProcessor(object):
 		"""
 		
 		volt = 0.0
-		count = 0
-		for v in xrange(self.config['powerThread'].getPSUCount()):
-			voltage = self.config['powerThread'].getVoltage(i)
-			if voltage is None:
-				continue
-			if voltage < 9:
-				continue
-			
-			volt += voltage
-			count += 1
-		
-		try:
-			volt /= float(count)
-		except:
-			volt = 0.0
-			
+		for t in self.config['powerThreads']:
+			if t.getDeviceAddress() == FEE_PS_ADDRESS:
+				curr = t.getVoltage()
+				
 		return True, volt
 		
 	def getTemperatureStatus(self):
@@ -993,3 +981,62 @@ class AnalogProcessor(object):
 		else:
 			self.currentState['lastLog'] = 'Invalid temperature sensor (%i)' % sensorNumb
 			return False, ()
+			
+	def processCriticalTemperature(high=False, low=False):
+		"""
+		Function to set ASP to ERROR and turn off the power supplies if there is a 
+		temperature problem.
+		"""
+		
+		if high:
+			self.setARXPowerState(00)
+			self.setFEPPowerState(00)
+			
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'TEMP-STATUS! 0x%02X %s' % (0x0A, subsystemErrorCodes[0x0A])
+			self.currentState['lastLog'] = 'ASP over temperature - turning off power supplies'
+			self.currentState['ready'] = False
+			
+		elif low:
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'TEMP-STATUS! 0x%02X %s' % (0x0B, subsystemErrorCodes[0x0B])
+			self.currentState['lastLog'] = 'ASP under temperature'
+			self.currentState['ready'] = False
+			
+		return True
+
+	def processCriticalPowerSupply(deviceAddress, reason):
+		"""
+		Function to shutdown critical power supplies and put the system into ERROR.
+		"""
+		
+		if reason == 'OverCurrent':
+			code = 0x05
+		elif reason == 'OverVolt':
+			code = 0x03
+		elif reason == 'UnderVolt':
+			code = 0x04
+		elif reason == 'OverTemperature':
+			code = 0x01
+		elif reason == 'ModuleFault':
+			code = 0x06
+		else:
+			return False
+		
+		if deviceAddress == ARX_PS_ADDRESS:
+			self.setARXPowerState(00)
+			
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'ARXPWRUNIT_1! 0x%02X %s - %s' % (code, subsystemErrorCodes[code], reason)
+			self.currentState['lastLog'] = 'ARX power supply critical - %s - powered off' % reason
+			self.currentState['ready'] = False
+			
+		elif deviceAddress == FEE_PS_ADDRESS:
+			self.setARXPowerState(00)
+			
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'FEPPWRUNIT_1! 0x%02X %s - %s' % (code, subsystemErrorCodes[code], reason)
+			self.currentState['lastLog'] = 'FEE power supply critical - %s - powered off' % reason
+			self.currentState['ready'] = False
+		
+		return True
