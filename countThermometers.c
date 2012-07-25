@@ -61,10 +61,6 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "countThermometers - get PSUs - %s\n", sub_strerror(sub_errno));
 		exit(1);
 	}
-	printf("Found %i PSUs:\n", nPSU);
-	for(i=0; i<nPSU; i++) {
-		printf(" -> 0x%02X\n", psuAddresses[i]);
-	}
 
 	simpleData[0] = 0;
 	simpleData[1] = 0;
