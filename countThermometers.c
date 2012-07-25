@@ -23,7 +23,7 @@ $LastChangedDate$
 #include <string.h>
 
 #include "libsub.h"
-#include "spiCommon.h"
+#include "aspCommon.h"
 
 sub_handle* fh = NULL;
 
@@ -71,20 +71,20 @@ int main(int argc, char* argv[]) {
 
 	num = 0;
 	for(i=0; i<nPSU; i++) {
-		// Get a list of smart modules for polling
-		success = sub_i2c_read(fh, psuAddresses[i], 0xD3, 1, (char *) simpleData, 2);
-		if( success ) {
-			fprintf(stderr, "countThermometers - module status - %s\n", sub_strerror(sub_errno));
-			continue;
-		}
-		simpleData[0] &= 0x00FF;
-		simpleData[1] &= 0x00FF;
-
-		// Each module has a temperature sensor
-		modules = ((int) simpleData[1] << 8) | ((int) simpleData[0]);
-		for(j=0; j<16; j++) {
-			num += ((modules >> j) & 1);
-		}
+// 		// Get a list of smart modules for polling
+// 		success = sub_i2c_read(fh, psuAddresses[i], 0xD3, 1, (char *) simpleData, 2);
+// 		if( success ) {
+// 			fprintf(stderr, "countThermometers - module status - %s\n", sub_strerror(sub_errno));
+// 			continue;
+// 		}
+// 		simpleData[0] &= 0x00FF;
+// 		simpleData[1] &= 0x00FF;
+// 
+// 		// Each module has a temperature sensor
+// 		modules = ((int) simpleData[1] << 8) | ((int) simpleData[0]);
+// 		for(j=0; j<16; j++) {
+// 			num += ((modules >> j) & 1);
+// 		}
 
 		// And there are two overall sensors per PSU
 		num += 2;

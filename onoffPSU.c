@@ -23,7 +23,7 @@ $LastChangedDate$
 #include <unistd.h>
 
 #include "libsub.h"
-#include "spiCommon.h"
+#include "aspCommon.h"
 
 sub_handle* fh = NULL;
 
@@ -96,7 +96,7 @@ int main(int argc, char* argv[]) {
 		status = (array_to_ushort(simpleData) >> 7) & 1;
 		printf("0x%02X is in state %u\n", psuAddresses[i], status);
 		
-		// Enable writing to the OPERATION address (0x00) so we can change modules
+		// Enable writing to the OPERATION address (0x01) so we can change modules
 		simpleData[0] = (unsigned char) 0;
 		success = sub_i2c_write(fh, psuAddresses[i], 0x10, 1, simpleData, 1);
 		if( success ) {

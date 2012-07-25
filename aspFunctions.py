@@ -128,11 +128,11 @@ class AnalogProcessor(object):
 			self.currentState['lastLog'] = 'INI: %s - %s is active and blocking' % (commandExitCodes[0x08], self.currentState['activeProcess'])
 			return False, 0x08
 			
-		# Check to see if the system has already been initalized
-		if self.currentState['ready']:
-			aspFunctionsLogger.warning("INI command rejected due to system already running")
-			self.currentState['lastLog'] = 'INI: %s' % commandExitCodes[0x09]
-			return False, 0x09
+		## Check to see if the system has already been initalized
+		#if self.currentState['ready']:
+		#	aspFunctionsLogger.warning("INI command rejected due to system already running")
+		#	self.currentState['lastLog'] = 'INI: %s' % commandExitCodes[0x09]
+		#	return False, 0x09
 			
 		# Check to see if there is a valid number of boards
 		if nBoards < 0 or nBoards > MAX_BOARDS:
@@ -165,10 +165,8 @@ class AnalogProcessor(object):
 		self.currentState['activeProcess'].append('INI')
 
 		# Turn on the power supplies
-		self.currentState['activeProcess'].append('RXP')
-		self.__rxpProcess(11)
-		self.currentState['activeProcess'].append('FEP')
-		self.__fepProcess(11)
+		self.__rxpProcess(11, internal=True)
+		self.__fepProcess(11, internal=True)
 		time.sleep(1)
 		
 		# Board check - found vs. expected from INI
@@ -206,20 +204,12 @@ class AnalogProcessor(object):
 				self.currentState['ats'][i] = 30
 			
 			# Do SPI bus stuff
-			attempt = 0
-			status = False
-			while ( (not status) and (attempt < MAX_SPI_RETRY) ):
-				if attempt != 0:
-					time.sleep(WAIT_SPI_RETRY*attempt*attempt)
-				
-				status  = True
-				status &= SPI_init_devices(self.num_chpairs, SPI_cfg_normal)				# Out of sleep mode
-				status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P16_17_18_19)		# Set outputs
-				status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P20_21_22_23)		# Set outputs
-				status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P24_25_26_27)		# Set outputs
-				status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P28_29_30_31)		# Set outputs
-				
-				attempt += 1
+			status  = True
+			status &= SPI_init_devices(self.num_chpairs, SPI_cfg_normal)				# Out of sleep mode
+			status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P16_17_18_19)		# Set outputs
+			status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P20_21_22_23)		# Set outputs
+			status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P24_25_26_27)		# Set outputs
+			status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P28_29_30_31)		# Set outputs
 			
 			# Start the threads
 			for t in self.currentState['powerThreads']:
@@ -305,16 +295,7 @@ class AnalogProcessor(object):
 			
 		# Do SPI bus stuff (only if the boards are on)
 		if self.getARXPowerSupplyStatus()[1] == 'ON ':
-			attempt = 0
-			status = False
-			while ( (not status) and (attempt < MAX_SPI_RETRY) ):
-				if attempt != 0:
-					time.sleep(WAIT_SPI_RETRY*attempt*attempt)
-			
-				status  = True
-				status &= SPI_config_devices(self.num_chpairs, SPI_cfg_shutdown)		# Into sleep mode
-			
-				attempt += 1
+			status = SPI_config_devices(self.num_chpairs, SPI_cfg_shutdown)		# Into sleep mode
 		else:
 			status = True
 		
@@ -323,10 +304,8 @@ class AnalogProcessor(object):
 			self.currentState['info'] = 'System has been shut down'
 			self.currentState['lastLog'] = 'System has been shut down'
 			
-			#self.currentState['activeProcess'].append('RXP')
-			#self.__rxpProcess(00)
-			#self.currentState['activeProcess'].append('FEP')
-			#self.__fepProcess(00)
+			#self.__rxpProcess(00, internal=True)
+			#self.__fepProcess(00, internal=True)
 
 			LCD_Write('ASP\nshutdown')
 			
@@ -385,31 +364,23 @@ class AnalogProcessor(object):
 		"""
 		
 		# Do SPI bus stuff
-		attempt = 0
-		status = False
-		while ( (not status) and (attempt < MAX_SPI_RETRY) ):
-			if attempt != 0:
-				time.sleep(WAIT_SPI_RETRY*attempt*attempt)
-			
-			status = True
-			if filterCode == 3:
-				# Set Filters OFF
-				status &= SPI_Send(self.num_chpairs, stand, SPI_P19_on)
-				status &= SPI_Send(self.num_chpairs, stand, SPI_P18_on)
-			elif filterCode == 1:
-				# Set Filter to Full Bandwidth
-				status &= SPI_Send(self.num_chpairs, stand, SPI_P19_off)
-				status &= SPI_Send(self.num_chpairs, stand, SPI_P18_on )
-			elif filterCode == 2:
-				# Set Filter to Reduced Bandwidth
-				status &= SPI_Send(self.num_chpairs, stand, SPI_P19_on )
-				status &= SPI_Send(self.num_chpairs, stand, SPI_P18_off)
-			elif filterCode == 0:
-				# Set Filter to Split Bandwidth
-				status &= SPI_Send(self.num_chpairs, stand, SPI_P19_off)
-				status &= SPI_Send(self.num_chpairs, stand, SPI_P18_off)
-				
-			attempt += 1
+		status = True
+		if filterCode == 3:
+			# Set Filters OFF
+			status &= SPI_Send(self.num_chpairs, stand, SPI_P19_on)
+			status &= SPI_Send(self.num_chpairs, stand, SPI_P18_on)
+		elif filterCode == 1:
+			# Set Filter to Full Bandwidth
+			status &= SPI_Send(self.num_chpairs, stand, SPI_P19_off)
+			status &= SPI_Send(self.num_chpairs, stand, SPI_P18_on )
+		elif filterCode == 2:
+			# Set Filter to Reduced Bandwidth
+			status &= SPI_Send(self.num_chpairs, stand, SPI_P19_on )
+			status &= SPI_Send(self.num_chpairs, stand, SPI_P18_off)
+		elif filterCode == 0:
+			# Set Filter to Split Bandwidth
+			status &= SPI_Send(self.num_chpairs, stand, SPI_P19_off)
+			status &= SPI_Send(self.num_chpairs, stand, SPI_P18_off)
 		
 		if status:
 			# All of the commands worked, update the state
@@ -475,92 +446,40 @@ class AnalogProcessor(object):
 		"""
 		
 		# Do SPI bus stuff
-		attempt = 0
-		status = False
-		while ( (not status) and (attempt < MAX_SPI_RETRY) ):
-			if attempt != 0:
-				time.sleep(WAIT_SPI_RETRY*attempt*attempt)
+		status = True
+		setting = 2*attenSetting
+		
+		if mode == 1:
+			order = ((SPI_P27_on, SPI_P27_off), (SPI_P24_on, SPI_P24_off), (SPI_P25_on, SPI_P25_off), (SPI_P26_on, SPI_P26_off))
+		elif mode == 2:
+			order = ((SPI_P23_on, SPI_P23_off), (SPI_P21_on, SPI_P21_off), (SPI_P20_on, SPI_P20_off), (SPI_P22_on, SPI_P22_off))
+		else:
+			order = ((SPI_P21_on, SPI_P21_off), (SPI_P28_on, SPI_P28_off), (SPI_P29_on, SPI_P29_off), (SPI_P30_on, SPI_P30_off))
 			
-			status = True
-			setting = 2*attenSetting
+		if setting >= 16:
+			status &= SPI_Send(self.num_chpairs, stand, order[0][0])
+			setting -= 16
+		else:
+			status &= SPI_Send(self.num_chpairs, stand, order[0][1])
 			
-			if mode == 1:
-				if setting >= 16:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P27_on )
-					setting -= 16
-				else:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P27_off)
-					
-				if setting >= 8:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P24_on )
-					setting -= 8
-				else:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P24_off)
-					
-				if setting >= 4:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P25_on )
-					setting -= 4
-				else:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P25_off)
-					
-				if setting >= 2:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P26_on )
-					setting -= 2
-				else:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P26_off)
-					
-			elif mode == 2:
-				if setting >= 16:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P23_on )
-					setting -= 16
-				else:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P23_off)
-					
-				if setting >= 8:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P21_on )
-					setting -= 8
-				else:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P21_off)
-					
-				if setting >= 4:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P20_on )
-					setting -= 4
-				else:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P20_off)
-					
-				if setting >= 2:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P22_on )
-					setting -= 2
-				else:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P22_off)
-					
-			elif mode == 3:
-				if setting >= 16:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P31_on )
-					setting -= 16
-				else:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P31_off)
-					
-				if setting >= 8:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P28_on )
-					setting -= 8
-				else:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P28_off)
-					
-				if setting >= 4:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P29_on )
-					setting -= 4
-				else:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P29_off)
-					
-				if setting >= 2:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P30_on )
-					setting -= 2
-				else:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P30_off)
-					
-			attempt += 1
-
+		if setting >= 8:
+			status &= SPI_Send(self.num_chpairs, stand, order[1][0])
+			setting -= 8
+		else:
+			status &= SPI_Send(self.num_chpairs, stand, order[1][1])
+			
+		if setting >= 4:
+			status &= SPI_Send(self.num_chpairs, stand, order[2][0])
+			setting -= 4
+		else:
+			status &= SPI_Send(self.num_chpairs, stand, order[2][1])
+			
+		if setting >= 2:
+			status &= SPI_Send(self.num_chpairs, stand, order[3][0])
+			setting -= 2
+		else:
+			status &= SPI_Send(self.num_chpairs, stand, order[3][1])
+			
 		if status:
 			# All of the commands worked, update the state
 			self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
@@ -627,26 +546,17 @@ class AnalogProcessor(object):
 		"""
 		
 		# Do SPI bus stuff
-		attempt = 0
-		status = False
-		while ( (not status) and (attempt < MAX_SPI_RETRY) ):
-			if attempt != 0:
-				time.sleep(WAIT_SPI_RETRY*attempt*attempt)
-			
-			status = True
-			if state == 11:
-				if pol == 1:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P17_on )
-				elif pol == 2:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P16_on )
-			elif state == 0:
-				if pol == 1:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P17_off)
-				elif pol == 2:
-					status &= SPI_Send(self.num_chpairs, stand, SPI_P16_off)
-					
-			attempt += 1
-		
+		if state == 11:
+			if pol == 1:
+				status = SPI_Send(self.num_chpairs, stand, SPI_P17_on )
+			elif pol == 2:
+				status = SPI_Send(self.num_chpairs, stand, SPI_P16_on )
+		elif state == 0:
+			if pol == 1:
+				status = SPI_Send(self.num_chpairs, stand, SPI_P17_off)
+			elif pol == 2:
+				status = SPI_Send(self.num_chpairs, stand, SPI_P16_off)
+				
 		if status:
 			# All of the commands worked, update the state
 			self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
@@ -697,7 +607,7 @@ class AnalogProcessor(object):
 		
 		return True, 0
 		
-	def __rxpProcess(self, state):
+	def __rxpProcess(self, state, internal=False):
 		"""
 		Background function to toggle the power state of the ARX power 
 		supply.
@@ -715,7 +625,8 @@ class AnalogProcessor(object):
 			LCD_Write("ARX PS\n%s" % 'OFF' if state == 0 else 'ON')
 			
 		# Cleanup
-		self.currentState['activeProcess'].remove('RXP')
+		if not internal:
+			self.currentState['activeProcess'].remove('RXP')
 		
 		return True, 0
 		
@@ -748,7 +659,7 @@ class AnalogProcessor(object):
 		
 		return True, 0
 		
-	def __fepProcess(self, state):
+	def __fepProcess(self, state, internal=False):
 		"""
 		Background function to toggle the power state of the FEE power 
 		supply.
@@ -768,7 +679,8 @@ class AnalogProcessor(object):
 				self.currentState['power'] = [[0,0] for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
 			
 		# Cleanup
-		self.currentState['activeProcess'].remove('FEP')
+		if not internal:
+			self.currentState['activeProcess'].remove('FEP')
 		
 		return True, 0
 		

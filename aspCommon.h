@@ -1,9 +1,9 @@
-#ifndef __SPICOMMON_H
-#define __SPICOMMON_H
+#ifndef __ASPCOMMON_H
+#define __ASPCOMMON_H
 
 /*
-  spiCommon.h - Header library to carry out a few simple hexadecimal to array 
-  operations
+  aspCommon.h - Header library to carry out a few simple hexadecimal to array 
+  operations needed for using the SUB-20 device with the SPI and I2C buses.
   
   Functions defined:
     * hex_to_array - convert a hexadecimal string to an 2-byte array
@@ -25,6 +25,7 @@ $LastChangedDate$
 
 // ARX board configuration
 #define STANDS_PER_BOARD 8
+#define MAX_BOARDS 33
 
 
 // Command verification marker

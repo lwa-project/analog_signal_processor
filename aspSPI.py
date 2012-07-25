@@ -7,8 +7,11 @@ $LastChangedBy$
 $LastChangedDate$
 """
 
+import time
 import logging
 import subprocess
+
+from aspCommon import MAX_SPI_RETRY, WAIT_SPI_RETRY
 
 __version__ = '0.3'
 __revision__ = '$Rev$'
@@ -70,61 +73,91 @@ SPI_P31_off = 0x003F
 SPI_NoOp = 0x0000
 
 
-def SPI_init_devices(num, Config):
+def SPI_init_devices(num, Config, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
 	"""
 	Initialize a given number of SPI bus devices (ARX boards) with the specified state.
 
 	Return the status of the operation as a boolean.
 	"""
 
-	p = subprocess.Popen(['initARXDevices', '%i' % num, '0x%04x' % Config], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	p.wait()
+	attempt = 0
+	status = False
+	while ((not status) and (attempt <= maxRetry)):
+		if attempt != 0:
+			time.sleep(waitRetry*attempt*attempt)
+			
+		p = subprocess.Popen(['initARXDevices', '%i' % num, '0x%04x' % Config], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		p.wait()
           
-	output, output2 = p.communicate()
+		output, output2 = p.communicate()
 	
-	if p.returncode != 0:
-		aspSPILogger.warning("SPI_init_devices: command returned %i; '%s;%s'", p.returncode, output, output2)
-		return False
+		if p.returncode != 0:
+			aspSPILogger.warning("SPI_init_devices (%i of %i): command returned %i; '%s;%s'", attempt, maxRetry, p.returncode, output, output2)
+			status = False
+		else:
+			status = True
+			
+		attempt += 1
 	
-	return True
+	return status
 
 
-def SPI_config_devices(num, Config):
+def SPI_config_devices(num, Config, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
 	"""
 	Configure a given number of SPI bus devices (ARX boards) with the specified state.
 
 	Return the status of the operation as a boolean.
 	"""
 
-	p = subprocess.Popen(['sendARXDevice', '%i' % num, '0', '0x%04x' % Config], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	p.wait()
-          
-	output, output2 = p.communicate()
+	attempt = 0
+	status = False
+	while ((not status) and (attempt <= maxRetry)):
+		if attempt != 0:
+			time.sleep(waitRetry*attempt*attempt)
+			
+		p = subprocess.Popen(['sendARXDevice', '%i' % num, '0', '0x%04x' % Config], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		p.wait()
+			
+		output, output2 = p.communicate()
+		
+		if p.returncode != 0:
+			aspSPILogger.warning("SPI_config_devices (%i of %i): command returned %i; '%s;%s'", attempt, maxRetry, p.returncode, output, output2)
+			status = False
+		else:
+			status = True
+			
+		attempt += 1
 	
-	if p.returncode != 0:
-		aspSPILogger.warning("SPI_config_devices: command returned %i; '%s;%s'", p.returncode, output, output2)
-		return False
-	
-	return True
+	return status
 
 
-def SPI_Send(num, device, data):
+def SPI_Send(num, device, data, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
 	"""
 	Send a command via SPI bus to the specified device.
 
 	Return the status of the operation as a boolean.
 	"""
 
-	p = subprocess.Popen(['sendARXDevice', '%i' % num, '%i' % device, '0x%04x' % data], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	p.wait()
+	attempt = 0
+	status = False
+	while ((not status) and (attempt <= maxRetry)):
+		if attempt != 0:
+			time.sleep(waitRetry*attempt*attempt)
+			
+		p = subprocess.Popen(['sendARXDevice', '%i' % num, '%i' % device, '0x%04x' % data], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		p.wait()
           
-	output, output2 = p.communicate()
+		output, output2 = p.communicate()
+		
+		if p.returncode != 0:
+			aspSPILogger.warning("SPI_Send (%i of %i): command returned %i; '%s;%s'", attempt, maxRetry, p.returncode, output, output2)
+			status = False
+		else:
+			status = True
+			
+		attempt += 1
 	
-	if p.returncode != 0:
-		aspSPILogger.warning("SPI_Send: command returned %i; '%s;%s'", p.returncode, output, output2)
-		return False
-	
-	return True
+	return status
 
 
 def LCD_Write(message):

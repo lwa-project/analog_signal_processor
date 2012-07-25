@@ -24,7 +24,7 @@ $LastChangedDate$
 #include <unistd.h>
 
 #include "libsub.h"
-#include "spiCommon.h"
+#include "aspCommon.h"
 
 sub_handle* fh = NULL;
 
