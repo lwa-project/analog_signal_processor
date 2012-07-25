@@ -45,7 +45,7 @@ MAX_BOARDS = int(cDefines['MAX_BOARDS'])
 MAX_STANDS = 260
 
 # Attenuator limits
-MAX_ATTEN = 30
+MAX_ATTEN = 15
 
 # Maximum number of times to retry sending SPI bus commands
 MAX_SPI_RETRY = 3

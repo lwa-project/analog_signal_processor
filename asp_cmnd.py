@@ -325,7 +325,7 @@ class MCSCommunicate(Communicate):
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'ARXSUPPLY-NO':
-					packed_data = str(self.SubSystemInstance.currentState['powerThread'].getPSUCount())
+					packed_data = str(1)
 					self.logger.debug('%s = %s' % (data, packed_data))
 				elif data[0:11] == 'ARXPWRUNIT_':
 					psNumb = int(data[11:])
@@ -361,7 +361,7 @@ class MCSCommunicate(Communicate):
 				elif data == 'ARXVOLT':
 					status, value = self.SubSystemInstance.getARXVoltage()
 					if status:
-						packed_data = "%-7i" % value
+						packed_data = "%-7.3f" % value
 						
 					else:
 						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
@@ -379,7 +379,7 @@ class MCSCommunicate(Communicate):
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'FEESUPPLY_NO':
-					packed_data = str(self.SubSystemInstance.currentState['powerThread'].getPSUCount())
+					packed_data = str(1)
 					self.logger.debug('%s = %s' % (data, packed_data))
 				elif data[0:11] == 'FEEPWRUNIT_':
 					psNumb = int(data[11:])
@@ -404,7 +404,7 @@ class MCSCommunicate(Communicate):
 				elif data == 'FEEVOLT':
 					status, value = self.SubSystemInstance.getFEEVoltage()
 					if status:
-						packed_data = "%-7i" % value
+						packed_data = "%-7.3f" % value
 						
 					else:
 						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']

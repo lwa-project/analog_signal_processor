@@ -184,14 +184,14 @@ class AnalogProcessor(object):
 			if self.currentState['powerThreads'] is not None:
 				for t in self.currentState['powerThreads']:
 					t.stop()
-					t.upateConfig(self.config)
+					t.updateConfig(self.config)
 			else:
 				self.currentState['powerThreads'] = []
 				self.currentState['powerThreads'].append( PowerStatus(ARX_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
 				self.currentState['powerThreads'].append( PowerStatus(FEE_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
 			if self.currentState['tempThread'] is not None:
 				self.currentState['tempThread'].stop()
-				self.currentState['tempThread'].upateConfig(self.config)
+				self.currentState['tempThread'].updateConfig(self.config)
 			else:
 				self.currentState['tempThread'] = TemperatureSensors(self.config, ASPCallbackInstance=self)
 			
@@ -782,9 +782,9 @@ class AnalogProcessor(object):
 			if t.getDeviceAddress() == ARX_PS_ADDRESS:
 				curr = t.getCurrent()
 				
-		return True, c*1000.0
+		return True, curr*1000.0
 		
-	def getARXVoltage():
+	def getARXVoltage(self):
 		"""
 		Return the ARX output voltage (in V) as a two-element tuple (success, value) where
 		success is a boolean related to if the current value was found.  See the 
@@ -795,7 +795,7 @@ class AnalogProcessor(object):
 		volt = 0.0
 		for t in self.currentState['powerThreads']:
 			if t.getDeviceAddress() == ARX_PS_ADDRESS:
-				curr = t.getVoltage()
+				volt = t.getVoltage()
 				
 		return True, volt
 		
@@ -849,9 +849,9 @@ class AnalogProcessor(object):
 			if t.getDeviceAddress() == FEE_PS_ADDRESS:
 				curr = t.getCurrent()
 				
-		return True, c*1000.0
+		return True, curr*1000.0
 		
-	def getFEEVoltage():
+	def getFEEVoltage(self):
 		"""
 		Return the ARX output voltage (in V) as a two-element tuple (success, value) where
 		success is a boolean related to if the current value was found.  See the 
@@ -862,7 +862,7 @@ class AnalogProcessor(object):
 		volt = 0.0
 		for t in self.currentState['powerThreads']:
 			if t.getDeviceAddress() == FEE_PS_ADDRESS:
-				curr = t.getVoltage()
+				volt = t.getVoltage()
 				
 		return True, volt
 		
@@ -875,8 +875,8 @@ class AnalogProcessor(object):
 		"""
 		
 		summary = 'IN_RANGE'
-		for i in xrange(self.config['tempThread'].getSensorCount()):
-			temp = self.config['tempThread'].getTemperature(i)
+		for i in xrange(self.currentState['tempThread'].getSensorCount()):
+			temp = self.currentState['tempThread'].getTemperature(i)
 			if temp is None:
 				continue
 			
@@ -899,9 +899,9 @@ class AnalogProcessor(object):
 		the returned success value is False.
 		"""
 		
-		if sensorNumb > 0 and sensorNumb <= self.config['tempThread'].getSensorCount():
-			name = self.config['tempThread'].getDescription(sensorNumb-1)
-			temp = self.config['tempThread'].getTemperature(sensorNumb-1)
+		if sensorNumb > 0 and sensorNumb <= self.currentState['tempThread'].getSensorCount():
+			name = self.currentState['tempThread'].getDescription(sensorNumb-1)
+			temp = self.currentState['tempThread'].getTemperature(sensorNumb-1)
 		
 			return True, (name, temp)
 			
