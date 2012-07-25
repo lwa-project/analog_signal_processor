@@ -192,6 +192,27 @@ class TemperatureSensors(object):
 			return 1.8*self.temp[sensor] + 32
 		else:
 			return self.temp[sensor]
+			
+	def getOverallStatus(self):
+		"""
+		Find out the overall temperature status.
+		"""
+		
+		if self.temp is None:
+			return None
+			
+		status = 'IN_RANGE'
+		for t in self.temps:
+			if t < self.minTemp:
+				status = 'UNDER_TEMP'
+				break
+			elif t > self.maxTemp:
+				status = 'OVER_TEMP'
+				break
+			else:
+				pass
+			
+		return status
 
 
 class PowerStatus(object):

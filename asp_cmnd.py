@@ -297,7 +297,7 @@ class MCSCommunicate(Communicate):
 						else:
 							packed_data = 'OFF'
 					else:
-						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data[0:11] == 'FEEPOL2PWR_':
@@ -310,7 +310,7 @@ class MCSCommunicate(Communicate):
 						else:
 							packed_data = 'OFF'
 					else:
-						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				
@@ -321,11 +321,16 @@ class MCSCommunicate(Communicate):
 						packed_data = value
 						
 					else:
-						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'ARXSUPPLY-NO':
-					packed_data = str(1)
+					status, value = self.SubSystemInstance.getARXPowerSupplyCount()
+					if status:
+						packed_data = value
+					else:
+						packed_data = self.SubSystemInstance.currentState['lastLog']
+						
 					self.logger.debug('%s = %s' % (data, packed_data))
 				elif data[0:11] == 'ARXPWRUNIT_':
 					psNumb = int(data[11:])
@@ -335,18 +340,7 @@ class MCSCommunicate(Communicate):
 						packed_data = value
 						
 					else:
-						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
-						
-					self.logger.debug('%s = exited with status %s', data, str(status))
-				elif data[0:11] == 'ARXPWRSTAT_':
-					psNumb = int(data[11:])
-					
-					status, junk, value = self.SubSystemInstance.getFEEPowerSupplyInfo(psNumb)
-					if status:
-						packed_data = value
-						
-					else:
-						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'ARXCURR':
@@ -355,7 +349,7 @@ class MCSCommunicate(Communicate):
 						packed_data = "%-7i" % value
 						
 					else:
-						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'ARXVOLT':
@@ -364,7 +358,7 @@ class MCSCommunicate(Communicate):
 						packed_data = "%-7.3f" % value
 						
 					else:
-						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				
@@ -375,11 +369,16 @@ class MCSCommunicate(Communicate):
 						packed_data = value
 						
 					else:
-						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
-				elif data == 'FEESUPPLY_NO':
-					packed_data = str(1)
+				elif data == 'FEESUPPLY-NO':
+					status, value = self.SubSystemInstance.getFEEPowerSupplyCount()
+					if status:
+						packed_data = value
+					else:
+						packed_data = self.SubSystemInstance.currentState['lastLog']
+						
 					self.logger.debug('%s = %s' % (data, packed_data))
 				elif data[0:11] == 'FEEPWRUNIT_':
 					psNumb = int(data[11:])
@@ -389,7 +388,7 @@ class MCSCommunicate(Communicate):
 						packed_data = value
 						
 					else:
-						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'FEECURR':
@@ -398,7 +397,7 @@ class MCSCommunicate(Communicate):
 						packed_data = "%-7i" % value
 						
 					else:
-						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'FEEVOLT':
@@ -407,7 +406,7 @@ class MCSCommunicate(Communicate):
 						packed_data = "%-7.3f" % value
 						
 					else:
-						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 					
@@ -418,32 +417,38 @@ class MCSCommunicate(Communicate):
 						packed_data = value
 						
 					else:
-						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data == 'TEMP-SENSE-NO':
-					packed_data = str(self.SubSystemInstance.currentState['tempThread'].getSensorCount())
+					status, value = self.SubSystemInstance.getTempSensorCount()
+					if status:
+						packed_data = "%-7.3f" % value
+						
+					else:
+						packed_data = self.SubSystemInstance.currentState['lastLog']
+						
 					self.logger.debug('%s = %s' % (data, packed_data))
 				elif data[0:12] == 'SENSOR-NAME-':
 					sensorNumb = int(data[12:])
 					
-					status, values = self.SubSystemInstance.getTempSensorInfo(sensorNumb)
+					status, value = self.SubSystemInstance.getTempSensorInfo(sensorNumb)
 					if status:
-						packed_data = values[0]
+						packed_data = value
 						
 					else:
-						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				elif data[0:12] == 'SENSOR-DATA-':
 					sensorNumb = int(data[12:])
 					
-					status, values = self.SubSystemInstance.getTempSensorInfo(sensorNumb)
+					status, value = self.SubSystemInstance.getTempSensorData(sensorNumb)
 					if status:
-						packed_data = "%-10f" % values[1]
+						packed_data = "%-10f" % value
 						
 					else:
-						packed_data = packed_data = self.SubSystemInstance.currentState['lastLog']
+						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
 					self.logger.debug('%s = exited with status %s', data, str(status))
 				

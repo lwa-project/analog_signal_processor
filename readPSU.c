@@ -31,10 +31,10 @@ sub_handle* fh = NULL;
 
 int main(int argc, char* argv[]) {
 	char *endptr;
-	int i, device, success, nPSU, done;
+	int i, device, success, nPSU, done, code;
 	unsigned short temp, modules, page, status;
 	float voltage, current;
-	char psuAddresses[128], j, sn[20], simpleData[2];
+	char psuAddresses[128], j, sn[20], simpleData[2], bigData[4];
 	
 	// Make sure we have the right number of arguments to continue
 	if( argc != 1+1 ) {
@@ -135,6 +135,23 @@ int main(int argc, char* argv[]) {
 				continue;
 			}
 			status = array_to_ushort(simpleData);
+			
+			/**************
+			* Module Type *
+			**************/
+			
+			simpleData[0] = 0;
+			success = sub_i2c_write(fh, psuAddresses[i], 0xDE, 1, simpleData, 1);
+			if( success ) {
+				fprintf(stderr, "readPSU - get type - %s\n", sub_strerror(sub_errno));
+				continue;
+			}
+			success = sub_i2c_read(fh, psuAddresses[i], 0xDF, 1, bigData, 4);
+			if( success ) {
+				fprintf(stderr, "readPSU - get type - %s\n", sub_strerror(sub_errno));
+				continue;
+			}
+			code = (int) (bigData[3] & 0xFF);
 
 			/*******************************
 			* Get Input and Output Voltage *
@@ -175,11 +192,79 @@ int main(int argc, char* argv[]) {
 // 			temp = array_to_ushort(simpleData);
 // 			current = temp/100.0;
 			
-			if( status & 1 ) { 
-				printf("0x%02X Module%02i ON ", psuAddresses[i], page);
+			printf("0x%02X Module%02i_",  psuAddresses[i], page);
+			// Decode the power rating of the current module
+			if( ((code >> 4 ) & 0xF) == 0 ) {
+				printf("210W_");
 			} else {
-				printf("0x%02X Module%02i OFF ", psuAddresses[i], page);
+				if( ((code >> 4 ) & 0xF) == 1 ) {
+					printf("360W_");
+				} else {
+					if( ((code >> 4 ) & 0xF) == 2 ) {
+						printf("144W_");
+					} else {
+						if( ((code >> 4 ) & 0xF) == 3 ) {
+							printf("600W_");
+						} else {
+							if( ((code >> 4 ) & 0xF) == 4 ) {
+								printf("750W_");
+							} else {
+								printf("1500W_");
+							}
+						}
+					}
+				}
 			}
+			// Decode the voltage range of the current module
+			if( (code & 0xF) == 0 ) {
+				printf("2to5.5V ");
+			} else {
+				if( (code & 0xF) == 1 ) {
+					printf("6to12V ");
+				} else {
+					if( (code & 0xF) == 2 ) {
+						printf("14to20V ");
+					} else {
+						if( (code & 0xF) == 3 ) {
+							printf("24to36V ");
+						} else {
+							if( (code & 0xF) == 4 ) {
+								printf("42to60V ");
+							} else {
+								if( (code & 0xF) == 5 ) {
+									printf("fixed5V ");
+								} else {
+									if( (code & 0xF) == 6 ) {
+										printf("2to6V ");
+									} else {
+										if( (code & 0xF) == 7 ) {
+											printf("12to15V ");
+										} else {
+											if( (code & 0xF) == 8 ) {
+												printf("24to28V ");
+											} else {
+												if( (code & 0xF) == 9 ) {
+													printf("24to30V ");
+												} else {
+													printf("33to60V ");
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			
+			// Decode the modules power state
+			if( status & 1 ) { 
+				printf("ON ");
+			} else {
+				printf("OFF ");
+			}
+			// Decode the various status and fault flags
 			if( (status >> 1) & 1 ) {
 				printf("UnderVolt ");
 			} else {

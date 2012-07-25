@@ -622,7 +622,7 @@ class AnalogProcessor(object):
 			self.currentState['lastLog'] = 'RXP: Failed to change ARX power supply status'
 			aspFunctionsLogger.error('RXP - Failed to change ARX power supply status')
 		else:
-			LCD_Write("ARX PS\n%s" % 'OFF' if state == 0 else 'ON')
+			LCD_Write('ARX PS\n%s' % 'OFF' if state == 0 else 'ON')
 			
 		# Cleanup
 		if not internal:
@@ -674,7 +674,7 @@ class AnalogProcessor(object):
 			self.currentState['lastLog'] = 'FEP: Failed to change ARX power supply status'
 			aspFunctionsLogger.error('FEP - Failed to change ARX power supply status')
 		else:
-			LCD_Write("FEE PS\n%s" % 'OFF' if state == 0 else 'ON')
+			LCD_Write('FEE PS\n%s' % 'OFF' if state == 0 else 'ON')
 			if state != 0:
 				self.currentState['power'] = [[0,0] for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
 			
@@ -740,12 +740,32 @@ class AnalogProcessor(object):
 		value is False.
 		"""
 		
-		status = 'UNK'
-		for t in self.currentState['powerThreads']:
-			if t.getDeviceAddress() == ARX_PS_ADDRESS:
-				status = t.getOnOff()
+		if self.currentState['powerThreads'] is None:
+			self.currentState['lastLog'] = 'ARXSUPPLY: Monitoring processes are not running'
+			return False, 'UNK'
 			
-		return True, status
+		else:
+			status = 'UNK'
+			for t in self.currentState['powerThreads']:
+				if t.getDeviceAddress() == ARX_PS_ADDRESS:
+					status = t.getOnOff()
+				
+			return True, status
+			
+	def getARXPowerSupplyCount(self):
+		"""
+		Return the number of ARX power supplies being polled as a two-element tuple (success, 
+		value) where success is a boolean related to if the status was found.  See the 
+		currentState['lastLog'] entry for the reason for failure if the returned success 
+		value is False.
+		"""
+		
+		if self.currentState['powerThreads'] is None:
+			self.currentState['lastLog'] = 'ARXSUPPLY-NO: Monitoring processes are not running'
+			return False, 0
+			
+		else:
+			return True, 1
 		
 	def getARXPowerSupplyInfo(self, psNumb):
 		"""
@@ -755,19 +775,24 @@ class AnalogProcessor(object):
 		the returned success value is False.
 		"""
 		
-		if psNumb > 0 and psNumb < 2:
-			info = 'UNK - UNK'
-			for t in self.currentState['powerThreads']:
-				if t.getDeviceAddress() == ARX_PS_ADDRESS:
-					info1 = t.getDescription()
-					info2 = t.getStatus()
-					info = "%s - %s" % (info1, info2)
-		
-			return True, info
+		if self.currentState['powerThreads'] is None:
+			self.currentState['lastLog'] = 'ARXPWRUNIT_%s: Monitoring processes are not running' % psNumb
+			return False, None
 			
 		else:
-			self.currentState['lastLog'] = 'Invalid ARX power supply (%i)' % psNumb
-			return False, None
+			if psNumb > 0 and psNumb < 2:
+				info = 'UNK - UNK'
+				for t in self.currentState['powerThreads']:
+					if t.getDeviceAddress() == ARX_PS_ADDRESS:
+						info1 = t.getDescription()
+						info2 = t.getStatus()
+						info = "%s - %s" % (info1, info2)
+			
+				return True, info
+				
+			else:
+				self.currentState['lastLog'] = 'ARXPWRUNIT_%s: Invalid ARX power supply' % psNumb
+				return False, None
 			
 	def getARXCurrentDraw(self):
 		"""
@@ -777,12 +802,17 @@ class AnalogProcessor(object):
 		value is False.
 		"""
 		
-		curr = 0.0
-		for t in self.currentState['powerThreads']:
-			if t.getDeviceAddress() == ARX_PS_ADDRESS:
-				curr = t.getCurrent()
-				
-		return True, curr*1000.0
+		if self.currentState['powerThreads'] is None:
+			self.currentState['lastLog'] = 'ARXCURR: Monitoring processes are not running'
+			return False, 0
+			
+		else:
+			curr = 0.0
+			for t in self.currentState['powerThreads']:
+				if t.getDeviceAddress() == ARX_PS_ADDRESS:
+					curr = t.getCurrent()
+					
+			return True, curr*1000.0
 		
 	def getARXVoltage(self):
 		"""
@@ -792,12 +822,17 @@ class AnalogProcessor(object):
 		value is False.
 		"""
 		
-		volt = 0.0
-		for t in self.currentState['powerThreads']:
-			if t.getDeviceAddress() == ARX_PS_ADDRESS:
-				volt = t.getVoltage()
-				
-		return True, volt
+		if self.currentState['powerThreads'] is None:
+			self.currentState['lastLog'] = 'ARXVOLT: Monitoring processes are not running'
+			return False, 0.0
+			
+		else:
+			volt = 0.0
+			for t in self.currentState['powerThreads']:
+				if t.getDeviceAddress() == ARX_PS_ADDRESS:
+					volt = t.getVoltage()
+					
+			return True, volt
 		
 	def getFEEPowerSupplyStatus(self):
 		"""
@@ -807,12 +842,32 @@ class AnalogProcessor(object):
 		value is False.
 		"""
 		
-		status = 'UNK'
-		for t in self.currentState['powerThreads']:
-			if t.getDeviceAddress() == FEE_PS_ADDRESS:
-				status = t.getOnOff()
+		if self.currentState['powerThreads'] is None:
+			self.currentState['lastLog'] = 'FEESUPPLY: Monitoring processes are not running'
+			return False, 'UNK'
 			
-		return True, status
+		else:
+			status = 'UNK'
+			for t in self.currentState['powerThreads']:
+				if t.getDeviceAddress() == FEE_PS_ADDRESS:
+					status = t.getOnOff()
+				
+			return True, status
+			
+	def getFEEPowerSupplyCount(self):
+		"""
+		Return the number of FEE power supplies being polled as a two-element tuple (success, 
+		value) where success is a boolean related to if the status was found.  See the 
+		currentState['lastLog'] entry for the reason for failure if the returned success 
+		value is False.
+		"""
+		
+		if self.currentState['powerThreads'] is None:
+			self.currentState['lastLog'] = 'FEESUPPLY-NO: Monitoring processes are not running'
+			return False, 0
+			
+		else:
+			return True, 1
 		
 	def getFEEPowerSupplyInfo(self, psNumb):
 		"""
@@ -822,19 +877,24 @@ class AnalogProcessor(object):
 		failure if the returned success value is False.
 		"""
 		
-		if psNumb > 0 and psNumb < 2:
-			info = 'UNK - UNK'
-			for t in self.currentState['powerThreads']:
-				if t.getDeviceAddress() == FEE_PS_ADDRESS:
-					info1 = t.getDescription()
-					info2 = t.getStatus()
-					info = "%s - %s" % (info1, info2)
-		
-			return True, info
+		if self.currentState['powerThreads'] is None:
+			self.currentState['lastLog'] = 'FEEPWRUNIT_%s: Monitoring processes are not running' % psNumb
+			return False, None
 			
 		else:
-			self.currentState['lastLog'] = 'Invalid ARX power supply (%i)' % psNumb
-			return False, None
+			if psNumb > 0 and psNumb < 2:
+				info = 'UNK - UNK'
+				for t in self.currentState['powerThreads']:
+					if t.getDeviceAddress() == FEE_PS_ADDRESS:
+						info1 = t.getDescription()
+						info2 = t.getStatus()
+						info = "%s - %s" % (info1, info2)
+			
+				return True, info
+				
+			else:
+				self.currentState['lastLog'] = 'Invalid ARX power supply (%i)' % psNumb
+				return False, None
 			
 	def getFEECurrentDraw(self):
 		"""
@@ -844,12 +904,17 @@ class AnalogProcessor(object):
 		value is False.
 		"""
 		
-		curr = 0.0
-		for t in self.currentState['powerThreads']:
-			if t.getDeviceAddress() == FEE_PS_ADDRESS:
-				curr = t.getCurrent()
-				
-		return True, curr*1000.0
+		if self.currentState['powerThreads'] is None:
+			self.currentState['lastLog'] = 'FEECURR: Monitoring processes are not running'
+			return False, 0
+			
+		else:
+			curr = 0.0
+			for t in self.currentState['powerThreads']:
+				if t.getDeviceAddress() == FEE_PS_ADDRESS:
+					curr = t.getCurrent()
+					
+			return True, curr*1000.0
 		
 	def getFEEVoltage(self):
 		"""
@@ -859,12 +924,17 @@ class AnalogProcessor(object):
 		value is False.
 		"""
 		
-		volt = 0.0
-		for t in self.currentState['powerThreads']:
-			if t.getDeviceAddress() == FEE_PS_ADDRESS:
-				volt = t.getVoltage()
-				
-		return True, volt
+		if self.currentState['powerThreads'] is None:
+			self.currentState['lastLog'] = 'FEEVOLT: Monitoring processes are not running'
+			return False, 0.0
+			
+		else:
+			volt = 0.0
+			for t in self.currentState['powerThreads']:
+				if t.getDeviceAddress() == FEE_PS_ADDRESS:
+					volt = t.getVoltage()
+					
+			return True, volt
 		
 	def getTemperatureStatus(self):
 		"""
@@ -874,41 +944,76 @@ class AnalogProcessor(object):
 		if the returned success value is False.
 		"""
 		
-		summary = 'IN_RANGE'
-		for i in xrange(self.currentState['tempThread'].getSensorCount()):
-			temp = self.currentState['tempThread'].getTemperature(i)
-			if temp is None:
-				continue
+		if self.currentState['tempThread'] is None:
+			self.currentState['lastLog'] = 'TEMP-STATUS: Monitoring process is not running'
+			return False, 'UNK'
 			
-			if temp < self.config['TEMPMIN']:
-				summary = 'UNDER_TEMP'
-				break
-			elif temp > self.config['TEMPMAX']:
-				summary = 'OVER_TEMP'
-				break
-			else:
-				pass
+		else:
+			summary = self.currentState['tempThread'].getOverallStatus()
+				
+			return True, summary
 			
-		return True, summary
+	def getTempSensorCount(self):
+		"""
+		Return the number of temperature sensors currently being polled as a two-element
+		tuple (success, values) where success is a boolean related to if the values were 
+		found.  See the currentState['lastLog'] entry for the reason for failure if the 
+		returned success value is False.
+		"""
+		
+		if self.currentState['tempThread'] is None:
+			self.currentState['lastLog'] = 'TEMP-SENSE-NO: Monitoring process is not running'
+			return False, 0
+			
+		else:
+			return True, self.currentState['tempThread'].getSensorCount()
 	
 	def getTempSensorInfo(self, sensorNumb):
 		"""
-		Return information (name, temp.) about the  various temperature sensors as a two-
-		element tuple (success, values) where success is a boolean related to if the values 
-		were found.  See the currentState['lastLog'] entry for the reason for failure if 
-		the returned success value is False.
+		Return information (name) about the  various temperature sensors as a two-element 
+		tuple (success, values) where success is a boolean related to if the values were 
+		found.  See the currentState['lastLog'] entry for the reason for failure if the 
+		returned success value is False.
 		"""
 		
-		if sensorNumb > 0 and sensorNumb <= self.currentState['tempThread'].getSensorCount():
-			name = self.currentState['tempThread'].getDescription(sensorNumb-1)
-			temp = self.currentState['tempThread'].getTemperature(sensorNumb-1)
 		
-			return True, (name, temp)
+		if self.currentState['tempThread'] is None:
+			self.currentState['lastLog'] = 'SENSOR-NAME-%i: Monitoring process is not running' % sensorNumb
+			return False, 'UNK'
 			
 		else:
-			self.currentState['lastLog'] = 'Invalid temperature sensor (%i)' % sensorNumb
-			return False, ()
+			if sensorNumb > 0 and sensorNumb <= self.currentState['tempThread'].getSensorCount():
+				name = self.currentState['tempThread'].getDescription(sensorNumb-1)
 			
+				return True, name
+				
+			else:
+				self.currentState['lastLog'] = 'SENSOR-NAME-%i: Invalid temperature sensor' % sensorNumb
+				return False, None
+				
+	def getTempSensorData(self, sensorNumb):
+		"""
+		Return information (temp.) about the  various temperature sensors as a two-element 
+		tuple (success, values) where success is a boolean related to if the values were 
+		found.  See the currentState['lastLog'] entry for the reason for failure if the 
+		returned success value is False.
+		"""
+		
+		
+		if self.currentState['tempThread'] is None:
+			self.currentState['lastLog'] = 'SENSOR-DATA-%i: Monitoring process is not running' % sensorNumb
+			return False, 0.0
+			
+		else:
+			if sensorNumb > 0 and sensorNumb <= self.currentState['tempThread'].getSensorCount():
+				value = self.currentState['tempThread'].getTemperature(sensorNumb-1)
+			
+				return True, value
+				
+			else:
+				self.currentState['lastLog'] = 'SENSOR-NAME-%i: Invalid temperature sensor' % sensorNumb
+				return False, 0.0
+				
 	def processCriticalTemperature(self, high=False, low=False):
 		"""
 		Function to set ASP to ERROR and turn off the power supplies if there is a 
