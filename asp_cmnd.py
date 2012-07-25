@@ -559,7 +559,7 @@ class MCSCommunicate(Communicate):
 			elif command == 'FEP':
 				state = int(data)
 				
-				status, exitCode = self.SubSystemInstance.getFEPPowerState(state)
+				status, exitCode = self.SubSystemInstance.setFEEPowerState(state)
 				if status:
 					packed_data = ''
 				else:

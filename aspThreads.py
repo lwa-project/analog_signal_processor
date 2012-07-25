@@ -202,7 +202,7 @@ class TemperatureSensors(object):
 			return None
 			
 		status = 'IN_RANGE'
-		for t in self.temps:
+		for t in self.temp:
 			if t < self.minTemp:
 				status = 'UNDER_TEMP'
 				break

@@ -622,7 +622,7 @@ class AnalogProcessor(object):
 			self.currentState['lastLog'] = 'RXP: Failed to change ARX power supply status'
 			aspFunctionsLogger.error('RXP - Failed to change ARX power supply status')
 		else:
-			LCD_Write('ARX PS\n%s' % 'OFF' if state == 0 else 'ON')
+			LCD_Write('ARX PS\n%s' % ('OFF' if state == 0 else 'ON',))
 			
 		# Cleanup
 		if not internal:
@@ -631,7 +631,7 @@ class AnalogProcessor(object):
 		return True, 0
 		
 		
-	def setFEPPowerState(self, state):
+	def setFEEPowerState(self, state):
 		"""
 		Set the FEE power supply power state.
 		"""
@@ -671,11 +671,11 @@ class AnalogProcessor(object):
 		output, output2 = p.communicate()
 		
 		if p.returncode != 0:
-			self.currentState['lastLog'] = 'FEP: Failed to change ARX power supply status'
-			aspFunctionsLogger.error('FEP - Failed to change ARX power supply status')
+			self.currentState['lastLog'] = 'FEP: Failed to change FEE power supply status'
+			aspFunctionsLogger.error('FEP - Failed to change FEE power supply status')
 		else:
-			LCD_Write('FEE PS\n%s' % 'OFF' if state == 0 else 'ON')
-			if state != 0:
+			LCD_Write('FEE PS\n%s' % ('OFF' if state == 0 else 'ON',))
+			if state == 0:
 				self.currentState['power'] = [[0,0] for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
 			
 		# Cleanup
