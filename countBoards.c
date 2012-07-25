@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
 
 	num = 0;
 	temp = array_to_ushort(simpleResponse);
-	while( temp != marker && num < (STANDS_PER_BOARD*(MAX_BOARDS+1)) {
+	while( temp != marker && num < (STANDS_PER_BOARD*(MAX_BOARDS+1)) ) {
 		num += STANDS_PER_BOARD;
 
 		// Read & write 2 bytes at a time making sure to return chip select to high 
