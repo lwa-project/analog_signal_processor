@@ -327,7 +327,7 @@ class MCSCommunicate(Communicate):
 				elif data == 'ARXSUPPLY-NO':
 					status, value = self.SubSystemInstance.getARXPowerSupplyCount()
 					if status:
-						packed_data = value
+						packed_data = str(value)
 					else:
 						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
@@ -375,7 +375,7 @@ class MCSCommunicate(Communicate):
 				elif data == 'FEESUPPLY-NO':
 					status, value = self.SubSystemInstance.getFEEPowerSupplyCount()
 					if status:
-						packed_data = value
+						packed_data = str(value)
 					else:
 						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
@@ -423,7 +423,7 @@ class MCSCommunicate(Communicate):
 				elif data == 'TEMP-SENSE-NO':
 					status, value = self.SubSystemInstance.getTempSensorCount()
 					if status:
-						packed_data = "%-7.3f" % value
+						packed_data = str(value)
 						
 					else:
 						packed_data = self.SubSystemInstance.currentState['lastLog']
@@ -445,7 +445,7 @@ class MCSCommunicate(Communicate):
 					
 					status, value = self.SubSystemInstance.getTempSensorData(sensorNumb)
 					if status:
-						packed_data = "%-10f" % value
+						packed_data = "%-10.3f" % value
 						
 					else:
 						packed_data = self.SubSystemInstance.currentState['lastLog']
