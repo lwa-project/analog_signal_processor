@@ -4,7 +4,8 @@
 all: LIBSUB initARXDevices sendARXDevice writeARXLCD \
      countBoards countPSUs countThermometers \
      readPSU readThermometers \
-     onoffPSU
+     onoffPSU \
+     readARXDevice
 
 #------------------------------------------------------------------------------
 # Config
@@ -77,6 +78,9 @@ readThermometers: readThermometers.o
 onoffPSU: onoffPSU.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
+readARXDevice: readARXDevice.o
+	$(CC) -o $@ $^ $(LDFLAGS)
+
 install:
 	cp sendARXDevice /usr/local/bin
 	cp initARXDevices /usr/local/bin
@@ -87,14 +91,17 @@ install:
 	cp readPSU /usr/local/bin
 	cp readThermometers /usr/local/bin
 	cp onoffPSU /usr/local/bin
+	cp readARXDevice /usr/local/bin
 	chown root:root /usr/local/bin/sendARXDevice /usr/local/bin/initARXDevices /usr/local/bin/writeARXLCD \
                         /usr/local/bin/countBoards /usr/local/bin/countPSUs /usr/local/bin/countThermometers \
                         /usr/local/bin/readPSU /usr/local/bin/readThermometers \
-                        /usr/local/bin/onoffPSU
+                        /usr/local/bin/onoffPSU \
+                        /usr/local/bin/readARXDevice
 	chmod +s /usr/local/bin/sendARXDevice /usr/local/bin/initARXDevices /usr/local/bin/writeARXLCD \
                  /usr/local/bin/countBoards /usr/local/bin/countPSUs /usr/local/bin/countThermometers \
                  /usr/local/bin/readPSU /usr/local/bin/readThermometers \
-                 /usr/local/bin/onoffPSU
+                 /usr/local/bin/onoffPSU \
+                 /usr/local/bin/readARXDevice
 
 clean:
 	rm -f *.o *.out *.err *.exe *.a *.so

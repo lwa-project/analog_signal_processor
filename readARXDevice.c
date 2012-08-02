@@ -1,10 +1,10 @@
 /*****************************************************
-sendARXDevice - Send a SPI command to the specified 
+readARXDevice - Read a SPI register from the specified 
 device.  An exit code of zero indicates that no errors
 were encountered.
  
 Usage:
-  sendARXDevice <total stand count> <device> <command>
+  readARXDevice <total stand count> <device> <command>
 
   * Command is a four digit hexadecimal values (i.e., 
   0x1234)
@@ -50,6 +50,9 @@ int main(int argc, char* argv[]) {
 	hex_to_array(argv[3], simpleData);
 	hex_to_array("0x0000", simpleNoOp);
 	ushort_to_array(marker, simpleMarker);
+	
+	// Make this a read
+	simpleData[0] |= 0x80;
 
 	// Make sure we have a device number that makes sense
 	if( device < 0 || device > num ) {
@@ -110,12 +113,17 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	/*****************************/
+	/* Ready the register value */
+	/*****************************/
+
 	// Read & write 2 bytes at a time making sure to return chip select to high 
 	// when we are done.
 	success = sub_spi_transfer(fh, simpleMarker, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
 	if( success ) {
 		fprintf(stderr, "sendARXDevice - SPI write %i of %i - %s\n", 0, num, sub_strerror(sub_errno));
 	}
+	temp = array_to_ushort(simpleResponse);
 	
 	j = 1;
 	for(i=num; i>0; i--) {
@@ -141,6 +149,64 @@ int main(int argc, char* argv[]) {
 			i += 1;
 		}
 		
+		j += 1;
+	}
+	
+	temp = array_to_ushort(simpleResponse);
+	if( temp != marker ) {
+		fprintf(stderr, "sendARXDevice - SPI write returned a marker of 0x%04X instead of 0x%04X\n", temp, marker);
+		exit(1);
+	}
+	
+	/****************************/
+	/* Read the register value */
+	/****************************/
+	
+	// Read & write 2 bytes at a time making sure to return chip select to high 
+	// when we are done.
+	success = sub_spi_transfer(fh, simpleMarker, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
+	if( success ) {
+		fprintf(stderr, "sendARXDevice - SPI write %i of %i - %s\n", 0, num, sub_strerror(sub_errno));
+	}
+	simpleResponse[0] ^= 0x80;
+	temp = array_to_ushort(simpleResponse);
+	printf("32: 0x%04X\n", temp);
+	
+	j = 1;
+	for(i=num; i>0; i--) {
+		if( i == device || device == 0 ) {
+			if( j == num ) {
+				// Final set of 2 bytes - chip select to high after transmitting
+				success = sub_spi_transfer(fh, simpleNoOp, simpleResponse, 2, TRANS_SPI_FINAL);
+			} else {
+				success = sub_spi_transfer(fh, simpleNoOp, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
+			}
+			
+		} else {
+			if( j == num ) {
+				// Final set of 2 bytes - chip select to high after transmitting
+				success = sub_spi_transfer(fh, simpleNoOp, simpleResponse, 2, TRANS_SPI_FINAL);
+			} else {
+				success = sub_spi_transfer(fh, simpleNoOp, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
+			}
+		}
+		
+		if( success ) {
+			fprintf(stderr, "sendARXDevice - SPI write %i of %i - %s\n", i+1, num, sub_strerror(sub_errno));
+			i += 1;
+		}
+		
+		// Trim off the write bit from the command address
+		simpleResponse[0] ^= 0x80;
+
+		temp = array_to_ushort(simpleResponse);
+		printf("%i: 0x%04X\n", num-j, temp);
+		
+		// Make sure we don't accidently kill the marker
+		if( j == num ) {
+			simpleResponse[0] ^= 0x80;
+		}
+
 		j += 1;
 	}
 	

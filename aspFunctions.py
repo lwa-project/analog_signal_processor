@@ -53,7 +53,8 @@ subsystemErrorCodes = {0x00: 'Subsystem operating normally',
 				   0x08: 'Failed to process I2C commands', 
 				   0x09: 'Board count mis-match',
 				   0x0A: 'Temperature over TempMax',
-				   0x0B: 'Temperature under TempMin',}
+				   0x0B: 'Temperature under TempMin',
+				   0x0C: 'Power supplies off',}
 
 
 class AnalogProcessor(object):
@@ -83,11 +84,11 @@ class AnalogProcessor(object):
 		self.currentState['activeProcess'] = []
 		
 		## Operational state - ASP
-		self.currentState['power'] = [[0,0] for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
-		self.currentState['filter'] = [0 for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
-		self.currentState['at1'] = [30 for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
-		self.currentState['at2'] = [30 for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
-		self.currentState['ats'] = [30 for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
+		self.currentState['power']  = [[0,0] for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
+		self.currentState['filter'] = [0     for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
+		self.currentState['at1']    = [30    for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
+		self.currentState['at2']    = [30    for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
+		self.currentState['ats']    = [30    for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
 		
 		## Monitoring and background threads
 		self.currentState['tempThread'] = None
@@ -127,12 +128,6 @@ class AnalogProcessor(object):
 			aspFunctionsLogger.warning("INI command rejected due to process list %s", ' '.join(self.currentState['activeProcess']))
 			self.currentState['lastLog'] = 'INI: %s - %s is active and blocking' % (commandExitCodes[0x08], self.currentState['activeProcess'])
 			return False, 0x08
-			
-		## Check to see if the system has already been initalized
-		#if self.currentState['ready']:
-		#	aspFunctionsLogger.warning("INI command rejected due to system already running")
-		#	self.currentState['lastLog'] = 'INI: %s' % commandExitCodes[0x09]
-		#	return False, 0x09
 			
 		# Check to see if there is a valid number of boards
 		if nBoards < 0 or nBoards > MAX_BOARDS:
@@ -203,9 +198,12 @@ class AnalogProcessor(object):
 				self.currentState['at2'][i] = 30
 				self.currentState['ats'][i] = 30
 			
-			# Do SPI bus stuff
+			# Do the SPI bus stuff
 			status  = True
+			status &= SPI_config_devices(self.num_chpairs, SPI_cfg_shutdown)				# Into sleep mode
+			time.sleep(0.05)
 			status &= SPI_init_devices(self.num_chpairs, SPI_cfg_normal)				# Out of sleep mode
+			time.sleep(0.05)
 			status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P16_17_18_19)		# Set outputs
 			status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P20_21_22_23)		# Set outputs
 			status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P24_25_26_27)		# Set outputs
@@ -304,8 +302,9 @@ class AnalogProcessor(object):
 			self.currentState['info'] = 'System has been shut down'
 			self.currentState['lastLog'] = 'System has been shut down'
 			
-			#self.__rxpProcess(00, internal=True)
-			#self.__fepProcess(00, internal=True)
+			# Power off the power supplies
+			self.__rxpProcess(00, internal=True)
+			self.__fepProcess(00, internal=True)
 
 			LCD_Write('ASP\nshutdown')
 			
@@ -454,7 +453,7 @@ class AnalogProcessor(object):
 		elif mode == 2:
 			order = ((SPI_P23_on, SPI_P23_off), (SPI_P21_on, SPI_P21_off), (SPI_P20_on, SPI_P20_off), (SPI_P22_on, SPI_P22_off))
 		else:
-			order = ((SPI_P21_on, SPI_P21_off), (SPI_P28_on, SPI_P28_off), (SPI_P29_on, SPI_P29_off), (SPI_P30_on, SPI_P30_off))
+			order = ((SPI_P31_on, SPI_P31_off), (SPI_P28_on, SPI_P28_off), (SPI_P29_on, SPI_P29_off), (SPI_P30_on, SPI_P30_off))
 			
 		if setting >= 16:
 			status &= SPI_Send(self.num_chpairs, stand, order[0][0])
@@ -622,7 +621,15 @@ class AnalogProcessor(object):
 			self.currentState['lastLog'] = 'RXP: Failed to change ARX power supply status'
 			aspFunctionsLogger.error('RXP - Failed to change ARX power supply status')
 		else:
+			aspFunctionsLogger.debug('RXP - Set ARX power supplies to state %02i', state)
+			
 			LCD_Write('ARX PS\n%s' % ('OFF' if state == 0 else 'ON',))
+			
+			if state == 0:
+				# Now that the ARX power supply is off, we need to be in error
+				self.currentState['status'] = 'ERROR'
+				self.currentState['info'] = 'ARXSUPPLY! 0x%02X %s' % (0x0C, subsystemErrorCodes[0x0C])
+				self.currentState['ready'] = False
 			
 		# Cleanup
 		if not internal:
@@ -674,9 +681,15 @@ class AnalogProcessor(object):
 			self.currentState['lastLog'] = 'FEP: Failed to change FEE power supply status'
 			aspFunctionsLogger.error('FEP - Failed to change FEE power supply status')
 		else:
+			aspFunctionsLogger.debug('FEP - Set FEE power supplies to state %02i', state)
+			
 			LCD_Write('FEE PS\n%s' % ('OFF' if state == 0 else 'ON',))
+			
 			if state == 0:
-				self.currentState['power'] = [[0,0] for i in xrange(MAX_BOARDS*STANDS_PER_BOARD)]
+				# Now that the FEE power supply is off, we need to be in error
+				self.currentState['status'] = 'ERROR'
+				self.currentState['info'] = 'FEESUPPLY! 0x%02X %s' % (0x0C, subsystemErrorCodes[0x0C])
+				self.currentState['ready'] = False
 			
 		# Cleanup
 		if not internal:
