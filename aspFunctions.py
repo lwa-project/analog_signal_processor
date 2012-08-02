@@ -260,11 +260,6 @@ class AnalogProcessor(object):
 			self.currentState['lastLog'] = 'SHT: %s - unknown mode %s' % (commandExitCodes[0x07], mode)
 			return False, 0x07
 			
-		## Check if we can even run SHT
-		#if not self.currentState['ready']:
-			#self.currentState['lastLog'] = 'SHT: %s' % commandExitCodes[0x0A]
-			#return False, 0x0A
-		
 		thread = threading.Thread(target=self.__shtProcess, kwargs={'mode': mode})
 		thread.setDaemon(1)
 		thread.start()
@@ -625,7 +620,7 @@ class AnalogProcessor(object):
 			
 			LCD_Write('ARX PS\n%s' % ('OFF' if state == 0 else 'ON',))
 			
-			if state == 0:
+			if state == 0 and not internal:
 				# Now that the ARX power supply is off, we need to be in error
 				self.currentState['status'] = 'ERROR'
 				self.currentState['info'] = 'ARXSUPPLY! 0x%02X %s' % (0x0C, subsystemErrorCodes[0x0C])
@@ -685,7 +680,7 @@ class AnalogProcessor(object):
 			
 			LCD_Write('FEE PS\n%s' % ('OFF' if state == 0 else 'ON',))
 			
-			if state == 0:
+			if state == 0 and not internal:
 				# Now that the FEE power supply is off, we need to be in error
 				self.currentState['status'] = 'ERROR'
 				self.currentState['info'] = 'FEESUPPLY! 0x%02X %s' % (0x0C, subsystemErrorCodes[0x0C])
