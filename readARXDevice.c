@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
 
 	// Make sure we have the right number of arguments to continue
 	if( argc != 3+1 ) {
-		fprintf(stderr, "sendARXDevice - Need %i arguments, %i provided\n", 3, argc-1);
+		fprintf(stderr, "readARXDevice - Need %i arguments, %i provided\n", 3, argc-1);
 		exit(1);
 	}
 	
@@ -51,12 +51,14 @@ int main(int argc, char* argv[]) {
 	hex_to_array("0x0000", simpleNoOp);
 	ushort_to_array(marker, simpleMarker);
 	
-	// Make this a read
+	// Make this a "read" operation to setting the high bit on the command 
+	// address to 1.  Also, zero out the data value.
 	simpleData[0] |= 0x80;
+	simpleData[1] &= 0x00;
 
 	// Make sure we have a device number that makes sense
 	if( device < 0 || device > num ) {
-		fprintf(stderr, "sendARXDevice - Device #%i is out-of-range\n", device);
+		fprintf(stderr, "readARXDevice - Device #%i is out-of-range\n", device);
 		exit(1);
 	}
 
@@ -78,14 +80,14 @@ int main(int argc, char* argv[]) {
 	dev = NULL;
 	fh = sub_open(dev);
 	while( !fh ) {
-		fprintf(stderr, "sendARXDevice - open - %s\n", sub_strerror(sub_errno));
+		fprintf(stderr, "readARXDevice - open - %s\n", sub_strerror(sub_errno));
 		usleep(10000);
 		fh = sub_open(dev);
 	}
 	
 	success = sub_get_serial_number(fh, sn, sizeof(sn));
 	if( !success ) {
-		fprintf(stderr, "sendARXDevice - get sn - %s\n", sub_strerror(sub_errno));
+		fprintf(stderr, "readARXDevice - get sn - %s\n", sub_strerror(sub_errno));
 		exit(1);
 	}
 	fprintf(stderr, "Found SUB-20 device S/N: %s\n", sn);
@@ -101,14 +103,14 @@ int main(int argc, char* argv[]) {
 	j = 0;
 	success = sub_spi_config(fh, 0, &j);
 	if( success ) {
-		fprintf(stderr, "sendARXDevice - get config - %s\n", sub_strerror(sub_errno));
+		fprintf(stderr, "readARXDevice - get config - %s\n", sub_strerror(sub_errno));
 	}
 	
 	success = 1;
 	while( success ) {
 		success = sub_spi_config(fh, ARX_SPI_CONFIG, NULL);
 		if( success ) {
-			fprintf(stderr, "sendARXDevice - set config - %s\n", sub_strerror(sub_errno));
+			fprintf(stderr, "readARXDevice - set config - %s\n", sub_strerror(sub_errno));
 			exit(1);
 		}
 	}
@@ -121,7 +123,7 @@ int main(int argc, char* argv[]) {
 	// when we are done.
 	success = sub_spi_transfer(fh, simpleMarker, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
 	if( success ) {
-		fprintf(stderr, "sendARXDevice - SPI write %i of %i - %s\n", 0, num, sub_strerror(sub_errno));
+		fprintf(stderr, "readARXDevice - SPI write %i of %i - %s\n", 0, num, sub_strerror(sub_errno));
 	}
 	temp = array_to_ushort(simpleResponse);
 	
@@ -145,7 +147,7 @@ int main(int argc, char* argv[]) {
 		}
 		
 		if( success ) {
-			fprintf(stderr, "sendARXDevice - SPI write %i of %i - %s\n", i+1, num, sub_strerror(sub_errno));
+			fprintf(stderr, "readARXDevice - SPI write %i of %i - %s\n", i+1, num, sub_strerror(sub_errno));
 			i += 1;
 		}
 		
@@ -154,7 +156,7 @@ int main(int argc, char* argv[]) {
 	
 	temp = array_to_ushort(simpleResponse);
 	if( temp != marker ) {
-		fprintf(stderr, "sendARXDevice - SPI write returned a marker of 0x%04X instead of 0x%04X\n", temp, marker);
+		fprintf(stderr, "readARXDevice - SPI write returned a marker of 0x%04X instead of 0x%04X\n", temp, marker);
 		exit(1);
 	}
 	
@@ -166,11 +168,11 @@ int main(int argc, char* argv[]) {
 	// when we are done.
 	success = sub_spi_transfer(fh, simpleMarker, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
 	if( success ) {
-		fprintf(stderr, "sendARXDevice - SPI write %i of %i - %s\n", 0, num, sub_strerror(sub_errno));
+		fprintf(stderr, "readARXDevice - SPI write %i of %i - %s\n", 0, num, sub_strerror(sub_errno));
 	}
 	simpleResponse[0] ^= 0x80;
 	temp = array_to_ushort(simpleResponse);
-	printf("32: 0x%04X\n", temp);
+	printf("%i: 0x%04X\n", num, temp);
 	
 	j = 1;
 	for(i=num; i>0; i--) {
@@ -192,7 +194,7 @@ int main(int argc, char* argv[]) {
 		}
 		
 		if( success ) {
-			fprintf(stderr, "sendARXDevice - SPI write %i of %i - %s\n", i+1, num, sub_strerror(sub_errno));
+			fprintf(stderr, "readARXDevice - SPI write %i of %i - %s\n", i+1, num, sub_strerror(sub_errno));
 			i += 1;
 		}
 		
@@ -212,7 +214,7 @@ int main(int argc, char* argv[]) {
 	
 	temp = array_to_ushort(simpleResponse);
 	if( temp != marker ) {
-		fprintf(stderr, "sendARXDevice - SPI write returned a marker of 0x%04X instead of 0x%04X\n", temp, marker);
+		fprintf(stderr, "readARXDevice - SPI write returned a marker of 0x%04X instead of 0x%04X\n", temp, marker);
 		exit(1);
 	}
 

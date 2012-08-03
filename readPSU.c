@@ -29,12 +29,18 @@ $LastChangedDate$
 sub_handle* fh = NULL;
 
 
+void getModuleName(unsigned short, int, char*, int);
+void getModulePower(unsigned short, char*, int);
+void getModuleStatus(unsigned short, char*, int);
+
+
 int main(int argc, char* argv[]) {
 	char *endptr;
-	int i, device, success, nPSU, done, code;
+	int i, device, success, nPSU, nMod, done, code;
 	unsigned short temp, modules, page, status;
 	float voltage, current;
 	char psuAddresses[128], j, sn[20], simpleData[2], bigData[4];
+	char moduleName[65], modulePower[4], moduleStatus[129];
 	
 	// Make sure we have the right number of arguments to continue
 	if( argc != 1+1 ) {
@@ -43,7 +49,7 @@ int main(int argc, char* argv[]) {
 	}
 	
 	// Convert the strings into integer values
-	device   = strtod(argv[1], &endptr);
+	device = strtod(argv[1], &endptr);
 	
 	/************************************
 	* SUB-20 device selection and ready *
@@ -91,214 +97,151 @@ int main(int argc, char* argv[]) {
 		}
 		modules = array_to_ushort(simpleData);
 
-		// Enable writing to the PAGE address (0x00) so we can change modules
-		simpleData[0] = (unsigned char) ((1 << 6) & 1);
+		// Enable writing to all of the supported command so we can change 
+		// modules/poll module type
+		simpleData[0] = (unsigned char) 0;
 		success = sub_i2c_write(fh, psuAddresses[i], 0x10, 1, simpleData, 1);
 		if( success ) {
 			fprintf(stderr, "readPSU - write settings - %s\n", sub_strerror(sub_errno));
 			continue;
 		}
 
-		// Loop over modules 0 through 7
+		// Loop over modules 0 through 15
 		simpleData[0] = 0;
+		bigData[0] = 0;
+		bigData[1] = 0;
+		bigData[2] = 0;
+		bigData[3] = 0;
+		
+		nMod = 0;
+		moduleName[0] = '\0';
+		modulePower[0] = '\0';
+		moduleStatus[0] = '\0';
+		voltage = 0.0;
+		current = 0.0;
 		for(j=0; j<16; j++) {
+			/****************
+			* Module Change *
+			****************/
+			
 			// Skip "dumb" modules
 			if( ((modules >> j) & 1) == 0 ) {
 				continue;
 			}
-
-			// Jump to the correct page and give the PSU a second to get ready
-			simpleData[0] = j;
-			success = sub_i2c_write(fh, psuAddresses[i], 0x00, 1, simpleData, 1);
-			if( success ) {
-				fprintf(stderr, "readPSU - page change - %s\n", sub_strerror(sub_errno));
-				continue;
+			nMod += 1;
+			
+			page = (unsigned short) 17;
+			while( page != j ) {
+				// Jump to the correct page and give the PSU a second to get ready
+				simpleData[0] = j;
+				success = sub_i2c_write(fh, psuAddresses[i], 0x00, 1, simpleData, 1);
+				if( success ) {
+					fprintf(stderr, "readPSU - page change - %s\n", sub_strerror(sub_errno));
+					exit(1);
+				}
+				
+				usleep(10000);
+				
+				// Verify the current page
+				success = sub_i2c_read(fh, psuAddresses[i], 0x00, 1, simpleData, 1);
+				if( success ) {
+					fprintf(stderr, "readPSU - get page - %s\n", sub_strerror(sub_errno));
+					continue;
+				}
+				simpleData[1] = 0;
+				page = array_to_ushort(simpleData);
 			}
-			usleep(20000);
 
-			// Verify the current page
-			success = sub_i2c_read(fh, psuAddresses[i], 0x00, 1, simpleData, 1);
-			if( success ) {
-				fprintf(stderr, "readPSU - get page - %s\n", sub_strerror(sub_errno));
-				continue;
-			}
-			simpleData[1] = 0;
-			page = array_to_ushort(simpleData);
+			/***********************
+			* Module Name and Type *
+			***********************/
+			
+			#ifdef __DECODE_MODULE_TYPE__
+				temp = (unsigned short) bigData[3];
+				while( (unsigned short) bigData[3] == temp ) {
+					simpleData[0] = 0;
+					success = sub_i2c_write(fh, psuAddresses[i], 0xDE, 1, simpleData, 1);
+					if( success ) {
+						fprintf(stderr, "readPSU - get type - %s\n", sub_strerror(sub_errno));
+						exit(1);
+					}
+					
+					usleep(100000);
+					
+					success = sub_i2c_read(fh, psuAddresses[i], 0xDF, 1, bigData, 4);
+					if( success ) {
+						fprintf(stderr, "readPSU - get type - %s\n", sub_strerror(sub_errno));
+						continue;
+					}
+					
+					printf("%u %u %u %u\n", bigData[0], bigData[1], bigData[2], bigData[3]);
+				}
+				code = (int) (bigData[3] & 0xFF);
+				getModuleName(page, code, (char *) moduleName, 1);
+			#else
+				code = 0;
+				if( moduleName[0] == '\0' ) {
+					sprintf(moduleName, "Module%02i", page);
+				} else {
+					sprintf(moduleName, "%s|Module%02i", moduleName, page);
+				}
+			#endif
 
-			/*********
-			* Status *
-			*********/
-
+			/*************************
+			* Power State and Status *
+			*************************/
+			
 			success = sub_i2c_read(fh, psuAddresses[i], 0xDB, 1, simpleData, 1);
 			if( success ) {
 				fprintf(stderr, "readPSU - get status - %s\n", sub_strerror(sub_errno));
 				continue;
 			}
 			status = array_to_ushort(simpleData);
-			
-			/**************
-			* Module Type *
-			**************/
-			
-			simpleData[0] = 0;
-			success = sub_i2c_write(fh, psuAddresses[i], 0xDE, 1, simpleData, 1);
-			if( success ) {
-				fprintf(stderr, "readPSU - get type - %s\n", sub_strerror(sub_errno));
-				continue;
+			if( modulePower[0] == '\0' || modulePower[1] == 'N' ) {
+				getModulePower(status, (char *) modulePower, 0);
 			}
-			success = sub_i2c_read(fh, psuAddresses[i], 0xDF, 1, bigData, 4);
-			if( success ) {
-				fprintf(stderr, "readPSU - get type - %s\n", sub_strerror(sub_errno));
-				continue;
-			}
-			code = (int) (bigData[3] & 0xFF);
+			getModuleStatus(status, (char *) moduleStatus, 1);
 
-			/*******************************
-			* Get Input and Output Voltage *
-			*******************************/
-
-// 			success = sub_i2c_read(fh, psuAddresses[i], 0x88, 1, simpleData, 2);
-// 			if( success ) {
-// 				fprintf(stderr, "readPSUs - get input voltage - %s\n", sub_strerror(sub_errno));
-// 				continue;
-// 			}
-// 			temp = array_to_ushort(simpleData);
-
+			/*****************
+			* Output Voltage *
+			*****************/
+			
 			success = sub_i2c_read(fh, psuAddresses[i], 0x8B, 1, simpleData, 2);
 			if( success ) {
 				fprintf(stderr, "readPSU - get output voltage - %s\n", sub_strerror(sub_errno));
 				continue;
 			}
 			temp = array_to_ushort(simpleData);
-			voltage = temp/100.0;
+			voltage += temp/100.0;
 
-			/*********************
-			* Get Output Current *
-			*********************/
-
-			success = sub_i2c_read(fh, psuAddresses[i], 0x89, 1, simpleData, 2);
-			if( success ) {
-				fprintf(stderr, "readPSUs - get input current - %s\n", sub_strerror(sub_errno));
-				continue;
-			}
-			temp = array_to_ushort(simpleData);
-			current = temp/100.0;
-
-// 			success = sub_i2c_read(fh, psuAddresses[i], 0x8C, 1, simpleData, 2);
-// 			if( success ) {
-// 				fprintf(stderr, "readPSU - get output current - %s\n", sub_strerror(sub_errno));
-// 				continue;
-// 			}
-// 			temp = array_to_ushort(simpleData);
-// 			current = temp/100.0;
+			/*****************
+			* Output Current *
+			*****************/
 			
-			printf("0x%02X Module%02i_",  psuAddresses[i], page);
-			// Decode the power rating of the current module
-			if( ((code >> 4 ) & 0xF) == 0 ) {
-				printf("210W_");
-			} else {
-				if( ((code >> 4 ) & 0xF) == 1 ) {
-					printf("360W_");
-				} else {
-					if( ((code >> 4 ) & 0xF) == 2 ) {
-						printf("144W_");
-					} else {
-						if( ((code >> 4 ) & 0xF) == 3 ) {
-							printf("600W_");
-						} else {
-							if( ((code >> 4 ) & 0xF) == 4 ) {
-								printf("750W_");
-							} else {
-								printf("1500W_");
-							}
-						}
-					}
+			#ifdef __USE_INPUT_CURRENT__
+				success = sub_i2c_read(fh, psuAddresses[i], 0x89, 1, simpleData, 2);
+				if( success ) {
+					fprintf(stderr, "readPSUs - get input current - %s\n", sub_strerror(sub_errno));
+					continue;
 				}
-			}
-			// Decode the voltage range of the current module
-			if( (code & 0xF) == 0 ) {
-				printf("2to5.5V ");
-			} else {
-				if( (code & 0xF) == 1 ) {
-					printf("6to12V ");
-				} else {
-					if( (code & 0xF) == 2 ) {
-						printf("14to20V ");
-					} else {
-						if( (code & 0xF) == 3 ) {
-							printf("24to36V ");
-						} else {
-							if( (code & 0xF) == 4 ) {
-								printf("42to60V ");
-							} else {
-								if( (code & 0xF) == 5 ) {
-									printf("fixed5V ");
-								} else {
-									if( (code & 0xF) == 6 ) {
-										printf("2to6V ");
-									} else {
-										if( (code & 0xF) == 7 ) {
-											printf("12to15V ");
-										} else {
-											if( (code & 0xF) == 8 ) {
-												printf("24to28V ");
-											} else {
-												if( (code & 0xF) == 9 ) {
-													printf("24to30V ");
-												} else {
-													printf("33to60V ");
-												}
-											}
-										}
-									}
-								}
-							}
-						}
-					}
+				temp = array_to_ushort(simpleData);
+				current = temp/100.0 * 0.95;		// Removes the ~5% power conversion loss
+			#else
+				success = sub_i2c_read(fh, psuAddresses[i], 0x8C, 1, simpleData, 2);
+				if( success ) {
+					fprintf(stderr, "readPSU - get output current - %s\n", sub_strerror(sub_errno));
+					continue;
 				}
-			}
-			
-			// Decode the modules power state
-			if( status & 1 ) { 
-				printf("ON ");
-			} else {
-				printf("OFF ");
-			}
-			// Decode the various status and fault flags
-			if( (status >> 1) & 1 ) {
-				printf("UnderVolt ");
-			} else {
-				if( (status >> 2) & 1 ) {
-					printf("OK ");
-				} else {
-					if( (status >> 3) & 1 ) {
-						printf("OverCurrent ");
-					} else {
-						if( (status >> 4) & 1 ) {
-							printf("OverTemperature ");
-						} else {
-							if( (status >> 5) & 1 ) {
-								printf("WarningTemperature ");
-							} else {
-								if( (status >> 6) & 1 ) {
-									printf("OverVolt ");
-								} else {
-									if( (status >> 7) & 1 ) {
-										printf("ModuleFault ");
-									} else {
-										printf("UNK ");
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-			printf("%.2f %.2f\n", voltage, current);
-			
-			// Only work on one module (the first one)
-			break;
+				temp = array_to_ushort(simpleData);
+				current += temp/100.0;
+			#endif
 		}
+		
+		// Print mean output voltage and the total current
+		if( nMod != 0 ) {
+			voltage /= (float) nMod;
+		}
+		printf("0x%02X %s %s %s %.2f %.2f", psuAddresses[i], moduleName, modulePower, moduleStatus, voltage, current);
 
 		// Set the module number back to 0
 		simpleData[0] = (unsigned char) 0;
@@ -332,3 +275,164 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
+
+void getModuleName(unsigned short page, int moduleCode, char* moduleName, int append) {
+	int n, m;
+	
+	if( append && *(moduleName + 0) != '\0' ) {
+		n = sprintf(moduleName, "%s|Module%02i", moduleName, page);
+	} else {
+		n = sprintf(moduleName, "Module%02i", page);
+	}
+	m = n;
+	
+	// Decode the power rating of the current module
+	if( ((moduleCode >> 4 ) & 0xF) == 0 ) {
+		n = sprintf(moduleName, "%s_210W", moduleName);
+	}
+	if( ((moduleCode >> 4 ) & 0xF) == 1 ) {
+		n = sprintf(moduleName, "%s_360W", moduleName);
+	}
+	if( ((moduleCode >> 4 ) & 0xF) == 2 ) {
+		n = sprintf(moduleName, "%s_144W", moduleName);
+	}
+	if( ((moduleCode >> 4 ) & 0xF) == 3 ) {
+		n = sprintf(moduleName, "%s_600W", moduleName);
+	}
+	if( ((moduleCode >> 4 ) & 0xF) == 4 ) {
+		n = sprintf(moduleName, "%s_750W", moduleName);
+	}
+	if( ((moduleCode >> 4) & 0xF) == 5 ) {
+		n = sprintf(moduleName, "%s_1500W", moduleName);
+	}
+	
+	if( n == m ) {
+		n = sprintf(moduleName, "%s_UNK", moduleName);
+	}
+	m = n;
+	
+	// Decode the voltage range of the current module
+	if( (moduleCode & 0xF) == 0 ) {
+		n = sprintf(moduleName, "%s_2to5.5V", moduleName);
+	}
+	if( (moduleCode & 0xF) == 1 ) {
+		n = sprintf(moduleName, "%s_6to12V", moduleName);
+	}
+	if( (moduleCode & 0xF) == 2 ) {
+		n = sprintf(moduleName, "%s_14to20V", moduleName);
+	}
+	if( (moduleCode & 0xF) == 3 ) {
+		n = sprintf(moduleName, "%s_24to36V", moduleName);
+	}
+	if( (moduleCode & 0xF) == 4 ) {
+		n = sprintf(moduleName, "%s_42to60V", moduleName);
+	}
+	if( (moduleCode & 0xF) == 5 ) {
+		n = sprintf(moduleName, "%s_fixed5V", moduleName);
+	}
+	if( (moduleCode & 0xF) == 6 ) {
+		n = sprintf(moduleName, "%s_2to6V", moduleName);
+	}
+	if( (moduleCode & 0xF) == 7 ) {
+		n = sprintf(moduleName, "%s_12to15V", moduleName);
+	}
+	if( (moduleCode & 0xF) == 8 ) {
+		n = sprintf(moduleName, "%s_24to28V", moduleName);
+	}
+	if( (moduleCode & 0xF) == 9 ) {
+		sprintf(moduleName, "%s_24to30V", moduleName);
+	}
+	if( (moduleCode & 0xF) == 10 ) {
+		n = sprintf(moduleName, "%s_33to60V", moduleName);
+	}
+	
+	if( n == m ) {
+		n = sprintf(moduleName, "%s_UNK", moduleName);
+	}
+	m = n;
+}
+
+
+void getModulePower(unsigned short statusCode, char *modulePower, int append) {
+	if( append && *(modulePower + 0) != '\0' ) {
+		sprintf(modulePower, "%s|", modulePower);
+	} else {
+		*(modulePower + 0) = '\0';
+	}
+	
+	// Decode the output enabled flag
+	if( statusCode & 1 ) {
+		sprintf(modulePower, "%sON", modulePower);
+	} else {
+		sprintf(modulePower, "%sOFF", modulePower);
+	}
+}
+
+
+void getModuleStatus(unsigned short statusCode, char* moduleStatus, int append) {
+	int n, m;
+	
+	if( append && *(moduleStatus + 0) != '\0' ) {
+		n = sprintf(moduleStatus, "%s|", moduleStatus);
+	} else {
+		*(moduleStatus + 0) = '\0';
+		n = 0;
+	}
+	m = n;
+	
+	// Decode the various status and fault flags
+	if( (statusCode >> 1) & 1 ) {
+		if( n == m ) {
+			n = sprintf(moduleStatus, "%sUnderVolt", moduleStatus);
+		} else {
+			n = sprintf(moduleStatus, "%s&UnderVolt", moduleStatus);
+		}
+	}
+	if( (statusCode >> 2) & 1 ) {
+		if( n == m ) {
+			n = sprintf(moduleStatus, "%sOK", moduleStatus);
+		} else {
+			n = sprintf(moduleStatus, "%s&OK", moduleStatus);
+		}
+	}
+	if( (statusCode >> 3) & 1 ) {
+		if( n == m ) {
+			n = sprintf(moduleStatus, "%sOverCurrent", moduleStatus);
+		} else {
+			n = sprintf(moduleStatus, "%s&OverCurrent", moduleStatus);
+		}
+	}
+	if( (statusCode >> 4) & 1 ) {
+		if( n == m ) {
+			n = sprintf(moduleStatus, "%sOverTemperature", moduleStatus);
+		} else {
+			n = sprintf(moduleStatus, "%s&OverTemperature", moduleStatus);
+		}
+	}
+	if( (statusCode >> 5) & 1 ) {
+		if( n == m ) {
+			n = sprintf(moduleStatus, "%sWarningTemperature", moduleStatus);
+		} else {
+			n = sprintf(moduleStatus, "%s&WarningTemperature", moduleStatus);
+		}
+	}
+	if( (statusCode >> 6) & 1 ) {
+		if( n == m ) {
+			n = sprintf(moduleStatus, "%sOverVolt", moduleStatus);
+		} else {
+			n = sprintf(moduleStatus, "%s&OverVolt", moduleStatus);
+		}
+	}
+	if( (statusCode >> 7) & 1 ) {
+		if( n == m ) {
+			n = sprintf(moduleStatus, "%sModuleFault", moduleStatus);
+		} else {
+			n = sprintf(moduleStatus, "%s&ModuleFault", moduleStatus);
+		}
+	}
+	
+	// Make sure we return something...
+	if( n == m ) {
+		n = sprintf(moduleStatus, "%sUNK", moduleStatus);
+	}
+}

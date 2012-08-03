@@ -54,7 +54,7 @@ subsystemErrorCodes = {0x00: 'Subsystem operating normally',
 				   0x09: 'Board count mis-match',
 				   0x0A: 'Temperature over TempMax',
 				   0x0B: 'Temperature under TempMin',
-				   0x0C: 'Power supplies off',}
+				   0x0C: 'Power supplies off'}
 
 
 class AnalogProcessor(object):
@@ -389,8 +389,10 @@ class AnalogProcessor(object):
 					self.currentState['filter'][i] = filterCode
 		else:
 			# Something failed, report
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'FILTER_%03i! 0x%02X %s - Failed after %i attempts' % (stand if stand != 0 else 1, 0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
 			self.currentState['lastLog'] = 'FIL: Failed to set filter to %02i for stand %i' % (filterCode, stand)
-			aspFunctionsLogger.error('FIL - Failed to set filter to %02i for stand %i', filterCode, stand)
+			aspFunctionsLogger.critical('FIL - Failed to set filter to %02i for stand %i', filterCode, stand)
 		
 		# Cleanup and save the state of FIL
 		self.currentState['activeProcess'].remove('FIL%03d' % stand)
@@ -488,8 +490,10 @@ class AnalogProcessor(object):
 					
 		else:
 			# Something failed, report
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = '%s_%03i! 0x%02X %s - Failed after %i attempts' % (modeDict[mode], stand if stand != 0 else 1, 0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
 			self.currentState['lastLog'] = '%s: Failed to set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
-			aspFunctionsLogger.error('%s - Failed to set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
+			aspFunctionsLogger.critical('%s - Failed to set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
 		
 		# Cleanup
 		self.currentState['activeProcess'].remove('%s%03d' % (modeDict[mode], stand))
@@ -565,8 +569,13 @@ class AnalogProcessor(object):
 					
 		else:
 			# Something failed, report
+			self.currentState['status'] = 'ERROR'
+			if pol == 1:
+				self.currentState['info'] = 'FEEPOL1PWR_%03i! 0x%02X %s - Failed after %i attempts' % (stand if stand != 0 else 1, 0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
+			elif pol == 2:
+				self.currentState['info'] = 'FEEPOL2PWR_%03i! 0x%02X %s - Failed after %i attempts' % (stand if stand != 0 else 1, 0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
 			self.currentState['lastLog'] = 'FPW: Failed to set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
-			aspFunctionsLogger.error('FPW - Failed to set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
+			aspFunctionsLogger.critical('FPW - Failed to set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
 		
 		# Cleanup
 		self.currentState['activeProcess'].remove('FPW%03d%1d' % (stand, pol))
@@ -613,6 +622,8 @@ class AnalogProcessor(object):
 		output, output2 = p.communicate()
 		
 		if p.returncode != 0:
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'ARXSUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
 			self.currentState['lastLog'] = 'RXP: Failed to change ARX power supply status'
 			aspFunctionsLogger.error('RXP - Failed to change ARX power supply status')
 		else:
@@ -673,6 +684,8 @@ class AnalogProcessor(object):
 		output, output2 = p.communicate()
 		
 		if p.returncode != 0:
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'FEESUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
 			self.currentState['lastLog'] = 'FEP: Failed to change FEE power supply status'
 			aspFunctionsLogger.error('FEP - Failed to change FEE power supply status')
 		else:
@@ -1031,9 +1044,13 @@ class AnalogProcessor(object):
 		if high:
 			print self.getARXPowerSupplyStatus()
 			if self.getARXPowerSupplyStatus()[1] == 'ON ':
-				self.setARXPowerState(00)
+				status = False
+				while not status:
+					status, junk = self.setARXPowerState(00)
 			if self.getFEEPowerSupplyStatus()[1] == 'ON ':
-				self.setFEPPowerState(00)
+				status = False
+				while not status:
+					status, junk = self.setFEPPowerState(00)
 			
 			self.currentState['status'] = 'ERROR'
 			self.currentState['info'] = 'TEMP-STATUS! 0x%02X %s' % (0x0A, subsystemErrorCodes[0x0A])
@@ -1068,7 +1085,9 @@ class AnalogProcessor(object):
 		
 		if deviceAddress == ARX_PS_ADDRESS:
 			if self.getARXPowerSupplyStatus()[1] == 'ON ':
-				self.setARXPowerState(00)
+				status = False
+				while not status:
+					status, junk = self.setARXPowerState(00)
 			
 			self.currentState['status'] = 'ERROR'
 			self.currentState['info'] = 'ARXPWRUNIT_1! 0x%02X %s - %s' % (code, subsystemErrorCodes[code], reason)
@@ -1077,7 +1096,9 @@ class AnalogProcessor(object):
 			
 		elif deviceAddress == FEE_PS_ADDRESS:
 			if self.getFEEPowerSupplyStatus()[1] == 'ON ':
-				self.setARXPowerState(00)
+				status = False
+				while not status:
+					status, junk = self.setARXPowerState(00)
 			
 			self.currentState['status'] = 'ERROR'
 			self.currentState['info'] = 'FEPPWRUNIT_1! 0x%02X %s - %s' % (code, subsystemErrorCodes[code], reason)

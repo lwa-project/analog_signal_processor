@@ -334,8 +334,9 @@ class PowerStatus(object):
 			# Deal with power supplies that are over temperature, current, or voltage; 
 			# or under voltage; or has a module fault
 			if self.ASPCallbackInstance is not None:
-				if self.status in ('OverTemperature', 'OverCurrent', 'OverVolt', 'UnderVolt', 'ModuleFault'):
-					self.ASPCallbackInstance.processCriticalPowerSupply(self.deviceAddress, self.status)
+				for modeOfFailure in ('OverTemperature', 'OverCurrent', 'OverVolt', 'UnderVolt', 'ModuleFault'):
+					if self.status.find(modeOfFailure) != -1:
+						self.ASPCallbackInstance.processCriticalPowerSupply(self.deviceAddress, modeOfFailure)
 					
 			# Stop time
 			tStop = time.time()

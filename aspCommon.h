@@ -38,6 +38,17 @@ void ushort_to_array(unsigned short, char*);
 int array_to_ushort(char*);
 
 
+// Uncomment the next line to include polling of module temperatures
+//#define __INCLUDE_MODULE_TEMPS__
+
+
+// Uncommend the next line to decode the module type (causes readPSU to run slower)
+//#define __DECODE_MODULE_TYPE__
+
+// Uncomment the next line to use input rather than the module outuput current
+#define __USE_INPUT_CURRENT__
+
+
 /*
   hex_to_array - Convert a hex. string to a 2-byte array
 */
