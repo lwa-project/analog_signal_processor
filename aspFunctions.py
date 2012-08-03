@@ -43,18 +43,19 @@ commandExitCodes = {0x00: 'Process accepted without error',
 				0x0B: 'Command not implemented'}
 
 subsystemErrorCodes = {0x00: 'Subsystem operating normally', 
-				   0x01: 'PS over temperature warning', 
-				   0x02: 'PS under temperature warning', 
-				   0x03: 'PS over voltage warning', 
-				   0x04: 'PS under voltage warning', 
-				   0x05: 'PS over current warning', 
+				   0x01: 'PS over temperature', 
+				   0x02: 'PS under temperature', 
+				   0x03: 'PS over voltage', 
+				   0x04: 'PS under voltage', 
+				   0x05: 'PS over current', 
 				   0x06: 'PS module fault error',
 				   0x07: 'Failed to process SPI commands',
 				   0x08: 'Failed to process I2C commands', 
 				   0x09: 'Board count mis-match',
 				   0x0A: 'Temperature over TempMax',
 				   0x0B: 'Temperature under TempMin',
-				   0x0C: 'Power supplies off'}
+				   0x0C: 'Power supplies off',
+				   0x0D: 'Temperature warning'}
 
 
 class AnalogProcessor(object):
@@ -324,7 +325,7 @@ class AnalogProcessor(object):
 		"""
 		
 		# Check the operational status of the system
-		if self.currentState['status'] == 'SHUTDWN':
+		if self.currentState['status'] == 'SHUTDWN' or not self.currentState['ready']:
 			self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x0A]
 			return False, 0x0A
 		if 'FIL%03d' % stand in self.currentState['activeProcess']:
@@ -392,7 +393,7 @@ class AnalogProcessor(object):
 			self.currentState['status'] = 'ERROR'
 			self.currentState['info'] = 'FILTER_%03i! 0x%02X %s - Failed after %i attempts' % (stand if stand != 0 else 1, 0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
 			self.currentState['lastLog'] = 'FIL: Failed to set filter to %02i for stand %i' % (filterCode, stand)
-			aspFunctionsLogger.critical('FIL - Failed to set filter to %02i for stand %i', filterCode, stand)
+			aspFunctionsLogger.error('FIL - Failed to set filter to %02i for stand %i', filterCode, stand)
 		
 		# Cleanup and save the state of FIL
 		self.currentState['activeProcess'].remove('FIL%03d' % stand)
@@ -408,7 +409,7 @@ class AnalogProcessor(object):
 		"""
 		
 		# Check the operational status of the system
-		if self.currentState['status'] == 'SHUTDWN':
+		if self.currentState['status'] == 'SHUTDWN'or not self.currentState['ready']:
 			self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x0A])
 			return False, 0x0A
 		if '%s%03d' % (modeDict[mode], stand) in self.currentState['activeProcess']:
@@ -493,7 +494,7 @@ class AnalogProcessor(object):
 			self.currentState['status'] = 'ERROR'
 			self.currentState['info'] = '%s_%03i! 0x%02X %s - Failed after %i attempts' % (modeDict[mode], stand if stand != 0 else 1, 0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
 			self.currentState['lastLog'] = '%s: Failed to set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
-			aspFunctionsLogger.critical('%s - Failed to set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
+			aspFunctionsLogger.error('%s - Failed to set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
 		
 		# Cleanup
 		self.currentState['activeProcess'].remove('%s%03d' % (modeDict[mode], stand))
@@ -507,7 +508,7 @@ class AnalogProcessor(object):
 		"""
 		
 		# Check the operational status of the system
-		if self.currentState['status'] == 'SHUTDWN':
+		if self.currentState['status'] == 'SHUTDWN'or not self.currentState['ready']:
 			self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x0A]
 			return False, 0x0A
 		if 'FPW%03d%1d' % (stand, pol) in self.currentState['activeProcess']:
@@ -575,7 +576,7 @@ class AnalogProcessor(object):
 			elif pol == 2:
 				self.currentState['info'] = 'FEEPOL2PWR_%03i! 0x%02X %s - Failed after %i attempts' % (stand if stand != 0 else 1, 0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
 			self.currentState['lastLog'] = 'FPW: Failed to set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
-			aspFunctionsLogger.critical('FPW - Failed to set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
+			aspFunctionsLogger.error('FPW - Failed to set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
 		
 		# Cleanup
 		self.currentState['activeProcess'].remove('FPW%03d%1d' % (stand, pol))
@@ -622,10 +623,11 @@ class AnalogProcessor(object):
 		output, output2 = p.communicate()
 		
 		if p.returncode != 0:
+			aspFunctionsLogger.error('RXP - Failed to change ARX power supply status')
+			
 			self.currentState['status'] = 'ERROR'
 			self.currentState['info'] = 'ARXSUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
 			self.currentState['lastLog'] = 'RXP: Failed to change ARX power supply status'
-			aspFunctionsLogger.error('RXP - Failed to change ARX power supply status')
 		else:
 			aspFunctionsLogger.debug('RXP - Set ARX power supplies to state %02i', state)
 			
@@ -684,10 +686,11 @@ class AnalogProcessor(object):
 		output, output2 = p.communicate()
 		
 		if p.returncode != 0:
+			aspFunctionsLogger.error('FEP - Failed to change FEE power supply status')
+			
 			self.currentState['status'] = 'ERROR'
 			self.currentState['info'] = 'FEESUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
 			self.currentState['lastLog'] = 'FEP: Failed to change FEE power supply status'
-			aspFunctionsLogger.error('FEP - Failed to change FEE power supply status')
 		else:
 			aspFunctionsLogger.debug('FEP - Set FEE power supplies to state %02i', state)
 			
@@ -1035,6 +1038,25 @@ class AnalogProcessor(object):
 				self.currentState['lastLog'] = 'SENSOR-NAME-%i: Invalid temperature sensor' % sensorNumb
 				return False, 0.0
 				
+	def processWarningTemperature(self, clear=False):
+		"""
+		Function to set ASP to WARNING if the temperature is creeping up.  This 
+		function also clears the WARNING condition if things have returned to 
+		normal.
+		"""
+		
+		if clear:
+			if self.currentState['status'] == 'WARNING':
+				self.currentState['status'] = 'NORMAL'
+				self.currentState['info'] = 'Warning condition cleared, system operating normally'
+			
+		else:
+			if self.currentState['status'] in ('NORMAL', 'WARNING'):
+				self.currentState['status'] = 'WARNING'
+				self.currentState['info'] = 'TEMP-STATUS! 0x%02X %s' % (0x0D, subsystemErrorCodes[0x0D])
+			
+		return True
+		
 	def processCriticalTemperature(self, high=False, low=False):
 		"""
 		Function to set ASP to ERROR and turn off the power supplies if there is a 
@@ -1044,13 +1066,10 @@ class AnalogProcessor(object):
 		if high:
 			print self.getARXPowerSupplyStatus()
 			if self.getARXPowerSupplyStatus()[1] == 'ON ':
-				status = False
-				while not status:
-					status, junk = self.setARXPowerState(00)
+				self.__rxpProcess(00, internal=True)
+				
 			if self.getFEEPowerSupplyStatus()[1] == 'ON ':
-				status = False
-				while not status:
-					status, junk = self.setFEPPowerState(00)
+				self.__fepProcess(00, internal=True)
 			
 			self.currentState['status'] = 'ERROR'
 			self.currentState['info'] = 'TEMP-STATUS! 0x%02X %s' % (0x0A, subsystemErrorCodes[0x0A])
@@ -1085,9 +1104,7 @@ class AnalogProcessor(object):
 		
 		if deviceAddress == ARX_PS_ADDRESS:
 			if self.getARXPowerSupplyStatus()[1] == 'ON ':
-				status = False
-				while not status:
-					status, junk = self.setARXPowerState(00)
+				self.__rxpProcess(00, internal=True)
 			
 			self.currentState['status'] = 'ERROR'
 			self.currentState['info'] = 'ARXPWRUNIT_1! 0x%02X %s - %s' % (code, subsystemErrorCodes[code], reason)
@@ -1096,9 +1113,7 @@ class AnalogProcessor(object):
 			
 		elif deviceAddress == FEE_PS_ADDRESS:
 			if self.getFEEPowerSupplyStatus()[1] == 'ON ':
-				status = False
-				while not status:
-					status, junk = self.setARXPowerState(00)
+				self.__fepProcess(00, internal=True)
 			
 			self.currentState['status'] = 'ERROR'
 			self.currentState['info'] = 'FEPPWRUNIT_1! 0x%02X %s - %s' % (code, subsystemErrorCodes[code], reason)

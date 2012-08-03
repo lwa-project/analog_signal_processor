@@ -57,8 +57,9 @@ class TemperatureSensors(object):
 			return True
 			
 		self.monitorPeriod = config['TEMPPERIOD']
-		self.minTemp = config['TEMPMIN']
-		self.maxTemp = config['TEMPMAX']
+		self.minTemp  = config['TEMPMIN']
+		self.warnTemp = config['TEMPWARN']
+		self.maxTemp  = config['TEMPMAX']
 		
 	def start(self):
 		"""
@@ -142,9 +143,16 @@ class TemperatureSensors(object):
 					self.ASPCallbackInstance.processCriticalTemperature(high=True)
 					
 				elif min(self.temp) < self.minTemp:
-					aspThreadsLogger.critical('%s: monitorThread min. temperature is %.1f C', type(self).__name__, min(self.temp))
+					aspThreadsLogger.warning('%s: monitorThread min. temperature is %.1f C', type(self).__name__, min(self.temp))
 					
 					self.ASPCallbackInstance.processCriticalTemperature(low=True)
+					
+				elif max(self.temp) > self.warnTemp:
+					aspThreadsLogger.warningl('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
+					
+					self.ASPCallbackInstance.processWarningTemperature()
+				else:
+					self.ASPCallbackInstance.processWarningTemperature(clear=True)
 					
 			# Stop time
 			tStop = time.time()
@@ -306,7 +314,7 @@ class PowerStatus(object):
 					self.lastError = str(output2)
 				else:
 					psu, desc, onoffHuh, statusHuh, voltageV, currentA, = output.replace('\n', '').split(None, 5)
-					self.description = '%s %s' % (psu, desc)
+					self.description = '%s - %s' % (psu, desc)
 					self.voltage = float(voltageV)
 					self.current = float(currentA)
 					self.onoff = '%-3s' % onoffHuh
@@ -336,6 +344,8 @@ class PowerStatus(object):
 			if self.ASPCallbackInstance is not None:
 				for modeOfFailure in ('OverTemperature', 'OverCurrent', 'OverVolt', 'UnderVolt', 'ModuleFault'):
 					if self.status.find(modeOfFailure) != -1:
+						aspThreadsLogger.critical('%s: monitorThread PS at 0x%02X is in %s', type(self).__name__, self.deviceAddress, modeOfFailure)
+						
 						self.ASPCallbackInstance.processCriticalPowerSupply(self.deviceAddress, modeOfFailure)
 					
 			# Stop time
