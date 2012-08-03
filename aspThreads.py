@@ -148,7 +148,7 @@ class TemperatureSensors(object):
 					self.ASPCallbackInstance.processCriticalTemperature(low=True)
 					
 				elif max(self.temp) > self.warnTemp:
-					aspThreadsLogger.warningl('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
+					aspThreadsLogger.warning('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
 					
 					self.ASPCallbackInstance.processWarningTemperature()
 				else:

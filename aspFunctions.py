@@ -283,15 +283,14 @@ class AnalogProcessor(object):
 		# Stop all threads.
 		if self.currentState['powerThreads'] is not None:
 			for t in self.currentState['powerThreads']:
-				t.start()
+				t.stop()
 		if self.currentState['tempThread'] is not None:
 			self.currentState['tempThread'].stop()
 			
 		# Do SPI bus stuff (only if the boards are on)
 		if self.getARXPowerSupplyStatus()[1] == 'ON ':
 			status = SPI_config_devices(self.num_chpairs, SPI_cfg_shutdown)		# Into sleep mode
-		else:
-			status = True
+		status = True
 		
 		if status:
 			self.currentState['status'] = 'SHUTDWN'
@@ -625,9 +624,11 @@ class AnalogProcessor(object):
 		if p.returncode != 0:
 			aspFunctionsLogger.error('RXP - Failed to change ARX power supply status')
 			
-			self.currentState['status'] = 'ERROR'
-			self.currentState['info'] = 'ARXSUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
-			self.currentState['lastLog'] = 'RXP: Failed to change ARX power supply status'
+			
+			if not internal:
+				self.currentState['status'] = 'ERROR'
+				self.currentState['info'] = 'ARXSUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
+				self.currentState['lastLog'] = 'RXP: Failed to change ARX power supply status'
 		else:
 			aspFunctionsLogger.debug('RXP - Set ARX power supplies to state %02i', state)
 			
@@ -688,9 +689,10 @@ class AnalogProcessor(object):
 		if p.returncode != 0:
 			aspFunctionsLogger.error('FEP - Failed to change FEE power supply status')
 			
-			self.currentState['status'] = 'ERROR'
-			self.currentState['info'] = 'FEESUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
-			self.currentState['lastLog'] = 'FEP: Failed to change FEE power supply status'
+			if not internal:
+				self.currentState['status'] = 'ERROR'
+				self.currentState['info'] = 'FEESUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
+				self.currentState['lastLog'] = 'FEP: Failed to change FEE power supply status'
 		else:
 			aspFunctionsLogger.debug('FEP - Set FEE power supplies to state %02i', state)
 			
