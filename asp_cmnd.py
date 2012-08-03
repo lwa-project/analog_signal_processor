@@ -327,7 +327,7 @@ class MCSCommunicate(Communicate):
 				elif data == 'ARXSUPPLY-NO':
 					status, value = self.SubSystemInstance.getARXPowerSupplyCount()
 					if status:
-						packed_data = str(value)
+						packed_data = (str(value))[:2]
 					else:
 						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
@@ -337,7 +337,7 @@ class MCSCommunicate(Communicate):
 					
 					status, value = self.SubSystemInstance.getARXPowerSupplyInfo(psNumb)
 					if status:
-						packed_data = value
+						packed_data = value[:256]
 						
 					else:
 						packed_data = self.SubSystemInstance.currentState['lastLog']
@@ -375,7 +375,7 @@ class MCSCommunicate(Communicate):
 				elif data == 'FEESUPPLY-NO':
 					status, value = self.SubSystemInstance.getFEEPowerSupplyCount()
 					if status:
-						packed_data = str(value)
+						packed_data = (str(value))[:2]
 					else:
 						packed_data = self.SubSystemInstance.currentState['lastLog']
 						
@@ -385,7 +385,7 @@ class MCSCommunicate(Communicate):
 					
 					status, value = self.SubSystemInstance.getFEEPowerSupplyInfo(psNumb)
 					if status:
-						packed_data = value
+						packed_data = value[:256]
 						
 					else:
 						packed_data = self.SubSystemInstance.currentState['lastLog']
@@ -414,7 +414,7 @@ class MCSCommunicate(Communicate):
 				elif data == 'TEMP-STATUS':
 					status, value = self.SubSystemInstance.getTemperatureStatus()
 					if status:
-						packed_data = value
+						packed_data = value[:256]
 						
 					else:
 						packed_data = self.SubSystemInstance.currentState['lastLog']
@@ -423,7 +423,7 @@ class MCSCommunicate(Communicate):
 				elif data == 'TEMP-SENSE-NO':
 					status, value = self.SubSystemInstance.getTempSensorCount()
 					if status:
-						packed_data = str(value)
+						packed_data = (str(value))[:3]
 						
 					else:
 						packed_data = self.SubSystemInstance.currentState['lastLog']
@@ -434,7 +434,7 @@ class MCSCommunicate(Communicate):
 					
 					status, value = self.SubSystemInstance.getTempSensorInfo(sensorNumb)
 					if status:
-						packed_data = value
+						packed_data = value[:256]
 						
 					else:
 						packed_data = self.SubSystemInstance.currentState['lastLog']
