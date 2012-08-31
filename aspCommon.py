@@ -54,8 +54,8 @@ MAX_SPI_RETRY = 3
 WAIT_SPI_RETRY = 0.2
 
 # Number of ARX power supplies
-ARX_PS_ADDRESS = 0x1F
+ARX_PS_ADDRESS = 0x1F		# I2C connector with pins 6, 7, and 8 high
 
 # Number of FEE power supplies
-FEE_PS_ADDRESS = 0x2F
+FEE_PS_ADDRESS = 0x1E		# I2C connector with pins 7 and 8 high, 6 low (shorted to ground)
 
