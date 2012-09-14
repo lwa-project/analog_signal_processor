@@ -647,7 +647,7 @@ class AnalogProcessor(object):
 		return True, 0
 		
 		
-	def setFEEPowerState(self, state):
+	def setFPWPowerState(self, state):
 		"""
 		Set the FEE power supply power state.
 		"""

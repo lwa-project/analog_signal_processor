@@ -68,6 +68,10 @@ int main(int argc, char* argv[]) {
 	num = 0;
 	modules = 0;
 	for(i=0; i<nPSU; i++) {
+		if( psuAddresses[i] > 0x1F ) {
+			continue;
+		}
+
 		#ifdef __INCLUDE_MODULE_TEMPS__
 			// Get a list of smart modules for polling
 			success = sub_i2c_read(fh, psuAddresses[i], 0xD3, 1, (char *) simpleData, 2);
