@@ -33,7 +33,8 @@ class TemperatureSensors(object):
 	Class for monitoring temperature for the power supplies via the I2C interface.
 	"""
 	
-	def __init__(self, config, ASPCallbackInstance=None):
+	def __init__(self, config, logfile='/data/temp.txt', ASPCallbackInstance=None):
+		self.logfile = logfile
 		self.updateConfig(config)
 		
 		# Setup the callback
@@ -118,7 +119,37 @@ class TemperatureSensors(object):
 						psu, desc, tempC = line.split(None, 2)
 						self.description[i] = '%s %s' % (psu, desc)
 						self.temp[i] = float(tempC)
-				
+						
+				# Open the log file and save the temps
+				try:
+					log = open(self.logfile, 'a+')
+					log.write('%s,' % time.time())
+					log.write('%s\n' % ','.join(["%.2f" % t for t in self.temp]))
+					log.flush()
+					log.close()
+				except IOError:
+					aspThreadsLogger.error("%s: could not open flag logfile %s for writing", type(self).__name__, self.logfile)
+					pass
+			
+				# Make sure we aren't critical (on either side of good)
+				if self.ASPCallbackInstance is not None and self.temp is not None:
+					if max(self.temp) > self.maxTemp:
+						aspThreadsLogger.critical('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
+						
+						self.ASPCallbackInstance.processCriticalTemperature(high=True)
+						
+					elif min(self.temp) < self.minTemp:
+						aspThreadsLogger.warning('%s: monitorThread min. temperature is %.1f C', type(self).__name__, min(self.temp))
+						
+						self.ASPCallbackInstance.processCriticalTemperature(low=True)
+						
+					elif max(self.temp) > self.warnTemp:
+						aspThreadsLogger.warning('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
+						
+						self.ASPCallbackInstance.processWarningTemperature()
+					else:
+						self.ASPCallbackInstance.processWarningTemperature(clear=True)
+					
 			except Exception, e:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
 				aspThreadsLogger.error("%s: monitorThread failed with: %s at line %i", type(self).__name__, str(e), traceback.tb_lineno(exc_traceback))
@@ -134,26 +165,7 @@ class TemperatureSensors(object):
 				
 				self.temp = None
 				self.lastError = str(e)
-			
-			# Make sure we aren't critical (on either side of good)
-			if self.ASPCallbackInstance is not None and self.temp is not None:
-				if max(self.temp) > self.maxTemp:
-					aspThreadsLogger.critical('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
-					
-					self.ASPCallbackInstance.processCriticalTemperature(high=True)
-					
-				elif min(self.temp) < self.minTemp:
-					aspThreadsLogger.warning('%s: monitorThread min. temperature is %.1f C', type(self).__name__, min(self.temp))
-					
-					self.ASPCallbackInstance.processCriticalTemperature(low=True)
-					
-				elif max(self.temp) > self.warnTemp:
-					aspThreadsLogger.warning('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
-					
-					self.ASPCallbackInstance.processWarningTemperature()
-				else:
-					self.ASPCallbackInstance.processWarningTemperature(clear=True)
-					
+				
 			# Stop time
 			tStop = time.time()
 			aspThreadsLogger.debug('Finished updating temperatures in %.3f seconds', tStop - tStart)
@@ -229,8 +241,10 @@ class PowerStatus(object):
 	for the power supplies via the I2C interface.
 	"""
 	
-	def __init__(self, deviceAddress, config, ASPCallbackInstance=None):
+	def __init__(self, deviceAddress, config, logfile='/data/psu.txt', 0ASPCallbackInstance=None):
 		self.deviceAddress = int(deviceAddress)
+		base, ext = logfile.rsplit('.', 1)
+		self.logfile = '%s-0x%02X.%s' % (base, self.deviceAddress, ext)
 		self.updateConfig(config)
 		
 		# Setup the callback
@@ -319,7 +333,26 @@ class PowerStatus(object):
 					self.current = float(currentA)
 					self.onoff = '%-3s' % onoffHuh
 					self.status = statusHuh
-				
+					
+				try:
+					log = open(self.logfile, 'a+')
+					log.write('%s,' % time.time())
+					log.write('%s\n' % ','.join(["%.2f" % self.voltage, "%.3f" % self.current, self.onoff, self.status]))
+					log.flush()
+					log.close()
+				except IOError:
+					aspThreadsLogger.error("%s: could not open flag logfile %s for writing", type(self).__name__, self.logfile)
+					pass
+					
+				# Deal with power supplies that are over temperature, current, or voltage; 
+				# or under voltage; or has a module fault
+				if self.ASPCallbackInstance is not None:
+					for modeOfFailure in ('OverTemperature', 'OverCurrent', 'OverVolt', 'UnderVolt', 'ModuleFault'):
+						if self.status.find(modeOfFailure) != -1:
+							aspThreadsLogger.critical('%s: monitorThread PS at 0x%02X is in %s', type(self).__name__, self.deviceAddress, modeOfFailure)
+							
+							self.ASPCallbackInstance.processCriticalPowerSupply(self.deviceAddress, modeOfFailure)
+						
 			except Exception, e:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
 				aspThreadsLogger.error("%s: monitorThread 0x%02X failed with: %s at line %i", type(self).__name__, self.deviceAddress, str(e), traceback.tb_lineno(exc_traceback))
@@ -339,15 +372,6 @@ class PowerStatus(object):
 				self.status = "UNK"
 				self.lastError = str(e)
 				
-			# Deal with power supplies that are over temperature, current, or voltage; 
-			# or under voltage; or has a module fault
-			if self.ASPCallbackInstance is not None:
-				for modeOfFailure in ('OverTemperature', 'OverCurrent', 'OverVolt', 'UnderVolt', 'ModuleFault'):
-					if self.status.find(modeOfFailure) != -1:
-						aspThreadsLogger.critical('%s: monitorThread PS at 0x%02X is in %s', type(self).__name__, self.deviceAddress, modeOfFailure)
-						
-						self.ASPCallbackInstance.processCriticalPowerSupply(self.deviceAddress, modeOfFailure)
-					
 			# Stop time
 			tStop = time.time()
 			aspThreadsLogger.debug('Finished updating PSU status for 0x%02X in %.3f seconds', self.deviceAddress, tStop - tStart)
