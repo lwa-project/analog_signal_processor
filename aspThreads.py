@@ -241,7 +241,7 @@ class PowerStatus(object):
 	for the power supplies via the I2C interface.
 	"""
 	
-	def __init__(self, deviceAddress, config, logfile='/data/psu.txt', 0ASPCallbackInstance=None):
+	def __init__(self, deviceAddress, config, logfile='/data/psu.txt', ASPCallbackInstance=None):
 		self.deviceAddress = int(deviceAddress)
 		base, ext = logfile.rsplit('.', 1)
 		self.logfile = '%s-0x%02X.%s' % (base, self.deviceAddress, ext)
