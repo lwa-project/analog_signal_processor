@@ -22,7 +22,7 @@ except ImportError:
 
 __version__ = '0.2'
 __revision__ = '$Rev$'
-__all__ = ['TemperatureSensors', 'PowerStatus', '__version__', '__revision__', '__all__']
+__all__ = ['TemperatureSensors', 'PowerStatus', 'SendSPI', '__version__', '__revision__', '__all__']
 
 
 aspThreadsLogger = logging.getLogger('__main__')
@@ -426,3 +426,110 @@ class PowerStatus(object):
 		"""
 
 		return self.status
+
+
+class SendSPI(object):
+	def __init__(self, config):
+		self.config = config
+		
+		# Update the board configuration
+		self.updateConfig()
+		
+		# Set the current file number
+		self.SPIFileNumber = 1
+		
+		# Setup threading
+		self.thread = None
+		self.alive = threading.Event()
+		self.lastError = None
+		
+	def updateConfig(self, config=None):
+		"""
+		Using the configuration file, update the configuration.
+		"""
+		
+		# Update the current configuration
+		if config is not None:
+			self.config = config
+		
+	def start(self):
+		"""
+		Start the monitoring thread.
+		"""
+
+		if self.thread is not None:
+			self.stop()
+			
+		self.thread = threading.Thread(target=self.sendCommands)
+		self.thread.setDaemon(1)
+		self.alive.set()
+		self.thread.start()
+		
+		time.sleep(1)
+
+	def stop(self):
+		"""
+		Stop the monitor thread, waiting until it's finished.
+		"""
+
+		os.system("pkill sendARXDeviceBatch")
+
+		if self.thread is not None:
+			self.alive.clear()          #clear alive event for thread
+			self.thread.join()          #wait until thread has finished
+			self.thread = None
+			self.lastError = None
+			
+	def sendCommands(self):
+		while self.alive.isSet():
+			try:
+				# Figure out which temp file we are on
+				oldSPIFileNumber = self.SPIFileNumber
+				self.SPIFileNumber = oldSPIFileNumber + 1
+				if self.SPIFileNumber > 5:
+					self.SPIFileNumber = 1
+				
+				SPIFilename = self.config['SPIFILE']
+				tmpSPIFilename = '%s.tmp%i' % (self.config['SPIFILE'], self.SPIFileNumber)
+				
+				# Remove the old temp file
+				try:
+					os.unlink(tmpSPIFilename)
+				except OSError:
+					pass
+				
+				# Symbolic link to current temp file
+				try:
+					os.unlink(SPIFilename)
+				except OSError:
+					pass
+				os.symlink(tmpSPIFilename, SPIFilename)
+				
+				# Check if file exists and has is non-empty
+				SPIFilename = self.config['SPIFILE']
+				tmpSPIFilename = '%s.tmp%i' % (SPIFilename, oldSPIFileNumber)
+
+				if os.path.isfile(tmpSPIFilename) and os.path.getsize(tmpSPIFilename):
+					spi_command = ['sendARXDeviceBatch', tmpSPIFilename]
+					
+					aspThreadsLogger.info("SendSPI: Sent %s", spi_command)
+					run.spawn_process('sendARXDeviceBatch', bam_command, self.config['BOARDLOGFILENAME'])
+				
+			except Exception, e:
+				exc_type, exc_value, exc_traceback = sys.exc_info()
+				aspThreadsLogger.error("SendSPI: sendCommands failed with: %s at line %i", str(e), traceback.tb_lineno(exc_traceback))
+				
+				## Grab the full traceback and save it to a string via StringIO
+				fileObject = StringIO.StringIO()
+				traceback.print_tb(exc_traceback, file=fileObject)
+				tbString = fileObject.getvalue()
+				fileObject.close()
+				## Print the traceback to the logger as a series of DEBUG messages
+				for line in tbString.split('\n'):
+					aspThreadsLogger.debug("%s", line)
+				
+				self.lastError = str(e)
+				
+			# Sleep
+			time.sleep(1.0)
+			

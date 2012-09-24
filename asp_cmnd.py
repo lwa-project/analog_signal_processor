@@ -195,6 +195,7 @@ class MCSCommunicate(Communicate):
 		"""
 		
 		destination, sender, command, reference, datalen, mjd, mpm, data = self.parsePacket(data)
+		self.logger.debug('Got command %s from %s with ref# %i', sender, command, reference)
 	
 		# check destination and sender
 		if destination in (self.SubSystemInstance.subSystem, 'ALL'):

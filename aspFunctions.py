@@ -327,10 +327,7 @@ class AnalogProcessor(object):
 		if self.currentState['status'] == 'SHUTDWN' or not self.currentState['ready']:
 			self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x0A]
 			return False, 0x0A
-		if 'FIL%03d' % stand in self.currentState['activeProcess']:
-			self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x08]
-			return False, 0x08
-		if 'FIL000' in self.currentState['activeProcess']:
+		if 'SPI' in self.currentState['activeProcess']:
 			self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x08]
 			return False, 0x08
 			
@@ -343,7 +340,7 @@ class AnalogProcessor(object):
 			return False, 0x04
 			
 		# Block other FIL requests
-		self.currentState['activeProcess'].append('FIL%03d' % stand)
+		self.currentState['activeProcess'].append('SPI')
 		
 		# Process in the background
 		thread = threading.Thread(target=self.__filProcess, args=(stand, filterCode))
@@ -358,44 +355,40 @@ class AnalogProcessor(object):
 		"""
 		
 		# Do SPI bus stuff
-		status = True
+		spifilename = self.config['SPIFILE']
+		fh = open(spifilename, 'a')
+		
 		if filterCode == 3:
 			# Set Filters OFF
-			status &= SPI_Send(self.num_chpairs, stand, SPI_P19_on)
-			status &= SPI_Send(self.num_chpairs, stand, SPI_P18_on)
+			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P19_on))
+			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P18_on))
 		elif filterCode == 1:
 			# Set Filter to Full Bandwidth
-			status &= SPI_Send(self.num_chpairs, stand, SPI_P19_off)
-			status &= SPI_Send(self.num_chpairs, stand, SPI_P18_on )
+			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P19_off))
+			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P18_on ))
 		elif filterCode == 2:
 			# Set Filter to Reduced Bandwidth
-			status &= SPI_Send(self.num_chpairs, stand, SPI_P19_on )
-			status &= SPI_Send(self.num_chpairs, stand, SPI_P18_off)
+			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P19_on ))
+			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P18_off))
 		elif filterCode == 0:
 			# Set Filter to Split Bandwidth
-			status &= SPI_Send(self.num_chpairs, stand, SPI_P19_off)
-			status &= SPI_Send(self.num_chpairs, stand, SPI_P18_off)
-		
-		if status:
-			# All of the commands worked, update the state
-			self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
-			aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
-			LCD_Write('Stand%03i\nFIL=%02i' % (stand, filterCode))
+			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P19_off))
+			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P18_off))
 			
-			if stand != 0:
-				self.currentState['filter'][stand-1] = filterCode
-			else:
-				for i in xrange(self.num_stands):
-					self.currentState['filter'][i] = filterCode
-		else:
-			# Something failed, report
-			self.currentState['status'] = 'ERROR'
-			self.currentState['info'] = 'FILTER_%03i! 0x%02X %s - Failed after %i attempts' % (stand if stand != 0 else 1, 0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
-			self.currentState['lastLog'] = 'FIL: Failed to set filter to %02i for stand %i' % (filterCode, stand)
-			aspFunctionsLogger.error('FIL - Failed to set filter to %02i for stand %i', filterCode, stand)
+		fh.close()
 		
+		self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
+		aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
+		
+		#LCD_Write('Stand%03i\nFIL=%02i' % (stand, filterCode))
+		if stand != 0:
+			self.currentState['filter'][stand-1] = filterCode
+		else:
+			for i in xrange(self.num_stands):
+				self.currentState['filter'][i] = filterCode
+				
 		# Cleanup and save the state of FIL
-		self.currentState['activeProcess'].remove('FIL%03d' % stand)
+		self.currentState['activeProcess'].remove('SPI')
 		
 		return True, 0
 		
@@ -411,10 +404,7 @@ class AnalogProcessor(object):
 		if self.currentState['status'] == 'SHUTDWN'or not self.currentState['ready']:
 			self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x0A])
 			return False, 0x0A
-		if '%s%03d' % (modeDict[mode], stand) in self.currentState['activeProcess']:
-			self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x08])
-			return False, 0x08
-		if '%s000' % modeDict[mode] in self.currentState['activeProcess']:
+		if 'SPI' in self.currentState['activeProcess']:
 			self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x08])
 			return False, 0x08
 			
@@ -427,7 +417,7 @@ class AnalogProcessor(object):
 			return False, 0x05
 			
 		# Block other FIL requests
-		self.currentState['activeProcess'].append('%s%03d' % (modeDict[mode], stand))
+		self.currentState['activeProcess'].append('SPI')
 		
 		# Process in the background
 		thread = threading.Thread(target=self.__atnProcess, args=(mode, stand, attenSetting))
@@ -442,7 +432,8 @@ class AnalogProcessor(object):
 		"""
 		
 		# Do SPI bus stuff
-		status = True
+		spifilename = self.config['SPIFILE']
+		fh = open(spifilename, 'a')
 		setting = 2*attenSetting
 		
 		if mode == 1:
@@ -453,51 +444,43 @@ class AnalogProcessor(object):
 			order = ((SPI_P31_on, SPI_P31_off), (SPI_P28_on, SPI_P28_off), (SPI_P29_on, SPI_P29_off), (SPI_P30_on, SPI_P30_off))
 			
 		if setting >= 16:
-			status &= SPI_Send(self.num_chpairs, stand, order[0][0])
+			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, order[0][0]))
 			setting -= 16
 		else:
-			status &= SPI_Send(self.num_chpairs, stand, order[0][1])
+			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, order[0][1]))
 			
 		if setting >= 8:
-			status &= SPI_Send(self.num_chpairs, stand, order[1][0])
+			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, order[1][0]))
 			setting -= 8
 		else:
-			status &= SPI_Send(self.num_chpairs, stand, order[1][1])
+			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, order[1][1]))
 			
 		if setting >= 4:
-			status &= SPI_Send(self.num_chpairs, stand, order[2][0])
+			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, order[2][0]))
 			setting -= 4
 		else:
-			status &= SPI_Send(self.num_chpairs, stand, order[2][1])
+			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, order[2][1]))
 			
 		if setting >= 2:
-			status &= SPI_Send(self.num_chpairs, stand, order[3][0])
+			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, order[3][0]))
 			setting -= 2
 		else:
-			status &= SPI_Send(self.num_chpairs, stand, order[3][1])
+			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, order[3][1]))
 			
-		if status:
-			# All of the commands worked, update the state
-			self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
-			aspFunctionsLogger.debug('%s - Set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
-			LCD_Write('Stand%03i\n%3s=%02i' % (stand, modeDict[mode], attenSetting))
+		fh.close()
 			
-			if stand != 0:
-				self.currentState[modeDict[mode].lower()][stand-1] = attenSetting
-			else:
-				for i in xrange(self.num_stands):
-					self.currentState[modeDict[mode].lower()][i] = attenSetting
-					
+		self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
+		aspFunctionsLogger.debug('%s - Set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
+		
+		#LCD_Write('Stand%03i\n%3s=%02i' % (stand, modeDict[mode], attenSetting))
+		if stand != 0:
+			self.currentState[modeDict[mode].lower()][stand-1] = attenSetting
 		else:
-			# Something failed, report
-			self.currentState['status'] = 'ERROR'
-			self.currentState['info'] = '%s_%03i! 0x%02X %s - Failed after %i attempts' % (modeDict[mode], stand if stand != 0 else 1, 0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
-			self.currentState['lastLog'] = '%s: Failed to set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
-			aspFunctionsLogger.error('%s - Failed to set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
-		
+			for i in xrange(self.num_stands):
+				self.currentState[modeDict[mode].lower()][i] = attenSetting
+				
 		# Cleanup
-		self.currentState['activeProcess'].remove('%s%03d' % (modeDict[mode], stand))
-		
+		self.currentState['activeProcess'].remove('SPI')
 		
 		return True, 0
 		
@@ -510,10 +493,7 @@ class AnalogProcessor(object):
 		if self.currentState['status'] == 'SHUTDWN'or not self.currentState['ready']:
 			self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x0A]
 			return False, 0x0A
-		if 'FPW%03d%1d' % (stand, pol) in self.currentState['activeProcess']:
-			self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x08]
-			return False, 0x08
-		if 'FPW000%1d' % pol in self.currentState['activeProcess']:
+		if 'SPI' in self.currentState['activeProcess']:
 			self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x08]
 			return False, 0x08
 			
@@ -529,7 +509,7 @@ class AnalogProcessor(object):
 			return False, 0x06
 			
 		# Block other FIL requests
-		self.currentState['activeProcess'].append('FPW%03d%d' % (stand, pol))
+		self.currentState['activeProcess'].append('SPI')
 		
 		# Process in the background
 		thread = threading.Thread(target=self.__fpwProcess, args=(stand, pol, state))
@@ -544,41 +524,35 @@ class AnalogProcessor(object):
 		"""
 		
 		# Do SPI bus stuff
+		spifilename = self.config['SPIFILE']
+		fh = open(spifilename, 'a')
+		
 		if state == 11:
 			if pol == 1:
-				status = SPI_Send(self.num_chpairs, stand, SPI_P17_on )
+				fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P17_on ))
 			elif pol == 2:
-				status = SPI_Send(self.num_chpairs, stand, SPI_P16_on )
+				fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P16_on ))
 		elif state == 0:
 			if pol == 1:
-				status = SPI_Send(self.num_chpairs, stand, SPI_P17_off)
+				fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P17_off))
 			elif pol == 2:
-				status = SPI_Send(self.num_chpairs, stand, SPI_P16_off)
+				fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P16_off))
 				
-		if status:
-			# All of the commands worked, update the state
-			self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
-			aspFunctionsLogger.debug('FPW - Set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
-			LCD_Write('Stand%03i\npol%1i=%3s'% (stand, pol, 'on ' if state else 'off'))
-			
-			if stand != 0:
-				self.currentState['power'][stand-1][pol-1] = state
-			else:
-				for i in xrange(self.num_stands):
-					self.currentState['power'][i][pol-1] = state
-					
-		else:
-			# Something failed, report
-			self.currentState['status'] = 'ERROR'
-			if pol == 1:
-				self.currentState['info'] = 'FEEPOL1PWR_%03i! 0x%02X %s - Failed after %i attempts' % (stand if stand != 0 else 1, 0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
-			elif pol == 2:
-				self.currentState['info'] = 'FEEPOL2PWR_%03i! 0x%02X %s - Failed after %i attempts' % (stand if stand != 0 else 1, 0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
-			self.currentState['lastLog'] = 'FPW: Failed to set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
-			aspFunctionsLogger.error('FPW - Failed to set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
+		fh.close()
 		
+		self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
+		aspFunctionsLogger.debug('FPW - Set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
+		
+		
+		#LCD_Write('Stand%03i\npol%1i=%3s'% (stand, pol, 'on ' if state else 'off'))
+		if stand != 0:
+			self.currentState['power'][stand-1][pol-1] = state
+		else:
+			for i in xrange(self.num_stands):
+				self.currentState['power'][i][pol-1] = state
+				
 		# Cleanup
-		self.currentState['activeProcess'].remove('FPW%03d%1d' % (stand, pol))
+		self.currentState['activeProcess'].remove('SPI')
 		
 		return True, 0
 		
