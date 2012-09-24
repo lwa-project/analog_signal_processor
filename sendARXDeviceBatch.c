@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
 	/*************************
 	* Command line parsing   *
 	*************************/
-	int success, num, device;
+	int success, failed, num, device;
 	unsigned short temp;
 	char sn[20], simpleData[2], simpleNoOp[2], simpleMarker[2];
 	char command[8];
@@ -131,44 +131,49 @@ int main(int argc, char* argv[]) {
 				fprintf(stderr, "Sending data 0x%04X (%u) to all %i devices\n", temp, temp, num);
 			}
 			
-			// Read & write 2 bytes at a time making sure to return chip select to high 
-			// when we are done.
-			success = sub_spi_transfer(fh, simpleMarker, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
-			if( success ) {
-				fprintf(stderr, "sendARXDeviceBatch - SPI write %i of %i - %s\n", 0, num, sub_strerror(sub_errno));
-			}
-			
-			j = 1;
-			for(i=num; i>0; i--) {
-				if( i == device || device == 0 ) {
-					if( j == num ) {
-						// Final set of 2 bytes - chip select to high after transmitting
-						success = sub_spi_transfer(fh, simpleData, simpleResponse, 2, TRANS_SPI_FINAL);
+			failed = 1;
+			while( failed > 0 ) {
+				// Read & write 2 bytes at a time making sure to return chip select to high 
+				// when we are done.
+				success = sub_spi_transfer(fh, simpleMarker, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
+				if( success ) {
+					fprintf(stderr, "sendARXDeviceBatch - SPI write %i of %i - %s\n", 0, num, sub_strerror(sub_errno));
+				}
+				
+				j = 1;
+				for(i=num; i>0; i--) {
+					if( i == device || device == 0 ) {
+						if( j == num ) {
+							// Final set of 2 bytes - chip select to high after transmitting
+							success = sub_spi_transfer(fh, simpleData, simpleResponse, 2, TRANS_SPI_FINAL);
+						} else {
+							success = sub_spi_transfer(fh, simpleData, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
+						}
+						
 					} else {
-						success = sub_spi_transfer(fh, simpleData, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
+						if( j == num ) {
+							// Final set of 2 bytes - chip select to high after transmitting
+							success = sub_spi_transfer(fh, simpleNoOp, simpleResponse, 2, TRANS_SPI_FINAL);
+						} else {
+							success = sub_spi_transfer(fh, simpleNoOp, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
+						}
 					}
 					
-				} else {
-					if( j == num ) {
-						// Final set of 2 bytes - chip select to high after transmitting
-						success = sub_spi_transfer(fh, simpleNoOp, simpleResponse, 2, TRANS_SPI_FINAL);
-					} else {
-						success = sub_spi_transfer(fh, simpleNoOp, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
+					if( success ) {
+						fprintf(stderr, "sendARXDeviceBatch - SPI write %i of %i - %s\n", i+1, num, sub_strerror(sub_errno));
+						i += 1;
 					}
+					
+					j += 1;
 				}
 				
-				if( success ) {
-					fprintf(stderr, "sendARXDeviceBatch - SPI write %i of %i - %s\n", i+1, num, sub_strerror(sub_errno));
-					i += 1;
+				temp = array_to_ushort(simpleResponse);
+				if( temp != marker ) {
+					fprintf(stderr, "sendARXDeviceBatch - SPI write returned a marker of 0x%04X instead of 0x%04X, retrying\n", temp, marker);
+					failed = 1;
+				} else {
+					failed = 0;
 				}
-				
-				j += 1;
-			}
-			
-			temp = array_to_ushort(simpleResponse);
-			if( temp != marker ) {
-				fprintf(stderr, "sendARXDeviceBatch - SPI write returned a marker of 0x%04X instead of 0x%04X\n", temp, marker);
-				exit(1);
 			}
 		}
 	}
