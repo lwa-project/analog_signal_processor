@@ -28,7 +28,6 @@ $LastChangedDate$
 #include <unistd.h>
 #include <fcntl.h>
 
-
 #include "libsub.h"
 #include "aspCommon.h"
 

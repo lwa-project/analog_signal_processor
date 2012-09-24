@@ -94,6 +94,7 @@ class AnalogProcessor(object):
 		## Monitoring and background threads
 		self.currentState['tempThread'] = None
 		self.currentState['powerThreads'] = None
+		self.currentState['commandThread'] = None
 		
 		# Board and stand counts
 		self.num_boards = 0
@@ -190,6 +191,11 @@ class AnalogProcessor(object):
 				self.currentState['tempThread'].updateConfig(self.config)
 			else:
 				self.currentState['tempThread'] = TemperatureSensors(self.config, ASPCallbackInstance=self)
+			if self.currentState['commandThread'] is not None:
+				self.currentState['commandThread'].stop()
+				self.currentState['commandThread'].updateConfig(self.config)
+			else:
+				self.currentState['commandThread'] = SendSPI(self.config)
 			
 			# Update the analog signal chain state
 			for i in xrange(self.num_stands):
@@ -214,6 +220,7 @@ class AnalogProcessor(object):
 			for t in self.currentState['powerThreads']:
 				t.start()
 			self.currentState['tempThread'].start()
+			self.currentState['commandThread'].start()
 			
 			if status:
 				self.currentState['status'] = 'NORMAL'
@@ -286,6 +293,8 @@ class AnalogProcessor(object):
 				t.stop()
 		if self.currentState['tempThread'] is not None:
 			self.currentState['tempThread'].stop()
+		if self.currentState['commandThread'] is not None:
+			self.currentState['commandThread'].stop()
 			
 		# Do SPI bus stuff (only if the boards are on)
 		if self.getARXPowerSupplyStatus()[1] == 'ON ':
