@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
 	int success, num, device;
 	unsigned short temp;
 	char sn[20], simpleData[2], simpleNoOp[2], simpleMarker[2];
-	char *command = NULL;
+	char command[8];
 	FILE *spifile;
 	size_t len = 0;
 	ssize_t read;
@@ -111,7 +111,7 @@ int main(int argc, char* argv[]) {
 	
 	// Read in the SPI file lines
 	while( (read = getline(&line, &len, spifile) != EOF) ) {
-		args = sscanf(line, "%d %d %s", &num, &device, command);
+		args = sscanf(line, "%d %d %6s", &num, &device, command);
 		
 		if (args > 2 ) {
 			// Convert the command to an array
