@@ -516,7 +516,7 @@ class SendSPI(object):
 					spi_command = ['sendARXDeviceBatch', tmpSPIFilename]
 					
 					aspThreadsLogger.info("SendSPI: Sent %s", spi_command)
-					run.spawn_process('sendARXDeviceBatch', spi_command)
+					run.spawn_process('sendARXDeviceBatch', spi_command, '/home/ops/board.log')
 				
 			except Exception, e:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
