@@ -485,6 +485,8 @@ class SendSPI(object):
 			
 	def sendCommands(self):
 		while self.alive.isSet():
+			proc = None
+			
 			try:
 				# Figure out which temp file we are on
 				oldSPIFileNumber = self.SPIFileNumber
@@ -511,12 +513,12 @@ class SendSPI(object):
 				# Check if file exists and has is non-empty
 				SPIFilename = self.config['SPIFILE']
 				tmpSPIFilename = '%s.tmp%i' % (SPIFilename, oldSPIFileNumber)
-
+				
 				if os.path.isfile(tmpSPIFilename) and os.path.getsize(tmpSPIFilename):
 					spi_command = ['sendARXDeviceBatch', tmpSPIFilename]
 					
 					aspThreadsLogger.info("SendSPI: Sent %s", spi_command)
-					run.spawn_process('sendARXDeviceBatch', spi_command, '/home/ops/board.log')
+					proc = run.spawn_process('sendARXDeviceBatch', spi_command, '/home/ops/board.log')
 				
 			except Exception, e:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -534,5 +536,7 @@ class SendSPI(object):
 				self.lastError = str(e)
 				
 			# Sleep
+			if proc is not None:
+				proc.wait()
 			time.sleep(1.0)
 			

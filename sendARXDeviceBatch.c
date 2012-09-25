@@ -71,7 +71,7 @@ int main(int argc, char* argv[]) {
 	fh = sub_open(dev);
 	while( !fh ) {
 		fprintf(stderr, "sendARXDeviceBatch - open - %s\n", sub_strerror(sub_errno));
-		usleep(10000);
+		usleep(50000);
 		fh = sub_open(dev);
 	}
 	
