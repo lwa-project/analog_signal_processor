@@ -299,6 +299,7 @@ class AnalogProcessor(object):
 		# Do SPI bus stuff (only if the boards are on)
 		if self.getARXPowerSupplyStatus()[1] == 'ON ':
 			status = SPI_config_devices(self.num_chpairs, SPI_cfg_shutdown)		# Into sleep mode
+			time.sleep(5)
 		status = True
 		
 		if status:
