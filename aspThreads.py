@@ -19,6 +19,9 @@ try:
         import cStringIO as StringIO
 except ImportError:
         import StringIO
+        
+import run
+
 
 __version__ = '0.2'
 __revision__ = '$Rev$'
@@ -513,7 +516,7 @@ class SendSPI(object):
 					spi_command = ['sendARXDeviceBatch', tmpSPIFilename]
 					
 					aspThreadsLogger.info("SendSPI: Sent %s", spi_command)
-					run.spawn_process('sendARXDeviceBatch', bam_command, self.config['BOARDLOGFILENAME'])
+					run.spawn_process('sendARXDeviceBatch', spi_command)
 				
 			except Exception, e:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
