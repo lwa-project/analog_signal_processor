@@ -57,12 +57,19 @@ int main(int argc, char* argv[]) {
 	struct usb_device* dev;
 	
 	// Open the USB device (or die trying)
+	i = 0;
 	dev = NULL;
 	fh = sub_open(dev);
-	while( !fh ) {
+	while( !fh && i < 100 ) {
 		fprintf(stderr, "readPSU - open - %s\n", sub_strerror(sub_errno));
 		usleep(50000);
+		i += 1;
+		
 		fh = sub_open(dev);
+	}
+	if( !fh ){
+		fprintf(stderr, "readPSU - cannot open SUB-20 device");
+		exit(1);
 	}
 	
 	success = sub_get_serial_number(fh, (char *) sn, sizeof(sn));
