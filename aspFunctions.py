@@ -608,7 +608,6 @@ class AnalogProcessor(object):
 		if p.returncode != 0:
 			aspFunctionsLogger.error('RXP - Failed to change ARX power supply status')
 			
-			
 			if not internal:
 				self.currentState['status'] = 'ERROR'
 				self.currentState['info'] = 'ARXSUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
@@ -1107,3 +1106,22 @@ class AnalogProcessor(object):
 			self.currentState['ready'] = False
 		
 		return True
+		
+	def processMissingSUB20(self):
+		"""
+		Function to put the system into ERROR if the SUB-20 is missing or dead.
+		"""
+		
+		# Try it out
+		if os.system('lsusb -d 04d8: >/dev/null') == 0:
+			# Nope, it's really there
+			return False
+			
+		else:
+			# Yep, the SUB-20 is gone
+			aspFunctionsLogger.critical('SUB-20 has disappeared from the list of USB devices')
+			
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'SUMMARY! 0x%02X %s - SUB-20 device not found' % (0x07, subsystemErrorCodes[0x07])
+			self.currentState['lastLog'] = 'SUB-20 device has disappeared'
+			self.currentState['ready'] = False

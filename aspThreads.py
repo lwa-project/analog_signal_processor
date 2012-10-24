@@ -107,6 +107,8 @@ class TemperatureSensors(object):
 			tStart = time.time()
 			
 			try:
+				missingSUB20 = False
+				
 				p = subprocess.Popen(['readThermometers',], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 				p.wait()
 					
@@ -115,6 +117,9 @@ class TemperatureSensors(object):
 				if p.returncode != 0:
 					aspThreadsLogger.warning("readThermometers: command returned %i; '%s;%s'", p.returncode, output, output2)
 					self.lastError = str(output2)
+					
+					missingSUB20 = True
+					
 				else:
 					for i,line in enumerate(output.split('\n')):
 						if len(line) < 4:
@@ -136,6 +141,9 @@ class TemperatureSensors(object):
 			
 				# Make sure we aren't critical (on either side of good)
 				if self.ASPCallbackInstance is not None and self.temp is not None:
+					if missingSUB20:
+						self.ASPCallbackInstance.processMissingSUB20()
+					
 					if max(self.temp) > self.maxTemp:
 						aspThreadsLogger.critical('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
 						
@@ -317,6 +325,8 @@ class PowerStatus(object):
 			tStart = time.time()
 			
 			try:
+				missingSUB20 = False
+				
 				p = subprocess.Popen(['readPSU', "0x%02X" % self.deviceAddress], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 				p.wait()
 					
@@ -329,6 +339,9 @@ class PowerStatus(object):
 					self.onoff = "UNK"
 					self.status = "UNK"
 					self.lastError = str(output2)
+					
+					missingSUB20 = True
+					
 				else:
 					psu, desc, onoffHuh, statusHuh, voltageV, currentA, = output.replace('\n', '').split(None, 5)
 					self.description = '%s - %s' % (psu, desc)
@@ -350,6 +363,9 @@ class PowerStatus(object):
 				# Deal with power supplies that are over temperature, current, or voltage; 
 				# or under voltage; or has a module fault
 				if self.ASPCallbackInstance is not None:
+					if missingSUB20:
+						self.ASPCallbackInstance.processMissingSUB20()
+						
 					for modeOfFailure in ('OverTemperature', 'OverCurrent', 'OverVolt', 'UnderVolt', 'ModuleFault'):
 						if self.status.find(modeOfFailure) != -1:
 							aspThreadsLogger.critical('%s: monitorThread PS at 0x%02X is in %s', type(self).__name__, self.deviceAddress, modeOfFailure)

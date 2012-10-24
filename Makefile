@@ -109,6 +109,6 @@ install:
 
 clean:
 	rm -f *.o *.out *.err *.exe *.a *.so
-	rm -f sendARXDevice sendARXDeviceBatch initARXDevices writeARXLCD countBoards countPSUs countThermometers readPSUs readThermometers onoffPSU
+	rm -f sendARXDevice sendARXDeviceBatch initARXDevices writeARXLCD countBoards countPSUs countThermometers readPSU readThermometers onoffPSU readARXDevice
 	make -C libsub clean
 
