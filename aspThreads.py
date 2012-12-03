@@ -460,7 +460,7 @@ class PowerStatus(object):
 
 
 class SendSPI(object):
-	def __init__(self, config):
+	def __init__(self, config, ASPCallbackInstance=None):
 		self.config = config
 		
 		# Update the board configuration
@@ -468,6 +468,9 @@ class SendSPI(object):
 		
 		# Set the current file number
 		self.SPIFileNumber = 1
+		
+		# Setup the callback
+		self.ASPCallbackInstance = ASPCallbackInstance
 		
 		# Setup threading
 		self.thread = None
@@ -513,6 +516,8 @@ class SendSPI(object):
 			
 	def sendCommands(self):
 		while self.alive.isSet():
+			tStart = time.time()
+			
 			proc = None
 			
 			try:
@@ -547,7 +552,7 @@ class SendSPI(object):
 					
 					aspThreadsLogger.info("SendSPI: Sent %s", spi_command)
 					proc = run.spawn_process('sendARXDeviceBatch', spi_command, '/home/ops/board.log')
-				
+					
 			except Exception, e:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
 				aspThreadsLogger.error("SendSPI: sendCommands failed with: %s at line %i", str(e), traceback.tb_lineno(exc_traceback))
@@ -566,5 +571,15 @@ class SendSPI(object):
 			# Sleep
 			if proc is not None:
 				proc.wait()
+				
+				tStop = time.time()
+				aspThreadsLogger.debug("SendSPI: sendCommands finished in %.1f seconds", tStop-tStart)
+				
+				if proc.returncode > 20:
+					aspThreadsLogger.warning("SendSPI: %i commands had to be retried due to verification failures", proc.returncode-20)
+					
+					if self.ASPCallbackInstance is not None:
+						self.ASPCallbackInstance.processRepeatedSPIErrors(proc.returncode-20)
+				
 			time.sleep(1.0)
 			

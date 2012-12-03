@@ -1144,3 +1144,24 @@ class AnalogProcessor(object):
 			self.currentState['info'] = 'SUMMARY! 0x%02X %s - SUB-20 device not found' % (0x07, subsystemErrorCodes[0x07])
 			self.currentState['lastLog'] = 'SUB-20 device has disappeared'
 			self.currentState['ready'] = False
+			
+		return True
+		
+	def processRepeatedSPIErrors(self, nFailures):
+		"""
+		Function to put the system into ERROR if the SUB-20 is missing or dead.
+		"""
+		
+		if nFailures < 7:
+			# Not enough to worry about
+			return False
+			
+		else:
+			aspFunctionsLogger.critical('Too many retries for SPI commands')
+			
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'SUMMARY! 0x%02X %s - %i retries needed' % (0x07, subsystemErrorCodes[0x07], nFailures)
+			self.currentState['lastLog'] = 'Too many retries needed on the SPI bus'
+			self.currentState['ready'] = False
+			
+		return True
