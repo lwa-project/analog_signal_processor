@@ -31,6 +31,10 @@ __all__ = ['TemperatureSensors', 'PowerStatus', 'SendSPI', '__version__', '__rev
 aspThreadsLogger = logging.getLogger('__main__')
 
 
+# Create a semaphore to make sure the monitoring threads don't fight over the SUB-20 device
+SUB20Lock = threading.Semaphore(1)
+
+
 class TemperatureSensors(object):
 	"""
 	Class for monitoring temperature for the power supplies via the I2C interface.
@@ -106,6 +110,8 @@ class TemperatureSensors(object):
 		while self.alive.isSet():
 			tStart = time.time()
 			
+			SUB20Lock.acquire()
+			
 			try:
 				missingSUB20 = False
 				
@@ -177,6 +183,8 @@ class TemperatureSensors(object):
 				self.temp = None
 				self.lastError = str(e)
 				
+			SUB20Lock.release()
+			
 			# Stop time
 			tStop = time.time()
 			aspThreadsLogger.debug('Finished updating temperatures in %.3f seconds', tStop - tStart)
@@ -324,6 +332,8 @@ class PowerStatus(object):
 		while self.alive.isSet():
 			tStart = time.time()
 			
+			SUB20Lock.acquire()
+			
 			try:
 				missingSUB20 = False
 				
@@ -391,6 +401,8 @@ class PowerStatus(object):
 				self.status = "UNK"
 				self.lastError = str(e)
 				
+			SUB20Lock.release()
+			
 			# Stop time
 			tStop = time.time()
 			aspThreadsLogger.debug('Finished updating PSU status for 0x%02X in %.3f seconds', self.deviceAddress, tStop - tStart)

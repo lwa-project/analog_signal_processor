@@ -50,7 +50,7 @@ int main(int argc, char* argv[]) {
 		fh = sub_open(dev);
 	}
 	if( !fh ){
-		fprintf(stderr, "readThermometers - cannot open SUB-20 device");
+		fprintf(stderr, "readThermometers - cannot open SUB-20 device, giving up...");
 		exit(1);
 	}
 	

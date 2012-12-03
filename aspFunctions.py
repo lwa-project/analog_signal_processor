@@ -160,92 +160,111 @@ class AnalogProcessor(object):
 		self.currentState['status'] = 'BOOTING'
 		self.currentState['info'] = 'Running INI sequence'
 		self.currentState['activeProcess'].append('INI')
-
-		# Turn on the power supplies
-		self.__rxpProcess(11, internal=True)
-		self.__fepProcess(11, internal=True)
-		time.sleep(1)
 		
-		# Board check - found vs. expected from INI
-		boardsFound = os.system("countBoards") / 256
-		if boardsFound == nBoards:
-			# Board and stand counts.  NOTE: Stand counts are capped at 260
-			self.num_boards = nBoards
-			self.num_stands = nBoards * STANDS_PER_BOARD
-			if self.num_stands > 260:
-				self.num_stands = 260
-			self.num_chpairs = nBoards * STANDS_PER_BOARD
-			aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
+		# Make sure the SUB-20 is present
+		if os.system('lsusb -d 04d8: >/dev/null') == 0:
+			# Good, we can continue
+			
+			# Turn off the power supplies
+			self.__rxpProcess(00, internal=True)
+			self.__fepProcess(00, internal=True)
+			time.sleep(1)
+			
+			# Turn on the power supplies
+			self.__rxpProcess(11, internal=True)
+			self.__fepProcess(11, internal=True)
+			time.sleep(1)
+			
+			# Board check - found vs. expected from INI
+			boardsFound = os.system("countBoards") / 256
+			if boardsFound == nBoards:
+				# Board and stand counts.  NOTE: Stand counts are capped at 260
+				self.num_boards = nBoards
+				self.num_stands = nBoards * STANDS_PER_BOARD
+				if self.num_stands > 260:
+					self.num_stands = 260
+				self.num_chpairs = nBoards * STANDS_PER_BOARD
+				aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
+					
+				# Stop all threads.  If the don't exist yet, create them.
+				if self.currentState['powerThreads'] is not None:
+					for t in self.currentState['powerThreads']:
+						t.stop()
+						t.updateConfig(self.config)
+				else:
+					self.currentState['powerThreads'] = []
+					self.currentState['powerThreads'].append( PowerStatus(ARX_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
+					self.currentState['powerThreads'].append( PowerStatus(FEE_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
+				if self.currentState['tempThread'] is not None:
+					self.currentState['tempThread'].stop()
+					self.currentState['tempThread'].updateConfig(self.config)
+				else:
+					self.currentState['tempThread'] = TemperatureSensors(self.config, ASPCallbackInstance=self)
+				if self.currentState['commandThread'] is not None:
+					self.currentState['commandThread'].stop()
+					self.currentState['commandThread'].updateConfig(self.config)
+				else:
+					self.currentState['commandThread'] = SendSPI(self.config)
 				
-			# Stop all threads.  If the don't exist yet, create them.
-			if self.currentState['powerThreads'] is not None:
+				# Update the analog signal chain state
+				for i in xrange(self.num_stands):
+					self.currentState['power'][i] = [0,0]
+					self.currentState['filter'][i] = 0
+					self.currentState['at1'][i] = 30
+					self.currentState['at2'][i] = 30
+					self.currentState['ats'][i] = 30
+				
+				# Do the SPI bus stuff
+				status  = True
+				status &= SPI_config_devices(self.num_chpairs, SPI_cfg_shutdown)				# Into sleep mode
+				time.sleep(0.05)
+				status &= SPI_init_devices(self.num_chpairs, SPI_cfg_normal)				# Out of sleep mode
+				time.sleep(0.05)
+				status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P16_17_18_19)		# Set outputs
+				status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P20_21_22_23)		# Set outputs
+				status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P24_25_26_27)		# Set outputs
+				status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P28_29_30_31)		# Set outputs
+				
+				# Start the threads
 				for t in self.currentState['powerThreads']:
-					t.stop()
-					t.updateConfig(self.config)
-			else:
-				self.currentState['powerThreads'] = []
-				self.currentState['powerThreads'].append( PowerStatus(ARX_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
-				self.currentState['powerThreads'].append( PowerStatus(FEE_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
-			if self.currentState['tempThread'] is not None:
-				self.currentState['tempThread'].stop()
-				self.currentState['tempThread'].updateConfig(self.config)
-			else:
-				self.currentState['tempThread'] = TemperatureSensors(self.config, ASPCallbackInstance=self)
-			if self.currentState['commandThread'] is not None:
-				self.currentState['commandThread'].stop()
-				self.currentState['commandThread'].updateConfig(self.config)
-			else:
-				self.currentState['commandThread'] = SendSPI(self.config)
-			
-			# Update the analog signal chain state
-			for i in xrange(self.num_stands):
-				self.currentState['power'][i] = [0,0]
-				self.currentState['filter'][i] = 0
-				self.currentState['at1'][i] = 30
-				self.currentState['at2'][i] = 30
-				self.currentState['ats'][i] = 30
-			
-			# Do the SPI bus stuff
-			status  = True
-			status &= SPI_config_devices(self.num_chpairs, SPI_cfg_shutdown)				# Into sleep mode
-			time.sleep(0.05)
-			status &= SPI_init_devices(self.num_chpairs, SPI_cfg_normal)				# Out of sleep mode
-			time.sleep(0.05)
-			status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P16_17_18_19)		# Set outputs
-			status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P20_21_22_23)		# Set outputs
-			status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P24_25_26_27)		# Set outputs
-			status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P28_29_30_31)		# Set outputs
-			
-			# Start the threads
-			for t in self.currentState['powerThreads']:
-				t.start()
-			self.currentState['tempThread'].start()
-			self.currentState['commandThread'].start()
-			
-			if status:
-				self.currentState['status'] = 'NORMAL'
-				self.currentState['info'] = 'System operating normally'
-				self.currentState['lastLog'] = 'INI: finished in %.3f s' % (time.time() - tStart,)
-				self.currentState['ready'] = True
+					t.start()
+				self.currentState['tempThread'].start()
+				self.currentState['commandThread'].start()
 				
-				LCD_Write('ASP\nReady')
-				
+				if status:
+					self.currentState['status'] = 'NORMAL'
+					self.currentState['info'] = 'System operating normally'
+					self.currentState['lastLog'] = 'INI: finished in %.3f s' % (time.time() - tStart,)
+					self.currentState['ready'] = True
+					
+					LCD_Write('ASP\nReady')
+					
+				else:
+					self.currentState['status'] = 'ERROR'
+					self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
+					self.currentState['lastLog'] = 'INI: finished with error'
+					self.currentState['ready'] = False
+					
+					LCD_Write('ASP\nINI fail')
+					aspFunctionsLogger.critical("INI failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
 			else:
 				self.currentState['status'] = 'ERROR'
-				self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
+				self.currentState['info'] = 'SUMMARY! 0x%02X %s - Found %i boards, expected %i' % (0x09, subsystemErrorCodes[0x09], boardsFound, nBoards)
 				self.currentState['lastLog'] = 'INI: finished with error'
 				self.currentState['ready'] = False
 				
 				LCD_Write('ASP\nINI fail')
-				aspFunctionsLogger.critical("INI failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
+				aspFunctionsLogger.critical("INI failed; found %i boards, expected %i", boardsFound, nBoards)
+				
 		else:
+			# Oops, the SUB-20 is missing...
 			self.currentState['status'] = 'ERROR'
-			self.currentState['info'] = 'SUMMARY! 0x%02X %s - Found %i boards, expected %i' % (0x09, subsystemErrorCodes[0x09], boardsFound, nBoards)
+			self.currentState['info'] = 'SUMMARY! 0x%02X %s - SUB-20 device not found' % (0x07, subsystemErrorCodes[0x07])
 			self.currentState['lastLog'] = 'INI: finished with error'
 			self.currentState['ready'] = False
 			
 			LCD_Write('ASP\nINI fail')
-			aspFunctionsLogger.critical("INI failed; found %i boards, expected %i", boardsFound, nBoards)
+			aspFunctionsLogger.critical("INI failed due to missing SUB-20 device")
 		
 		# Update the current state
 		aspFunctionsLogger.info("Finished the INI process in %.3f s", time.time() - tStart)
@@ -303,15 +322,15 @@ class AnalogProcessor(object):
 		status = True
 		
 		if status:
-			self.currentState['status'] = 'SHUTDWN'
-			self.currentState['info'] = 'System has been shut down'
-			self.currentState['lastLog'] = 'System has been shut down'
-			
 			# Power off the power supplies
 			self.__rxpProcess(00, internal=True)
 			self.__fepProcess(00, internal=True)
 
 			LCD_Write('ASP\nshutdown')
+			
+			self.currentState['status'] = 'SHUTDWN'
+			self.currentState['info'] = 'System has been shut down'
+			self.currentState['lastLog'] = 'System has been shut down'
 			
 		else:
 			self.currentState['status'] = 'ERROR'
@@ -608,9 +627,9 @@ class AnalogProcessor(object):
 		if p.returncode != 0:
 			aspFunctionsLogger.error('RXP - Failed to change ARX power supply status')
 			
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'ARXSUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
 			if not internal:
-				self.currentState['status'] = 'ERROR'
-				self.currentState['info'] = 'ARXSUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
 				self.currentState['lastLog'] = 'RXP: Failed to change ARX power supply status'
 		else:
 			aspFunctionsLogger.debug('RXP - Set ARX power supplies to state %02i', state)
@@ -672,9 +691,9 @@ class AnalogProcessor(object):
 		if p.returncode != 0:
 			aspFunctionsLogger.error('FEP - Failed to change FEE power supply status')
 			
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'FEESUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
 			if not internal:
-				self.currentState['status'] = 'ERROR'
-				self.currentState['info'] = 'FEESUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
 				self.currentState['lastLog'] = 'FEP: Failed to change FEE power supply status'
 		else:
 			aspFunctionsLogger.debug('FEP - Set FEE power supplies to state %02i', state)

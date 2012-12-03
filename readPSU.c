@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
 		fh = sub_open(dev);
 	}
 	if( !fh ){
-		fprintf(stderr, "readPSU - cannot open SUB-20 device");
+		fprintf(stderr, "readPSU - cannot open SUB-20 device, giving up...");
 		exit(1);
 	}
 	
