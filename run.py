@@ -22,9 +22,9 @@ import logging
 
 from signal import SIGKILL
 
-__version__ = '0.1'
+__version__ = '0.2'
 __revision__ = '$Rev$'
-__all__ = ['flushfile', 'run_process', 'run_processes', 'spawn_process', 'spawn_processes', '__version__', '__revision__', '__all__']
+__all__ = ['flushfile', 'run_process', 'spawn_process', '__version__', '__revision__', '__all__']
 
 
 runLogger = logging.getLogger('__main__')
@@ -33,7 +33,7 @@ runLogger = logging.getLogger('__main__')
 class flushfile(object):
 	"""
 	Object that wraps an open file-like object in such a way that all calls to 
-	write() are imediately flush()'d without any additional effort.
+	write() are immediately flush()'d without any additional effort.
 	"""
 	
 	def __init__(self, f):
@@ -145,22 +145,6 @@ def run_process(name, command, logfilename, timeout=-1):
 		os._exit(1)
 
 
-def run_processes(name, command, board_dict, logfilename, timeout=-1):
-	"""
-	Run a process on each board in the board dictionary.
-	"""
-    
-	for slot in board_dict:
-		hostname = board_dict[slot]
-		# if the slot is non-empty
-		if ((hostname != "None") and (hostname != "No response")):
-			# send command to hostname
-			new_command = ["/usr/local/bin/"+hostname]
-			for entry in command:
-				new_command.append(entry)
-			run_process(name, new_command, logfilename, timeout=timeout)
-
-
 def spawn_process(name, command, logfilename):
 	"""
 	Spawn a process in the background without blocking.
@@ -181,24 +165,7 @@ def spawn_process(name, command, logfilename):
 
 	# We don't log when the PID finishes here. If a way to do this without blocking
 	# is found, that would be a good augmentation here
-	# But, speed and not blocking is of the essance here!
-
-
-def spawn_processes(name, command, board_dict, logfilename):
-	"""
-	Spawn a process on each board in the board dictionary without blocking.
-	"""
-	
-	for slot in board_dict:
-		hostname = board_dict[slot]
-		# if the slot is non-empty
-		if ((hostname != "None") and (hostname != "No response")):
-			# send command to hostname
-			new_command = ["/usr/local/bin/"+hostname]
-			for entry in command:
-				new_command.append(entry)
-			spawn_process(name, new_command, logfilename)
-
+	# But, speed and not blocking is of the essence here!
 
 
 if __name__ == '__main__':
