@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
 	/*************************
 	* Command line parsing   *
 	*************************/
-	int success, failed, num, device;
+	int success, failed, num, device, failures;
 	unsigned short temp;
 	char sn[20], simpleData[2], simpleNoOp[2], simpleMarker[2];
 	char command[8];
@@ -109,6 +109,7 @@ int main(int argc, char* argv[]) {
 	}
 	
 	// Read in the SPI file lines
+	failures = 0;
 	while( (read = getline(&line, &len, spifile) != EOF) ) {
 		args = sscanf(line, "%d %d %6s", &num, &device, command);
 		
@@ -170,6 +171,8 @@ int main(int argc, char* argv[]) {
 				if( temp != marker ) {
 					fprintf(stderr, "sendARXDeviceBatch - SPI write returned a marker of 0x%04X instead of 0x%04X, retrying\n", temp, marker);
 					failed = 1;
+					
+					failures += 1;
 				} else {
 					failed = 0;
 				}
@@ -181,9 +184,17 @@ int main(int argc, char* argv[]) {
 	* Cleanup and exit *
 	*******************/
 	fclose(spifile);
-	printf("sendARXDeviceBatch - OK\n");
+	if( failures > 7 ) {
+		printf("sendARXDeviceBatch - WARNING - %i invalid markers encountered\n", failures);
+	} else {
+		printf("sendARXDeviceBatch - OK\n");
+	}
 	
 	sub_close(fh);
-
-	return 0;
+	
+	if( failures > 7 ) {
+		return (20+failures);
+	} else {
+		return 0;
+	}
 }
