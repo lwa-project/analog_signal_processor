@@ -546,7 +546,7 @@ class SendSPI(object):
 				tmpSPIFilename = '%s.tmp%i' % (SPIFilename, oldSPIFileNumber)
 				
 				if os.path.isfile(tmpSPIFilename) and os.path.getsize(tmpSPIFilename):
-					spi_command = ['/usrl/local/bin/sendARXDeviceBatch', tmpSPIFilename]
+					spi_command = ['/usr/local/bin/sendARXDeviceBatch', tmpSPIFilename]
 					
 					aspThreadsLogger.info("SendSPI: Sent %s", spi_command)
 					proc = run.spawn_process('sendARXDeviceBatch', spi_command, '/home/ops/board.log')
