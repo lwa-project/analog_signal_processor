@@ -164,7 +164,7 @@ def LCD_Write(message):
 	Return the status of the operation as a boolean.
 	"""
 	
-	p = subprocess.Popen('/usr/local/bin/writeARXLCD %s' % message, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	p = subprocess.Popen('/usr/local/bin/writeARXLCD "%s"' % message, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	
 	output, output2 = p.communicate()
 	
