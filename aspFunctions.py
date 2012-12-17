@@ -176,7 +176,7 @@ class AnalogProcessor(object):
 			time.sleep(1)
 			
 			# Board check - found vs. expected from INI
-			boardsFound = os.system("countBoards") / 256
+			boardsFound = os.system("/usr/local/bin/countBoards") / 256
 			if boardsFound == nBoards:
 				# Board and stand counts.  NOTE: Stand counts are capped at 260
 				self.num_boards = nBoards
@@ -619,8 +619,7 @@ class AnalogProcessor(object):
 		supply.
 		"""
 		
-		p = subprocess.Popen(['onoffPSU', "0x%02X" % ARX_PS_ADDRESS, str(state)], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		p.wait()
+		p = subprocess.Popen(['/usr/local/bin/onoffPSU', "0x%02X" % ARX_PS_ADDRESS, str(state)], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		
 		output, output2 = p.communicate()
 		
@@ -683,8 +682,7 @@ class AnalogProcessor(object):
 		supply.
 		"""
 		
-		p = subprocess.Popen(['onoffPSU', "0x%02X" % FEE_PS_ADDRESS, str(state)], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		p.wait()
+		p = subprocess.Popen(['/usr/local/bin/onoffPSU', "0x%02X" % FEE_PS_ADDRESS, str(state)], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		
 		output, output2 = p.communicate()
 		

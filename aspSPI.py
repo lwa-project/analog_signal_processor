@@ -86,9 +86,8 @@ def SPI_init_devices(num, Config, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RET
 		if attempt != 0:
 			time.sleep(waitRetry*attempt*attempt)
 			
-		p = subprocess.Popen(['initARXDevices', '%i' % num, '0x%04x' % Config], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		p.wait()
-          
+		p = subprocess.Popen(['/usr/local/bin/initARXDevices', '%i' % num, '0x%04x' % Config], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		
 		output, output2 = p.communicate()
 	
 		if p.returncode != 0:
@@ -115,9 +114,8 @@ def SPI_config_devices(num, Config, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_R
 		if attempt != 0:
 			time.sleep(waitRetry*attempt*attempt)
 			
-		p = subprocess.Popen(['sendARXDevice', '%i' % num, '0', '0x%04x' % Config], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		p.wait()
-			
+		p = subprocess.Popen(['/usr/local/bin/sendARXDevice', '%i' % num, '0', '0x%04x' % Config], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		
 		output, output2 = p.communicate()
 		
 		if p.returncode != 0:
@@ -144,9 +142,8 @@ def SPI_Send(num, device, data, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY
 		if attempt != 0:
 			time.sleep(waitRetry*attempt*attempt)
 			
-		p = subprocess.Popen(['sendARXDevice', '%i' % num, '%i' % device, '0x%04x' % data], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		p.wait()
-          
+		p = subprocess.Popen(['/usr/local/bin/sendARXDevice', '%i' % num, '%i' % device, '0x%04x' % data], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		
 		output, output2 = p.communicate()
 		
 		if p.returncode != 0:
@@ -167,9 +164,8 @@ def LCD_Write(message):
 	Return the status of the operation as a boolean.
 	"""
 	
-	p = subprocess.Popen(['writeARXLCD', '%s' % message], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	p.wait()
-          
+	p = subprocess.Popen(['/usr/local/bin/writeARXLCD', '%s' % message], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	
 	output, output2 = p.communicate()
 	
 	if p.returncode != 0:

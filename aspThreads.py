@@ -115,9 +115,8 @@ class TemperatureSensors(object):
 			try:
 				missingSUB20 = False
 				
-				p = subprocess.Popen(['readThermometers',], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-				p.wait()
-					
+				p = subprocess.Popen(['/usr/local/bin/readThermometers',], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				
 				output, output2 = p.communicate()
 				
 				if p.returncode != 0:
@@ -337,9 +336,8 @@ class PowerStatus(object):
 			try:
 				missingSUB20 = False
 				
-				p = subprocess.Popen(['readPSU', "0x%02X" % self.deviceAddress], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-				p.wait()
-					
+				p = subprocess.Popen(['/usr/local/bin/readPSU', "0x%02X" % self.deviceAddress], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				
 				output, output2 = p.communicate()
 				
 				if p.returncode != 0:
