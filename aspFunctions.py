@@ -619,7 +619,7 @@ class AnalogProcessor(object):
 		supply.
 		"""
 		
-		p = subprocess.Popen(['/usr/local/bin/onoffPSU', "0x%02X" % ARX_PS_ADDRESS, str(state)], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		p = subprocess.Popen('/usr/local/bin/onoffPSU 0x%02X %s' % (ARX_PS_ADDRESS, str(state)), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		
 		output, output2 = p.communicate()
 		
@@ -682,7 +682,7 @@ class AnalogProcessor(object):
 		supply.
 		"""
 		
-		p = subprocess.Popen(['/usr/local/bin/onoffPSU', "0x%02X" % FEE_PS_ADDRESS, str(state)], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		p = subprocess.Popen('/usr/local/bin/onoffPSU 0x%02X %s' % (FEE_PS_ADDRESS, str(state)), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		
 		output, output2 = p.communicate()
 		
