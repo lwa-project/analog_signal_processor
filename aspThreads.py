@@ -77,7 +77,7 @@ class TemperatureSensors(object):
 		if self.thread is not None:
 			self.stop()
 			
-		self.nTemps = os.system("countThermometers") / 256
+		self.nTemps = os.system("/usr/local/bin/countThermometers") / 256
 		self.description = ["UNK" for i in xrange(self.nTemps)]
 		self.temp = [0.0 for i in xrange(self.nTemps)]
 		
