@@ -52,6 +52,10 @@ class TemperatureSensors(object):
 		self.description = None
 		self.temp = None
 		self.lastError = None
+		
+		# Setup the lockout variables
+		self.coldCount = 0
+		self.hotCount = 0
 
 		self.thread = None
 		self.alive = threading.Event()
@@ -80,6 +84,8 @@ class TemperatureSensors(object):
 		self.nTemps = os.system("/usr/local/bin/countThermometers") / 256
 		self.description = ["UNK" for i in xrange(self.nTemps)]
 		self.temp = [0.0 for i in xrange(self.nTemps)]
+		self.coldCount = 0
+		self.hotCount = 0
 		
 		self.thread = threading.Thread(target=self.monitorThread)
 		self.thread.setDaemon(1)
@@ -150,16 +156,24 @@ class TemperatureSensors(object):
 						self.ASPCallbackInstance.processMissingSUB20()
 					
 					if max(self.temp) > self.maxTemp:
+						self.hotCount += 1
+					else:
+						self.hotCount = 0
+					if self.hotCount > 3:
 						aspThreadsLogger.critical('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
 						
 						self.ASPCallbackInstance.processCriticalTemperature(high=True)
 						
-					elif min(self.temp) < self.minTemp:
+					if min(self.temp) < self.minTemp:
+						self.coldCount += 1
+					else:
+						self.coldCount = 0
+					if self.coldCount > 3:
 						aspThreadsLogger.warning('%s: monitorThread min. temperature is %.1f C', type(self).__name__, min(self.temp))
 						
 						self.ASPCallbackInstance.processCriticalTemperature(low=True)
 						
-					elif max(self.temp) > self.warnTemp:
+					if max(self.temp) > self.warnTemp:
 						aspThreadsLogger.warning('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
 						
 						self.ASPCallbackInstance.processWarningTemperature()
