@@ -149,33 +149,40 @@ class TemperatureSensors(object):
 				except IOError:
 					aspThreadsLogger.error("%s: could not open flag logfile %s for writing", type(self).__name__, self.logfile)
 					pass
-			
+					
+				# Check the temperatures against the acceptable range
+				if max(self.temp) > self.maxTemp:
+					self.hotCount += 1
+					aspThreadsLogger.warning('%s: monitorThread max. temperature is above the acceptable range (hot count is %i)', type(self).__name__, max(self.temp), self.hotCount)
+				else:
+					self.hotCount = 0
+					
+				if min(self.temp) < self.minTemp:
+					self.coldCount += 1
+					aspThreadsLogger.warning('%s: monitorThread min. temperature is below the acceptable range (cold count is %i)', type(self).__name__, max(self.temp), self.coldCount)
+				else:
+					self.coldCount = 0
+					
+				# Issue a warning if we need to
+				if max(self.temp) <= self.maxTemp and max(self.temp) > self.warnTemp:
+					aspThreadsLogger.warning('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
+					
 				# Make sure we aren't critical (on either side of good)
 				if self.ASPCallbackInstance is not None and self.temp is not None:
 					if missingSUB20:
 						self.ASPCallbackInstance.processMissingSUB20()
-					
-					if max(self.temp) > self.maxTemp:
-						self.hotCount += 1
-					else:
-						self.hotCount = 0
-					if self.hotCount > 3:
-						aspThreadsLogger.critical('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
+						
+					if self.hotCount >= 3:
+						aspThreadsLogger.critical('%s: monitorThread max. temperature is %.1f C, notifying the system', type(self).__name__, max(self.temp))
 						
 						self.ASPCallbackInstance.processCriticalTemperature(high=True)
 						
-					if min(self.temp) < self.minTemp:
-						self.coldCount += 1
-					else:
-						self.coldCount = 0
-					if self.coldCount > 3:
-						aspThreadsLogger.warning('%s: monitorThread min. temperature is %.1f C', type(self).__name__, min(self.temp))
+					if self.coldCount >= 3:
+						aspThreadsLogger.critical('%s: monitorThread min. temperature is %.1f C, notifying the system', type(self).__name__, min(self.temp))
 						
 						self.ASPCallbackInstance.processCriticalTemperature(low=True)
 						
 					if max(self.temp) > self.warnTemp:
-						aspThreadsLogger.warning('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
-						
 						self.ASPCallbackInstance.processWarningTemperature()
 					else:
 						self.ASPCallbackInstance.processWarningTemperature(clear=True)
