@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
 	i = 0;
 	dev = NULL;
 	fh = sub_open(dev);
-	while( !fh & i < 100 ) {
+	while( !fh & (i < 100) ) {
 		fprintf(stderr, "onoffPSU - open - %s\n", sub_strerror(sub_errno));
 		usleep(50000);
 		i += 1;
