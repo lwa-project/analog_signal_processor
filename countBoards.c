@@ -29,6 +29,7 @@ int main(int argc, char* argv[]) {
 	int success, num;
 	unsigned short temp;
 	char sn[20], simpleNoOp[2], simpleMarker[2];
+	char fullData[2*33*8+2], fullResponse[2*33*8+2];
 
 	// Convert the strings into integer values
 	hex_to_array("0x0000", simpleNoOp);
