@@ -90,13 +90,8 @@ int main(int argc, char* argv[]) {
 		fullData[j++] = simpleMarker[0];
 		fullData[j++] = simpleMarker[1];
 		for(i=num; i>0; i--) {
-			if( i == device || device == 0 ) {
-				fullData[j++] = simpleData[0];
-				fullData[j++] = simpleData[1];
-			} else {
-				fullData[j++] = simpleNoOp[0];
-				fullData[j++] = simpleNoOp[1];
-			}
+			fullData[j++] = simpleNoOp[0];
+			fullData[j++] = simpleNoOp[1];
 		}
 		
 		// Read & write (2*num+2) bytes at a time making sure to return chip select to high 
