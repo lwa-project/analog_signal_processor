@@ -83,30 +83,32 @@ int main(int argc, char* argv[]) {
 	temp = array_to_ushort(simpleResponse);
 	while( temp != marker && num < (STANDS_PER_BOARD*(MAX_BOARDS+1)) ) {
 		num += STANDS_PER_BOARD;
-
-		// Read & write 2 bytes at a time making sure to return chip select to high 
-		// when we are done.
-		j = 0;
-		success = sub_spi_transfer(fh, simpleMarker, simpleResponse, 2, SS_CONF(0, SS_L));
-		temp = array_to_ushort(simpleResponse);
-		j += 1;
-
-		for(i=num; i>0; i--) {
-			if( j == num ) {
-				// Final set of 2 bytes - chip select to high after transmitting
-				success = sub_spi_transfer(fh, simpleNoOp, simpleResponse, 2, SS_CONF(0, SS_LO));
-			} else {
-				success = sub_spi_transfer(fh, simpleNoOp, simpleResponse, 2, SS_CONF(0, SS_L));
-			}
 		
-			if( success ) {
-				fprintf(stderr, "countBoards - SPI write %i of %i - %s\n", i+1, num, sub_strerror(sub_errno));
-				i += 1;
+		// Fill the data array with the commands to send
+		j = 0;
+		fullData[j++] = simpleMarker[0];
+		fullData[j++] = simpleMarker[1];
+		for(i=num; i>0; i--) {
+			if( i == device || device == 0 ) {
+				fullData[j++] = simpleData[0];
+				fullData[j++] = simpleData[1];
+			} else {
+				fullData[j++] = simpleNoOp[0];
+				fullData[j++] = simpleNoOp[1];
 			}
-
-			temp = array_to_ushort(simpleResponse);
-			j += 1;
 		}
+		
+		// Read & write (2*num+2) bytes at a time making sure to return chip select to high 
+		// when we are done.
+		success = sub_spi_transfer(fh, fullData, fullResponse, 2*num+2, SS_CONF(0, SS_LO));
+		if( success ) {
+			fprintf(stderr, "sendARXDeviceBatch - SPI write %i of %i - %s\n", 0, num, sub_strerror(sub_errno));
+		}
+		
+		// Check the command verification marker
+		simpleResponse[0] = fullResponse[2*num];
+		simpleResponse[1] = fullResponse[2*num+1];
+		temp = array_to_ushort(simpleResponse);
 	}
 	
 	// Convert stands to boards (making sure that we are in range for the board count)

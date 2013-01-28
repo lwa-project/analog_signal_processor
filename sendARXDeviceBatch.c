@@ -183,7 +183,7 @@ int main(int argc, char* argv[]) {
 	
 	sub_close(fh);
 	
-	if( failures > 7 ) {
+	if( failures > 0 ) {
 		return (20+failures);
 	} else {
 		return 0;
