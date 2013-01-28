@@ -168,7 +168,7 @@ class AnalogProcessor(object):
 			# Turn off the power supplies
 			self.__rxpProcess(00, internal=True)
 			self.__fepProcess(00, internal=True)
-			time.sleep(1)
+			time.sleep(5)
 			
 			# Turn on the power supplies
 			self.__rxpProcess(11, internal=True)
@@ -204,7 +204,7 @@ class AnalogProcessor(object):
 					self.currentState['commandThread'].stop()
 					self.currentState['commandThread'].updateConfig(self.config)
 				else:
-					self.currentState['commandThread'] = SendSPI(self.config)
+					self.currentState['commandThread'] = SendSPI(self.config, ASPCallbackInstance=self)
 				
 				# Update the analog signal chain state
 				for i in xrange(self.num_stands):
@@ -1150,7 +1150,7 @@ class AnalogProcessor(object):
 		Function to put the system into ERROR if the SUB-20 is missing or dead.
 		"""
 		
-		if nFailures < 7:
+		if nFailures < 1:
 			# Not enough to worry about
 			return False
 			
