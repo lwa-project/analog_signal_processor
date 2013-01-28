@@ -41,6 +41,7 @@ int main(int argc, char* argv[]) {
 	int success, failed, num, device, failures;
 	unsigned short temp;
 	char sn[20], simpleData[2], simpleNoOp[2], simpleMarker[2];
+	char fullData[2*33*8+2], fullResponse[2*33*8+2];
 	char command[8];
 	FILE *spifile;
 	size_t len = 0;
@@ -131,46 +132,36 @@ int main(int argc, char* argv[]) {
 				fprintf(stderr, "Sending data 0x%04X (%u) to all %i devices\n", temp, temp, num);
 			}
 			
+			// Fill the data array with the commands to send
+			j = 0;
+			fullData[j++] = simpleMarker[0];
+			fullData[j++] = simpleMarker[1];
+			for(i=num; i>0; i--) {
+				if( i == device || device == 0 ) {
+					fullData[j++] = simpleData[0];
+					fullData[j++] = simpleData[1];
+				} else {
+					fullData[j++] = simpleNoOp[0];
+					fullData[j++] = simpleNoOp[1];
+				}
+			}
+			
 			failed = 1;
 			while( failed > 0 ) {
-				// Read & write 2 bytes at a time making sure to return chip select to high 
+				// Read & write (2*num+2) bytes at a time making sure to return chip select to high 
 				// when we are done.
-				success = sub_spi_transfer(fh, simpleMarker, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
+				success = sub_spi_transfer(fh, fullData, fullResponse, 2*num+2, SS_CONF(0, SS_LO));
 				if( success ) {
 					fprintf(stderr, "sendARXDeviceBatch - SPI write %i of %i - %s\n", 0, num, sub_strerror(sub_errno));
 				}
 				
-				j = 1;
-				for(i=num; i>0; i--) {
-					if( i == device || device == 0 ) {
-						if( j == num ) {
-							// Final set of 2 bytes - chip select to high after transmitting
-							success = sub_spi_transfer(fh, simpleData, simpleResponse, 2, TRANS_SPI_FINAL);
-						} else {
-							success = sub_spi_transfer(fh, simpleData, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
-						}
-						
-					} else {
-						if( j == num ) {
-							// Final set of 2 bytes - chip select to high after transmitting
-							success = sub_spi_transfer(fh, simpleNoOp, simpleResponse, 2, TRANS_SPI_FINAL);
-						} else {
-							success = sub_spi_transfer(fh, simpleNoOp, simpleResponse, 2, TRANS_SPI_INTERMEDIATE);
-						}
-					}
-					
-					if( success ) {
-						fprintf(stderr, "sendARXDeviceBatch - SPI write %i of %i - %s\n", i+1, num, sub_strerror(sub_errno));
-						i += 1;
-					}
-					
-					j += 1;
-				}
-				
+				// Check the command verification marker
+				simpleResponse[0] = fullResponse[2*num];
+				simpleResponse[1] = fullResponse[2*num+1];
 				temp = array_to_ushort(simpleResponse);
 				if( temp != marker ) {
 					fprintf(stderr, "sendARXDeviceBatch - SPI write returned a marker of 0x%04X instead of 0x%04X, retrying\n", temp, marker);
-					failed = 1;
+ 					failed = 1;
 					
 					failures += 1;
 				} else {
@@ -184,8 +175,8 @@ int main(int argc, char* argv[]) {
 	* Cleanup and exit *
 	*******************/
 	fclose(spifile);
-	if( failures > 7 ) {
-		printf("sendARXDeviceBatch - WARNING - %i invalid markers encountered\n", failures);
+	if( failures > 0 ) {
+		printf("sendARXDeviceBatch - WARNING - %i invalid marker(s) encountered\n", failures);
 	} else {
 		printf("sendARXDeviceBatch - OK\n");
 	}
