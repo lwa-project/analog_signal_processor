@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include "libsub.h"
+#include "aspCommon.h"
 
 sub_handle* fh = NULL;
 
