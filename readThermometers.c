@@ -53,9 +53,9 @@ int main(int argc, char* argv[]) {
 	while( dev = sub_find_devices(dev) ) {
 		// Open the USB device (or die trying)
 		fh = sub_open(dev);
-		while( (fh == NULL) && (openTries < 10) ) {
+		while( (fh == NULL) && (openTries < SUB20_OPEN_MAX_ATTEMPTS) ) {
 			openTries++;
-			usleep(5000);
+			usleep(SUB20_OPEN_WAIT_US);
 			
 			fh = sub_open(dev);
 		}
