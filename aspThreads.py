@@ -21,18 +21,15 @@ except ImportError:
         import StringIO
         
 import run
+from aspCommon import SUB20_LOCKS
 
 
-__version__ = '0.2'
+__version__ = '0.3'
 __revision__ = '$Rev$'
-__all__ = ['TemperatureSensors', 'PowerStatus', 'SendSPI', '__version__', '__revision__', '__all__']
+__all__ = ['TemperatureSensors', 'PowerStatus', '__version__', '__revision__', '__all__']
 
 
 aspThreadsLogger = logging.getLogger('__main__')
-
-
-# Create a semaphore to make sure the monitoring threads don't fight over the SUB-20 device
-SUB20Lock = threading.Semaphore(1)
 
 
 class TemperatureSensors(object):
@@ -40,7 +37,8 @@ class TemperatureSensors(object):
 	Class for monitoring temperature for the power supplies via the I2C interface.
 	"""
 	
-	def __init__(self, config, logfile='/data/temp.txt', ASPCallbackInstance=None):
+	def __init__(self, sub20SN, config, logfile='/data/temp.txt', ASPCallbackInstance=None):
+		self.sub20SN = int(sub20SN)
 		self.logfile = logfile
 		self.updateConfig(config)
 		
@@ -81,7 +79,7 @@ class TemperatureSensors(object):
 		if self.thread is not None:
 			self.stop()
 			
-		self.nTemps = os.system("/usr/local/bin/countThermometers") / 256
+		self.nTemps = os.system("/usr/local/bin/countThermometers %X" % self.sub20SN) / 256
 		self.description = ["UNK" for i in xrange(self.nTemps)]
 		self.temp = [0.0 for i in xrange(self.nTemps)]
 		self.coldCount = 0
@@ -116,12 +114,12 @@ class TemperatureSensors(object):
 		while self.alive.isSet():
 			tStart = time.time()
 			
-			SUB20Lock.acquire()
+			SUB20_LOCKS[self.sub20SN].acquire()
 			
 			try:
 				missingSUB20 = False
 				
-				p = subprocess.Popen('/usr/local/bin/readThermometers', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				p = subprocess.Popen('/usr/local/bin/readThermometers %X' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 				
 				output, output2 = p.communicate()
 				
@@ -203,7 +201,7 @@ class TemperatureSensors(object):
 				self.temp = None
 				self.lastError = str(e)
 				
-			SUB20Lock.release()
+			SUB20_LOCKS[self.sub20SN].release()
 			
 			# Stop time
 			tStop = time.time()
@@ -280,7 +278,8 @@ class PowerStatus(object):
 	for the power supplies via the I2C interface.
 	"""
 	
-	def __init__(self, deviceAddress, config, logfile='/data/psu.txt', ASPCallbackInstance=None):
+	def __init__(self, sub20SN, deviceAddress, config, logfile='/data/psu.txt', ASPCallbackInstance=None):
+		self.sub20SN = int(sub20SN)
 		self.deviceAddress = int(deviceAddress)
 		base, ext = logfile.rsplit('.', 1)
 		self.logfile = '%s-0x%02X.%s' % (base, self.deviceAddress, ext)
@@ -352,12 +351,12 @@ class PowerStatus(object):
 		while self.alive.isSet():
 			tStart = time.time()
 			
-			SUB20Lock.acquire()
+			SUB20_LOCKS[self.sub20SN].acquire()
 			
 			try:
 				missingSUB20 = False
 				
-				p = subprocess.Popen('/usr/local/bin/readPSU 0x%02X' % self.deviceAddress, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				p = subprocess.Popen('/usr/local/bin/readPSU %X 0x%02X' % (self.sub20SN, self.deviceAddress), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 				
 				output, output2 = p.communicate()
 				
@@ -420,7 +419,7 @@ class PowerStatus(object):
 				self.status = "UNK"
 				self.lastError = str(e)
 				
-			SUB20Lock.release()
+			SUB20_LOCKS[self.sub20SN].release()
 			
 			# Stop time
 			tStop = time.time()
@@ -476,129 +475,3 @@ class PowerStatus(object):
 		"""
 
 		return self.status
-
-
-class SendSPI(object):
-	def __init__(self, config, ASPCallbackInstance=None):
-		self.config = config
-		
-		# Update the board configuration
-		self.updateConfig()
-		
-		# Set the current file number
-		self.SPIFileNumber = 1
-		
-		# Setup the callback
-		self.ASPCallbackInstance = ASPCallbackInstance
-		
-		# Setup threading
-		self.thread = None
-		self.alive = threading.Event()
-		self.lastError = None
-		
-	def updateConfig(self, config=None):
-		"""
-		Using the configuration file, update the configuration.
-		"""
-		
-		# Update the current configuration
-		if config is not None:
-			self.config = config
-		
-	def start(self):
-		"""
-		Start the monitoring thread.
-		"""
-
-		if self.thread is not None:
-			self.stop()
-			
-		self.thread = threading.Thread(target=self.sendCommands)
-		self.thread.setDaemon(1)
-		self.alive.set()
-		self.thread.start()
-		
-		time.sleep(1)
-
-	def stop(self):
-		"""
-		Stop the monitor thread, waiting until it's finished.
-		"""
-
-		os.system("pkill sendARXDeviceBatch")
-
-		if self.thread is not None:
-			self.alive.clear()          #clear alive event for thread
-			self.thread.join()          #wait until thread has finished
-			self.thread = None
-			self.lastError = None
-			
-	def sendCommands(self):
-		while self.alive.isSet():
-			tStart = time.time()
-			
-			proc = None
-			
-			try:
-				# Figure out which temp file we are on
-				oldSPIFileNumber = self.SPIFileNumber
-				self.SPIFileNumber = oldSPIFileNumber + 1
-				if self.SPIFileNumber > 5:
-					self.SPIFileNumber = 1
-				
-				SPIFilename = self.config['SPIFILE']
-				tmpSPIFilename = '%s.tmp%i' % (self.config['SPIFILE'], self.SPIFileNumber)
-				
-				# Remove the old temp file
-				try:
-					os.unlink(tmpSPIFilename)
-				except OSError:
-					pass
-				
-				# Symbolic link to current temp file
-				try:
-					os.unlink(SPIFilename)
-				except OSError:
-					pass
-				os.symlink(tmpSPIFilename, SPIFilename)
-				
-				# Check if file exists and has is non-empty
-				SPIFilename = self.config['SPIFILE']
-				tmpSPIFilename = '%s.tmp%i' % (SPIFilename, oldSPIFileNumber)
-				
-				if os.path.isfile(tmpSPIFilename) and os.path.getsize(tmpSPIFilename):
-					spi_command = ['/usr/local/bin/sendARXDeviceBatch', tmpSPIFilename]
-					
-					aspThreadsLogger.info("SendSPI: Sent %s", spi_command)
-					proc = run.spawn_process('sendARXDeviceBatch', spi_command, '/home/ops/board.log')
-					
-			except Exception, e:
-				exc_type, exc_value, exc_traceback = sys.exc_info()
-				aspThreadsLogger.error("SendSPI: sendCommands failed with: %s at line %i", str(e), traceback.tb_lineno(exc_traceback))
-				
-				## Grab the full traceback and save it to a string via StringIO
-				fileObject = StringIO.StringIO()
-				traceback.print_tb(exc_traceback, file=fileObject)
-				tbString = fileObject.getvalue()
-				fileObject.close()
-				## Print the traceback to the logger as a series of DEBUG messages
-				for line in tbString.split('\n'):
-					aspThreadsLogger.debug("%s", line)
-				
-				self.lastError = str(e)
-				
-			# Sleep
-			if proc is not None:
-				proc.wait()
-				
-				tStop = time.time()
-				aspThreadsLogger.debug("SendSPI: sendCommands finished in %.1f seconds", tStop-tStart)
-				
-				if proc.returncode > 20:
-					aspThreadsLogger.warning("SendSPI: %i commands had to be retried due to verification failures", proc.returncode-20)
-					
-					if self.ASPCallbackInstance is not None:
-						self.ASPCallbackInstance.processRepeatedSPIErrors(proc.returncode-20)
-				
-			time.sleep(1.0)
-			

@@ -124,8 +124,7 @@ def parseConfigFile(filename):
 			   'TEMPWARN'       : float,
 			   'TEMPMAX'        : float, 
 			   'TEMPPERIOD'     : float, 
-			   'POWERPERIOD'    : float, 
-			   'SPIFILE'        : str}
+			   'POWERPERIOD'    : float}
 	config = {}
 
 	#

@@ -8,7 +8,7 @@ includes:
  * output current
  
 Usage:
-  readPSUs
+  readPSUs <SUB-20 S/N> <I2C address>
 
 Options:
   None
@@ -36,45 +36,61 @@ void getModuleStatus(unsigned short, char*, int);
 
 int main(int argc, char* argv[]) {
 	char *endptr;
-	int i, device, success, nPSU, nMod, done, code;
+	int i, device, success, nPSU, nMod, done, code, found;
 	unsigned short temp, modules, page, status;
 	float voltage, current;
-	char psuAddresses[128], j, sn[20], simpleData[2], bigData[4];
+	char psuAddresses[128], j, requestedSN[20], sn[20], simpleData[2], bigData[4];
 	char moduleName[65], modulePower[4], moduleStatus[129];
 	
 	// Make sure we have the right number of arguments to continue
-	if( argc != 1+1 ) {
-		fprintf(stderr, "readPSU - Need %i arguments, %i provided\n", 1, argc-1);
+	if( argc != 2+1 ) {
+		fprintf(stderr, "readPSU - Need %i arguments, %i provided\n", 2, argc-1);
 		exit(1);
 	}
 	
+	// Copy the string
+	strncpy(requestedSN, argv[1], 17);
 	// Convert the strings into integer values
-	device = strtod(argv[1], &endptr);
+	device = strtod(argv[2], &endptr);
 	
 	/************************************
 	* SUB-20 device selection and ready *
 	************************************/
 	struct usb_device* dev;
 	
-	// Open the USB device (or die trying)
-	i = 0;
-	dev = NULL;
-	fh = sub_open(dev);
-	while( !fh && i < 100 ) {
-		fprintf(stderr, "readPSU - open - %s\n", sub_strerror(sub_errno));
-		usleep(50000);
-		i += 1;
-		
+	// Find the right SUB-20
+	found = 0;
+	int openTries = 0;
+	while( dev = sub_find_devices(dev) ) {
+		// Open the USB device (or die trying)
 		fh = sub_open(dev);
-	}
-	if( !fh ){
-		fprintf(stderr, "readPSU - cannot open SUB-20 device, giving up...");
-		exit(1);
+		while( (fh == NULL) && (openTries < 10) ) {
+			openTries++;
+			usleep(5000);
+			
+			fh = sub_open(dev);
+		}
+		if( !fh ) {
+			continue;
+		}
+		
+		success = sub_get_serial_number(fh, sn, sizeof(sn));
+		if( !success ) {
+			continue;
+		}
+		
+		if( !strcmp(sn, requestedSN) ) {
+			fprintf(stderr, "Found SUB-20 device S/N: %s\n", sn);
+			found = 1;
+			break;
+		} else {
+			sub_close(fh);
+		}
 	}
 	
-	success = sub_get_serial_number(fh, (char *) sn, sizeof(sn));
-	if( !success ) {
-		fprintf(stderr, "readPSU - get sn - %s\n", sub_strerror(sub_errno));
+	// Make sure we actually have a SUB-20 device
+	if( !found ) {
+		fprintf(stderr, "readPSU - Cannot find or open SUB-20 %s\n", requestedSN);
 		exit(1);
 	}
 	

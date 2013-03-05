@@ -3,7 +3,7 @@ onoffPSU - Change the overall power state for the
 specified device.
 
 Usage:
-  onoffPSU <device address> <new power state>
+  onoffPSU <SUB-20 S/N> <device address> <new power state>
   
   * Device addresses are two-digit hexadecimal numbers 
     (i.e. 0x1F)
@@ -30,19 +30,21 @@ sub_handle* fh = NULL;
 
 int main(int argc, char* argv[]) {
 	char *endptr;
-	int i, device, newState, success, nPSU, done;
+	int i, device, newState, success, nPSU, done, found;
 	unsigned short status;
-	char psuAddresses[128], sn[20], simpleData[2];
+	char psuAddresses[128], requestedSN[20], sn[20], simpleData[2];
 	
 	// Make sure we have the right number of arguments to continue
-	if( argc != 2+1 ) {
-		fprintf(stderr, "onoffPSU - Need %i arguments, %i provided\n", 2, argc-1);
+	if( argc != 3+1 ) {
+		fprintf(stderr, "onoffPSU - Need %i arguments, %i provided\n", 3, argc-1);
 		exit(1);
 	}
 	
+	// Copy the string
+	strncpy(requestedSN, argv[1], 17);
 	// Convert the strings into integer values
-	device   = strtod(argv[1], &endptr);
-	newState = strtod(argv[2], &endptr);
+	device   = strtod(argv[2], &endptr);
+	newState = strtod(argv[3], &endptr);
 	if( newState != 0 && newState != 11 ) {
 		fprintf(stderr, "onoffPSU - Unknown state %i (valid values are %02i and %02i)\n", newState, 0, 11);
 		exit(1);
@@ -53,25 +55,39 @@ int main(int argc, char* argv[]) {
 	************************************/
 	struct usb_device* dev;
 	
-	// Open the USB device (or die trying)
-	i = 0;
-	dev = NULL;
-	fh = sub_open(dev);
-	while( !fh & (i < 100) ) {
-		fprintf(stderr, "onoffPSU - open - %s\n", sub_strerror(sub_errno));
-		usleep(50000);
-		i += 1;
-		
+	// Find the right SUB-20
+	found = 0;
+	int openTries = 0;
+	while( dev = sub_find_devices(dev) ) {
+		// Open the USB device (or die trying)
 		fh = sub_open(dev);
-	}
-	if( !fh ){
-		fprintf(stderr, "onoffPUS - cannot open SUB-20 device, giving up...");
-		exit(1);
+		while( (fh == NULL) && (openTries < 10) ) {
+			openTries++;
+			usleep(5000);
+			
+			fh = sub_open(dev);
+		}
+		if( !fh ) {
+			continue;
+		}
+		
+		success = sub_get_serial_number(fh, sn, sizeof(sn));
+		if( !success ) {
+			continue;
+		}
+		
+		if( !strcmp(sn, requestedSN) ) {
+			fprintf(stderr, "Found SUB-20 device S/N: %s\n", sn);
+			found = 1;
+			break;
+		} else {
+			sub_close(fh);
+		}
 	}
 	
-	success = sub_get_serial_number(fh, (char *) sn, sizeof(sn));
-	if( !success ) {
-		fprintf(stderr, "onoffPSU - get sn - %s\n", sub_strerror(sub_errno));
+	// Make sure we actually have a SUB-20 device
+	if( !found ) {
+		fprintf(stderr, "onoffPSU - Cannot find or open SUB-20 %s\n", requestedSN);
 		exit(1);
 	}
 	

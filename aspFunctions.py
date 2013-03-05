@@ -9,12 +9,13 @@ $LastChangedDate$
 
 import os
 import time
+import ctypes
 import logging
 import threading
 import subprocess
 
 from aspCommon import *
-from aspSPI import *
+from aspSUB20 import *
 from aspThreads import *
 
 
@@ -66,6 +67,16 @@ class AnalogProcessor(object):
 	  * See commandExitCodes
 	"""
 	
+	class StandMapping(ctypes.LittleEndianStructure):
+		"""
+		Class for helping store the mapping information needed for the new
+		multi-SUB-20 architecture.
+		"""
+		
+		_fields_ = [("SUB20", ctypes.c_char*5), 
+				  ("stand", ctypes.c_ushort),
+				  ("redStand", ctypes.c_ushort)]
+				  
 	def __init__(self, config):
 		self.config = config
 		
@@ -94,7 +105,6 @@ class AnalogProcessor(object):
 		## Monitoring and background threads
 		self.currentState['tempThread'] = None
 		self.currentState['powerThreads'] = None
-		self.currentState['commandThread'] = None
 		
 		# Board and stand counts
 		self.num_boards = 0
@@ -176,13 +186,13 @@ class AnalogProcessor(object):
 			time.sleep(1)
 			
 			# Board check - found vs. expected from INI
-			boardsFound = os.system("/usr/local/bin/countBoards") / 256
+			boardsFound = spiCountBoards()
 			if boardsFound == nBoards:
 				# Board and stand counts.  NOTE: Stand counts are capped at 260
 				self.num_boards = nBoards
 				self.num_stands = nBoards * STANDS_PER_BOARD
-				if self.num_stands > 260:
-					self.num_stands = 260
+				if self.num_stands > MAX_STANDS:
+					self.num_stands = MAX_STANDS
 				self.num_chpairs = nBoards * STANDS_PER_BOARD
 				aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
 					
@@ -193,19 +203,14 @@ class AnalogProcessor(object):
 						t.updateConfig(self.config)
 				else:
 					self.currentState['powerThreads'] = []
-					self.currentState['powerThreads'].append( PowerStatus(ARX_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
-					self.currentState['powerThreads'].append( PowerStatus(FEE_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
+					self.currentState['powerThreads'].append( PowerStatus(SUB20_I2C_MAPPING, ARX_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
+					self.currentState['powerThreads'].append( PowerStatus(SUB20_I2C_MAPPING, FEE_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
 				if self.currentState['tempThread'] is not None:
 					self.currentState['tempThread'].stop()
 					self.currentState['tempThread'].updateConfig(self.config)
 				else:
-					self.currentState['tempThread'] = TemperatureSensors(self.config, ASPCallbackInstance=self)
-				if self.currentState['commandThread'] is not None:
-					self.currentState['commandThread'].stop()
-					self.currentState['commandThread'].updateConfig(self.config)
-				else:
-					self.currentState['commandThread'] = SendSPI(self.config, ASPCallbackInstance=self)
-				
+					self.currentState['tempThread'] = TemperatureSensors(SUB20_I2C_MAPPING, self.config, ASPCallbackInstance=self)
+					
 				# Update the analog signal chain state
 				for i in xrange(self.num_stands):
 					self.currentState['power'][i] = [0,0]
@@ -213,23 +218,20 @@ class AnalogProcessor(object):
 					self.currentState['at1'][i] = 30
 					self.currentState['at2'][i] = 30
 					self.currentState['ats'][i] = 30
-				
+					
 				# Do the SPI bus stuff
 				status  = True
-				status &= SPI_config_devices(self.num_chpairs, SPI_cfg_shutdown)				# Into sleep mode
-				time.sleep(0.05)
-				status &= SPI_init_devices(self.num_chpairs, SPI_cfg_normal)				# Out of sleep mode
-				time.sleep(0.05)
-				status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P16_17_18_19)		# Set outputs
-				status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P20_21_22_23)		# Set outputs
-				status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P24_25_26_27)		# Set outputs
-				status &= SPI_init_devices(self.num_chpairs, SPI_cfg_output_P28_29_30_31)		# Set outputs
+				status &= spiSend(0, SPI_cfg_shutdown)				# Into sleep mode
+				status &= spiSend(0, SPI_cfg_normal)				# Out of sleep mode
+				status &= spiSend(0, SPI_cfg_output_P16_17_18_19)		# Set outputs
+				status &= spiSend(0, SPI_cfg_output_P20_21_22_23)		# Set outputs
+				status &= spiSend(0, SPI_cfg_output_P24_25_26_27)		# Set outputs
+				status &= spiSend(0, SPI_cfg_output_P28_29_30_31)		# Set outputs
 				
 				# Start the threads
 				for t in self.currentState['powerThreads']:
 					t.start()
 				self.currentState['tempThread'].start()
-				self.currentState['commandThread'].start()
 				
 				if status:
 					self.currentState['status'] = 'NORMAL'
@@ -237,7 +239,7 @@ class AnalogProcessor(object):
 					self.currentState['lastLog'] = 'INI: finished in %.3f s' % (time.time() - tStart,)
 					self.currentState['ready'] = True
 					
-					LCD_Write('ASP\nReady')
+					lcdSend(SUB20_I2C_MAPPING, 'ASP\nReady')
 					
 				else:
 					self.currentState['status'] = 'ERROR'
@@ -245,7 +247,7 @@ class AnalogProcessor(object):
 					self.currentState['lastLog'] = 'INI: finished with error'
 					self.currentState['ready'] = False
 					
-					LCD_Write('ASP\nINI fail')
+					lcdSend(SUB20_I2C_MAPPING, 'ASP\nINI fail')
 					aspFunctionsLogger.critical("INI failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
 			else:
 				self.currentState['status'] = 'ERROR'
@@ -253,7 +255,7 @@ class AnalogProcessor(object):
 				self.currentState['lastLog'] = 'INI: finished with error'
 				self.currentState['ready'] = False
 				
-				LCD_Write('ASP\nINI fail')
+				lcdSend(SUB20_I2C_MAPPING, 'ASP\nINI fail')
 				aspFunctionsLogger.critical("INI failed; found %i boards, expected %i", boardsFound, nBoards)
 				
 		else:
@@ -263,8 +265,8 @@ class AnalogProcessor(object):
 			self.currentState['lastLog'] = 'INI: finished with error'
 			self.currentState['ready'] = False
 			
-			LCD_Write('ASP\nINI fail')
-			aspFunctionsLogger.critical("INI failed due to missing SUB-20 device")
+			lcdSend(SUB20_I2C_MAPPING, 'ASP\nINI fail')
+			aspFunctionsLogger.critical("INI failed due to missing SUB-20 device(s)")
 		
 		# Update the current state
 		aspFunctionsLogger.info("Finished the INI process in %.3f s", time.time() - tStart)
@@ -312,12 +314,10 @@ class AnalogProcessor(object):
 				t.stop()
 		if self.currentState['tempThread'] is not None:
 			self.currentState['tempThread'].stop()
-		if self.currentState['commandThread'] is not None:
-			self.currentState['commandThread'].stop()
 			
 		# Do SPI bus stuff (only if the boards are on)
 		if self.getARXPowerSupplyStatus()[1] == 'ON ':
-			status = SPI_config_devices(self.num_chpairs, SPI_cfg_shutdown)		# Into sleep mode
+			status = spiSend(0, SPI_cfg_shutdown)		# Into sleep mode
 			time.sleep(5)
 		status = True
 		
@@ -326,7 +326,7 @@ class AnalogProcessor(object):
 			self.__rxpProcess(00, internal=True)
 			self.__fepProcess(00, internal=True)
 
-			LCD_Write('ASP\nshutdown')
+			lcdSend(SUB20_I2C_MAPPING, 'ASP\nshutdown')
 			
 			self.currentState['status'] = 'SHUTDWN'
 			self.currentState['info'] = 'System has been shut down'
@@ -338,7 +338,7 @@ class AnalogProcessor(object):
 			self.currentState['lastLog'] = 'SHT: failed in %.3f s' % (time.time() - tStart,)
 			self.currentState['ready'] = False
 			
-			LCD_Write('ASP\nSHT fail')
+			lcdSend(SUB20_I2C_MAPPING, 'ASP\nSHT fail')
 			aspFunctionsLogger.critical("SHT failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
 		
 		# Update the current state
@@ -356,7 +356,7 @@ class AnalogProcessor(object):
 		if self.currentState['status'] == 'SHUTDWN' or not self.currentState['ready']:
 			self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x0A]
 			return False, 0x0A
-		if 'SPI' in self.currentState['activeProcess']:
+		if 'FIL' in self.currentState['activeProcess']:
 			self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x08]
 			return False, 0x08
 			
@@ -369,7 +369,7 @@ class AnalogProcessor(object):
 			return False, 0x04
 			
 		# Block other FIL requests
-		self.currentState['activeProcess'].append('SPI')
+		self.currentState['activeProcess'].append('FIL')
 		
 		# Process in the background
 		thread = threading.Thread(target=self.__filProcess, args=(stand, filterCode))
@@ -384,40 +384,45 @@ class AnalogProcessor(object):
 		"""
 		
 		# Do SPI bus stuff
-		spifilename = self.config['SPIFILE']
-		fh = open(spifilename, 'a')
-		
+		status = True
 		if filterCode == 3:
 			# Set Filters OFF
-			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P19_on))
-			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P18_on))
+			status &= spiSend(stand, SPI_P19_on )
+			status &= spiSend(stand, SPI_P18_on )
 		elif filterCode == 1:
 			# Set Filter to Full Bandwidth
-			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P19_off))
-			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P18_on ))
+			status &= spiSend(stand, SPI_P19_off)
+			status &= spiSend(stand, SPI_P18_on )
 		elif filterCode == 2:
 			# Set Filter to Reduced Bandwidth
-			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P19_on ))
-			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P18_off))
+			status &= spiSend(stand, SPI_P19_on )
+			status &= spiSend(stand, SPI_P18_off)
 		elif filterCode == 0:
 			# Set Filter to Split Bandwidth
-			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P19_off))
-			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P18_off))
+			status &= spiSend(stand, SPI_P19_off)
+			status &= spiSend(stand, SPI_P18_off)
 			
-		fh.close()
+		if status:
+			self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
+			aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
 		
-		self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
-		aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
-		
-		#LCD_Write('Stand%03i\nFIL=%02i' % (stand, filterCode))
-		if stand != 0:
-			self.currentState['filter'][stand-1] = filterCode
+			#lcdSend(SUB20_I2C_MAPPING, 'Stand%03i\nFIL=%02i' % (stand, filterCode))
+			if stand != 0:
+				self.currentState['filter'][stand-1] = filterCode
+			else:
+				for i in xrange(self.num_stands):
+					self.currentState['filter'][i] = filterCode
 		else:
-			for i in xrange(self.num_stands):
-				self.currentState['filter'][i] = filterCode
-				
+			# Something failed, report
+			self.currentState['lastLog'] = 'FIL: Failed to set filter to %02i for stand %i' % (filterCode, stand)
+			aspFunctionsLogger.error('FIL - Failed to set filter to %02i for stand %i', filterCode, stand)
+			
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
+			self.currentState['ready'] = False
+			
 		# Cleanup and save the state of FIL
-		self.currentState['activeProcess'].remove('SPI')
+		self.currentState['activeProcess'].remove('FIL')
 		
 		return True, 0
 		
@@ -433,7 +438,7 @@ class AnalogProcessor(object):
 		if self.currentState['status'] == 'SHUTDWN'or not self.currentState['ready']:
 			self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x0A])
 			return False, 0x0A
-		if 'SPI' in self.currentState['activeProcess']:
+		if 'ATN' in self.currentState['activeProcess']:
 			self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x08])
 			return False, 0x08
 			
@@ -446,7 +451,7 @@ class AnalogProcessor(object):
 			return False, 0x05
 			
 		# Block other FIL requests
-		self.currentState['activeProcess'].append('SPI')
+		self.currentState['activeProcess'].append('ATN')
 		
 		# Process in the background
 		thread = threading.Thread(target=self.__atnProcess, args=(mode, stand, attenSetting))
@@ -461,8 +466,6 @@ class AnalogProcessor(object):
 		"""
 		
 		# Do SPI bus stuff
-		spifilename = self.config['SPIFILE']
-		fh = open(spifilename, 'a')
 		setting = 2*attenSetting
 		
 		if mode == 1:
@@ -472,44 +475,52 @@ class AnalogProcessor(object):
 		else:
 			order = ((SPI_P31_on, SPI_P31_off), (SPI_P28_on, SPI_P28_off), (SPI_P29_on, SPI_P29_off), (SPI_P30_on, SPI_P30_off))
 			
+		status = True
 		if setting >= 16:
-			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, order[0][0]))
+			status &= spiSend(stand, order[0][0])
 			setting -= 16
 		else:
-			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, order[0][1]))
+			status &= spiSend(stand, order[0][1])
 			
 		if setting >= 8:
-			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, order[1][0]))
+			status &= spiSend(stand, order[1][0])
 			setting -= 8
 		else:
-			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, order[1][1]))
+			status &= spiSend(stand, order[1][1])
 			
 		if setting >= 4:
-			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, order[2][0]))
+			status &= spiSend(stand, order[2][0])
 			setting -= 4
 		else:
-			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, order[2][1]))
+			status &= spiSend(stand, order[2][1])
 			
 		if setting >= 2:
-			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, order[3][0]))
+			status &= spiSend(stand, order[3][0])
 			setting -= 2
 		else:
-			fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, order[3][1]))
+			status &= spiSend(stand, order[3][1])
 			
-		fh.close()
+		if status:
+			self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
+			aspFunctionsLogger.debug('%s - Set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
 			
-		self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
-		aspFunctionsLogger.debug('%s - Set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
-		
-		#LCD_Write('Stand%03i\n%3s=%02i' % (stand, modeDict[mode], attenSetting))
-		if stand != 0:
-			self.currentState[modeDict[mode].lower()][stand-1] = attenSetting
+			#lcdSend(SUB20_I2C_MAPPING, 'Stand%03i\n%3s=%02i' % (stand, modeDict[mode], attenSetting))
+			if stand != 0:
+				self.currentState[modeDict[mode].lower()][stand-1] = attenSetting
+			else:
+				for i in xrange(self.num_stands):
+					self.currentState[modeDict[mode].lower()][i] = attenSetting
 		else:
-			for i in xrange(self.num_stands):
-				self.currentState[modeDict[mode].lower()][i] = attenSetting
-				
+			# Something failed, report
+			self.currentState['lastLog'] = '%s: Failed to set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
+			aspFunctionsLogger.error('%s - Failed to set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
+			
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
+			self.currentState['ready'] = False
+			
 		# Cleanup
-		self.currentState['activeProcess'].remove('SPI')
+		self.currentState['activeProcess'].remove('ATN')
 		
 		return True, 0
 		
@@ -522,7 +533,7 @@ class AnalogProcessor(object):
 		if self.currentState['status'] == 'SHUTDWN'or not self.currentState['ready']:
 			self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x0A]
 			return False, 0x0A
-		if 'SPI' in self.currentState['activeProcess']:
+		if 'FPW' in self.currentState['activeProcess']:
 			self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x08]
 			return False, 0x08
 			
@@ -538,7 +549,7 @@ class AnalogProcessor(object):
 			return False, 0x06
 			
 		# Block other FIL requests
-		self.currentState['activeProcess'].append('SPI')
+		self.currentState['activeProcess'].append('FPW')
 		
 		# Process in the background
 		thread = threading.Thread(target=self.__fpwProcess, args=(stand, pol, state))
@@ -553,35 +564,39 @@ class AnalogProcessor(object):
 		"""
 		
 		# Do SPI bus stuff
-		spifilename = self.config['SPIFILE']
-		fh = open(spifilename, 'a')
-		
+		status = True
 		if state == 11:
 			if pol == 1:
-				fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P17_on ))
+				status &= spiSend(stand, SPI_P17_on )
 			elif pol == 2:
-				fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P16_on ))
+				status &= spiSend(stand, SPI_P16_on )
 		elif state == 0:
 			if pol == 1:
-				fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P17_off))
+				status &= spiSend(stand, SPI_P17_off)
 			elif pol == 2:
-				fh.write("%i %i 0x%04X\n" % (self.num_chpairs, stand, SPI_P16_off))
+				status &= spiSend(stand, SPI_P16_off)
 				
-		fh.close()
+		if status:
+			self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
+			aspFunctionsLogger.debug('FPW - Set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
 		
-		self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
-		aspFunctionsLogger.debug('FPW - Set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
-		
-		
-		#LCD_Write('Stand%03i\npol%1i=%3s'% (stand, pol, 'on ' if state else 'off'))
-		if stand != 0:
-			self.currentState['power'][stand-1][pol-1] = state
+			#lcdSend(SUB20_I2C_MAPPING, 'Stand%03i\npol%1i=%3s'% (stand, pol, 'on ' if state else 'off'))
+			if stand != 0:
+				self.currentState['power'][stand-1][pol-1] = state
+			else:
+				for i in xrange(self.num_stands):
+					self.currentState['power'][i][pol-1] = state
 		else:
-			for i in xrange(self.num_stands):
-				self.currentState['power'][i][pol-1] = state
-				
+			# Something failed, report
+			self.currentState['lastLog'] = 'FPW: Failed to set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
+			aspFunctionsLogger.error('FPW - Failed to set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
+			
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
+			self.currentState['ready'] = False
+			
 		# Cleanup
-		self.currentState['activeProcess'].remove('SPI')
+		self.currentState['activeProcess'].remove('FPW')
 		
 		return True, 0
 		
@@ -619,34 +634,31 @@ class AnalogProcessor(object):
 		supply.
 		"""
 		
-		p = subprocess.Popen('/usr/local/bin/onoffPSU 0x%02X %s' % (ARX_PS_ADDRESS, str(state)), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		status = psuSend(SUB20_I2C_MAPPING, ARX_PS_ADDRESS, state)
 		
-		output, output2 = p.communicate()
-		
-		if p.returncode != 0:
-			aspFunctionsLogger.error('RXP - Failed to change ARX power supply status')
-			
-			self.currentState['status'] = 'ERROR'
-			self.currentState['info'] = 'ARXSUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
-			if not internal:
-				self.currentState['lastLog'] = 'RXP: Failed to change ARX power supply status'
-		else:
+		if status:
 			aspFunctionsLogger.debug('RXP - Set ARX power supplies to state %02i', state)
 			
-			LCD_Write('ARX PS\n%s' % ('OFF' if state == 0 else 'ON',))
+			lcdSend(SUB20_I2C_MAPPING, 'ARX PS\n%s' % ('OFF' if state == 0 else 'ON',))
 			
 			if state == 0 and not internal:
 				# Now that the ARX power supply is off, we need to be in error
 				self.currentState['status'] = 'ERROR'
 				self.currentState['info'] = 'ARXSUPPLY! 0x%02X %s' % (0x0C, subsystemErrorCodes[0x0C])
 				self.currentState['ready'] = False
+		else:
+			aspFunctionsLogger.error('RXP - Failed to change ARX power supply status')
+			
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'ARXSUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
+			if not internal:
+				self.currentState['lastLog'] = 'RXP: Failed to change ARX power supply status'
 			
 		# Cleanup
 		if not internal:
 			self.currentState['activeProcess'].remove('RXP')
-		
+			
 		return True, 0
-		
 		
 	def setFPWPowerState(self, state):
 		"""
@@ -682,32 +694,30 @@ class AnalogProcessor(object):
 		supply.
 		"""
 		
-		p = subprocess.Popen('/usr/local/bin/onoffPSU 0x%02X %s' % (FEE_PS_ADDRESS, str(state)), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		status = psuSend(SUB20_I2C_MAPPING, FEE_PS_ADDRESS, state)
 		
-		output, output2 = p.communicate()
-		
-		if p.returncode != 0:
-			aspFunctionsLogger.error('FEP - Failed to change FEE power supply status')
-			
-			self.currentState['status'] = 'ERROR'
-			self.currentState['info'] = 'FEESUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
-			if not internal:
-				self.currentState['lastLog'] = 'FEP: Failed to change FEE power supply status'
-		else:
+		if status:
 			aspFunctionsLogger.debug('FEP - Set FEE power supplies to state %02i', state)
 			
-			LCD_Write('FEE PS\n%s' % ('OFF' if state == 0 else 'ON',))
+			lcdSend(SUB20_I2C_MAPPING, 'FEE PS\n%s' % ('OFF' if state == 0 else 'ON',))
 			
 			if state == 0 and not internal:
 				# Now that the FEE power supply is off, we need to be in error
 				self.currentState['status'] = 'ERROR'
 				self.currentState['info'] = 'FEESUPPLY! 0x%02X %s' % (0x0C, subsystemErrorCodes[0x0C])
 				self.currentState['ready'] = False
+		else:
+			aspFunctionsLogger.error('FEP - Failed to change FEE power supply status')
 			
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'FEESUPPLY! 0x%02X %s' % (0x08, subsystemErrorCodes[0x08])
+			if not internal:
+				self.currentState['lastLog'] = 'FEP: Failed to change FEE power supply status'
+				
 		# Cleanup
 		if not internal:
 			self.currentState['activeProcess'].remove('FEP')
-		
+			
 		return True, 0
 		
 	def getFilter(self, stand):
@@ -1141,25 +1151,6 @@ class AnalogProcessor(object):
 			self.currentState['status'] = 'ERROR'
 			self.currentState['info'] = 'SUMMARY! 0x%02X %s - SUB-20 device not found' % (0x07, subsystemErrorCodes[0x07])
 			self.currentState['lastLog'] = 'SUB-20 device has disappeared'
-			self.currentState['ready'] = False
-			
-		return True
-		
-	def processRepeatedSPIErrors(self, nFailures):
-		"""
-		Function to put the system into ERROR if the SUB-20 is missing or dead.
-		"""
-		
-		if nFailures < 1:
-			# Not enough to worry about
-			return False
-			
-		else:
-			aspFunctionsLogger.critical('Too many retries for SPI commands')
-			
-			self.currentState['status'] = 'ERROR'
-			self.currentState['info'] = 'SUMMARY! 0x%02X %s - %i retries needed' % (0x07, subsystemErrorCodes[0x07], nFailures)
-			self.currentState['lastLog'] = 'Too many retries needed on the SPI bus'
 			self.currentState['ready'] = False
 			
 		return True

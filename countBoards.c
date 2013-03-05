@@ -4,7 +4,7 @@ ARX boards connected to the SPI bus.  The exit code
 contains the number of boards found.
  
 Usage:
-  countBoards
+  countBoards <SUB-20 S/N>
 
 Options:
   None
@@ -26,37 +26,66 @@ sub_handle* fh = NULL;
 
 
 int main(int argc, char* argv[]) {
-	int success, num;
+	int success, num, found;
 	unsigned short temp;
-	char sn[20], simpleNoOp[2], simpleMarker[2];
-	char fullData[2*33*8+2], fullResponse[2*33*8+2];
-
-	// Convert the strings into integer values
-	hex_to_array("0x0000", simpleNoOp);
-	ushort_to_array(marker, simpleMarker);
-
-
-	/************************************
-	* SUB-20 device selection and ready *
-	************************************/
-	struct usb_device* dev;
-
-	// Open the USB device (or die trying)
-	dev = NULL;
-	fh = sub_open(dev);
-	if( !fh ) {
-		fprintf(stderr, "countBoards - open - %s\n", sub_strerror(sub_errno));
+	char requestedSN[20], sn[20], lcd_str[20], simpleNoOp[2], simpleMarker[2];
+	char fullData[2*11*8+2], fullResponse[2*11*8+2];
+	
+	// Make sure we have the right number of arguments to continue
+	if( argc != 1+1 ) {
+		fprintf(stderr, "countBoards - Need %i arguments, %i provided\n", 1, argc-1);
 		exit(0);
 	}
 	
-	success = sub_get_serial_number(fh, sn, sizeof(sn));
-	if( !success ) {
-		fprintf(stderr, "countBoards - get sn - %s\n", sub_strerror(sub_errno));
+	// Copy the string
+	strncpy(requestedSN, argv[1], 17);
+	
+	// Convert the strings into integer values
+	hex_to_array("0x0000", simpleNoOp);
+	ushort_to_array(marker, simpleMarker);
+	
+	
+	/************************************
+	* SUB-20 device selection and ready *
+	************************************/
+	sub_device* dev = NULL;
+	
+	// Find the right SUB-20
+	found = 0;
+	int openTries = 0;
+	while( dev = sub_find_devices(dev) ) {
+		// Open the USB device (or die trying)
+		fh = sub_open(dev);
+		while( (fh == NULL) && (openTries < 10) ) {
+			openTries++;
+			usleep(5000);
+			
+			fh = sub_open(dev);
+		}
+		if( !fh ) {
+			continue;
+		}
+		
+		success = sub_get_serial_number(fh, sn, sizeof(sn));
+		if( !success ) {
+			continue;
+		}
+		
+		if( !strcmp(sn, requestedSN) ) {
+			fprintf(stderr, "Found SUB-20 device S/N: %s\n", sn);
+			found = 1;
+			break;
+		} else {
+			sub_close(fh);
+		}
+	}
+	
+	// Make sure we actually have a SUB-20 device
+	if( !found ) {
+		fprintf(stderr, "countBoards - Cannot find or open SUB-20 %s\n", requestedSN);
 		exit(0);
 	}
-	fprintf(stderr, "Found SUB-20 device S/N: %s\n", sn);
-
-
+		
 	/****************************************
 	* Send the command and get the response *
 	****************************************/
@@ -82,7 +111,7 @@ int main(int argc, char* argv[]) {
 
 	num = 0;
 	temp = array_to_ushort(simpleResponse);
-	while( temp != marker && num < (STANDS_PER_BOARD*(MAX_BOARDS+1)) ) {
+	while( temp != marker && num < (STANDS_PER_BOARD*(11+1)) ) {
 		num += STANDS_PER_BOARD;
 		
 		// Fill the data array with the commands to send
@@ -108,19 +137,21 @@ int main(int argc, char* argv[]) {
 	}
 	
 	// Convert stands to boards (making sure that we are in range for the board count)
-	if( num > (STANDS_PER_BOARD*MAX_BOARDS) ){
+	if( num > (STANDS_PER_BOARD*11) ){
 		num = 0;
 	}
 	num /= STANDS_PER_BOARD;
 	
-	// Report
-	printf("Found %i ARX boards (%i stands)\n", num, num*STANDS_PER_BOARD);
+	sprintf(lcd_str, "\fSN: %4s\nBds: %3i\n", sn, num);
+	success = sub_lcd_write(fh, lcd_str);
 	
-
 	/*******************
 	* Cleanup and exit *
 	*******************/
 	sub_close(fh);
+	
+	// Report
+	printf("Found %i ARX boards (%i stands)\n", num, num*STANDS_PER_BOARD);
 
 	return num;
 }
