@@ -83,7 +83,7 @@ class _spi_thread_count(threading.Thread):
 	"""
 	
 	def __init__(self, sub20SN, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
-		super(_spi_thread_count, self).__init__(name="%X-count" % sub20SN)
+		super(_spi_thread_count, self).__init__(name="%04X-count" % sub20SN)
 		
 		self.sub20SN = int(sub20SN)
 		
@@ -105,12 +105,12 @@ class _spi_thread_count(threading.Thread):
 			if attempt != 0:
 				time.sleep(self.waitRetry)
 				
-			p = subprocess.Popen('/usr/local/bin/countBoards %X' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			p = subprocess.Popen('/usr/local/bin/countBoards %04X' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		
 			output, output2 = p.communicate()
 			
 			if p.returncode == 0:
-				aspSUB20Logger.warning("%s: SUB-20 S/N %X command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
+				aspSUB20Logger.warning("%s: SUB-20 S/N %04X command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
 				status = False
 			else:
 				self.boards = p.returncode
@@ -131,7 +131,7 @@ class _spi_thread_device(threading.Thread):
 	"""
 	
 	def __init__(self, sub20SN, device, Data, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
-		super(_spi_thread_device, self).__init__(name="%X-%i-0x%04x" % (sub20SN, device, Data))
+		super(_spi_thread_device, self).__init__(name="%04X-%i-0x%04x" % (sub20SN, device, Data))
 		
 		self.sub20SN = int(sub20SN)
 		self.device = device
@@ -156,12 +156,12 @@ class _spi_thread_device(threading.Thread):
 			if attempt != 0:
 				time.sleep(self.waitRetry)
 				
-			p = subprocess.Popen('/usr/local/bin/sendARXDevice %X %i %i 0x%04x' % (self.sub20SN, num, self.device, self.Data), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			p = subprocess.Popen('/usr/local/bin/sendARXDevice %04X %i %i 0x%04x' % (self.sub20SN, num, self.device, self.Data), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		
 			output, output2 = p.communicate()
 			
 			if p.returncode != 0:
-				aspSUB20Logger.warning("%s: SUB-20 S/N %X command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
+				aspSUB20Logger.warning("%s: SUB-20 S/N %04X command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
 				status = False
 			else:
 				status = True
@@ -256,7 +256,7 @@ def lcdSend(sub20SN, message):
 	
 	SUB20_LOCKS[sub20SN].acquire()
 	
-	p = subprocess.Popen('/usr/local/bin/writeARXLCD %X "%s"' % (sub20SN, message), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	p = subprocess.Popen('/usr/local/bin/writeARXLCD %04X "%s"' % (sub20SN, message), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	
 	output, output2 = p.communicate()
 	
@@ -276,9 +276,11 @@ def psuSend(sub20SN, psuAddress, state):
 	
 	SUB20_LOCKS[sub20SN].acquire()
 	
-	p = subprocess.Popen('/usr/local/bin/onoffPSU %X 0x%02X %s' % (sub20SN, psuAddress, str(state)), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	p = subprocess.Popen('/usr/local/bin/onoffPSU %04X 0x%02X %s' % (sub20SN, psuAddress, str(state)), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	
 	output, output2 = p.communicate()
+
+	SUB20_LOCKS[sub20SN].release()
 	
 	if p.returncode != 0:
 		aspSUB20Logger.warning("psuSend: command returned %i; '%s;%s'", p.returncode, output, output2)

@@ -111,7 +111,7 @@ int main(int argc, char* argv[]) {
 
 	num = 0;
 	temp = array_to_ushort(simpleResponse);
-	while( temp != marker && num < (STANDS_PER_BOARD*(11+1)) ) {
+	while( temp != marker && num < (STANDS_PER_BOARD*(17+1)) ) {
 		num += STANDS_PER_BOARD;
 		
 		// Fill the data array with the commands to send
@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
 	}
 	
 	// Convert stands to boards (making sure that we are in range for the board count)
-	if( num > (STANDS_PER_BOARD*11) ){
+	if( num > (STANDS_PER_BOARD*17) ){
 		num = 0;
 	}
 	num /= STANDS_PER_BOARD;

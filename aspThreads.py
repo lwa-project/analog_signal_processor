@@ -79,7 +79,7 @@ class TemperatureSensors(object):
 		if self.thread is not None:
 			self.stop()
 			
-		self.nTemps = os.system("/usr/local/bin/countThermometers %X" % self.sub20SN) / 256
+		self.nTemps = os.system("/usr/local/bin/countThermometers %04X" % self.sub20SN) / 256
 		self.description = ["UNK" for i in xrange(self.nTemps)]
 		self.temp = [0.0 for i in xrange(self.nTemps)]
 		self.coldCount = 0
@@ -119,7 +119,7 @@ class TemperatureSensors(object):
 			try:
 				missingSUB20 = False
 				
-				p = subprocess.Popen('/usr/local/bin/readThermometers %X' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				p = subprocess.Popen('/usr/local/bin/readThermometers %04X' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 				
 				output, output2 = p.communicate()
 				
@@ -356,7 +356,7 @@ class PowerStatus(object):
 			try:
 				missingSUB20 = False
 				
-				p = subprocess.Popen('/usr/local/bin/readPSU %X 0x%02X' % (self.sub20SN, self.deviceAddress), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				p = subprocess.Popen('/usr/local/bin/readPSU %04X 0x%02X' % (self.sub20SN, self.deviceAddress), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 				
 				output, output2 = p.communicate()
 				
