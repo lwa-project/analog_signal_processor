@@ -151,7 +151,8 @@ int main(int argc, char* argv[]) {
 	// when we are done.
 	success = sub_spi_transfer(fh, fullData, fullResponse, 2*num+2, SS_CONF(0, SS_LO));
 	if( success ) {
-		fprintf(stderr, "sendARXDeviceBatch - SPI write %i of %i - %s\n", 0, num, sub_strerror(sub_errno));
+		fprintf(stderr, "sendARXDeviceBatch - SPI write %i of %i - %s\n", device, num, sub_strerror(sub_errno));
+		exit(2);
 	}
 	
 	// Check the command verification marker
@@ -160,7 +161,7 @@ int main(int argc, char* argv[]) {
 	temp = array_to_ushort(simpleResponse);
 	if( temp != marker ) {
 		fprintf(stderr, "sendARXDevice - SPI write returned a marker of 0x%04X instead of 0x%04X\n", temp, marker);
-		exit(1);
+		exit(3);
 	}
 
 	/*******************

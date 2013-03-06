@@ -121,7 +121,6 @@ class _spi_thread_count(threading.Thread):
 		SUB20_LOCKS[self.sub20SN].release()
 		
 		self.status = status
-		print self.boards
 
 
 class _spi_thread_device(threading.Thread):
