@@ -18,7 +18,7 @@ $LastChangedDate$
 #include <stdlib.h>
 
 // SUB-20 device opening control
-#define SUB20_OPEN_MAX_ATTEMPTS 15
+#define SUB20_OPEN_MAX_ATTEMPTS 20
 #define SUB20_OPEN_WAIT_US  5000
 
 
