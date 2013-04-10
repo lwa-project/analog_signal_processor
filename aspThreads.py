@@ -114,14 +114,16 @@ class TemperatureSensors(object):
 		while self.alive.isSet():
 			tStart = time.time()
 			
-			SUB20_LOCKS[self.sub20SN].acquire()
-			
 			try:
 				missingSUB20 = False
+				
+				SUB20_LOCKS[self.sub20SN].acquire()
 				
 				p = subprocess.Popen('/usr/local/bin/readThermometers %04X' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 				
 				output, output2 = p.communicate()
+				
+				SUB20_LOCKS[self.sub20SN].release()
 				
 				if p.returncode != 0:
 					aspThreadsLogger.warning("readThermometers: command returned %i; '%s;%s'", p.returncode, output, output2)
@@ -201,8 +203,6 @@ class TemperatureSensors(object):
 				self.temp = None
 				self.lastError = str(e)
 				
-			SUB20_LOCKS[self.sub20SN].release()
-			
 			# Stop time
 			tStop = time.time()
 			aspThreadsLogger.debug('Finished updating temperatures in %.3f seconds', tStop - tStart)
@@ -351,14 +351,16 @@ class PowerStatus(object):
 		while self.alive.isSet():
 			tStart = time.time()
 			
-			SUB20_LOCKS[self.sub20SN].acquire()
-			
 			try:
 				missingSUB20 = False
+				
+				SUB20_LOCKS[self.sub20SN].acquire()
 				
 				p = subprocess.Popen('/usr/local/bin/readPSU %04X 0x%02X' % (self.sub20SN, self.deviceAddress), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 				
 				output, output2 = p.communicate()
+				
+				SUB20_LOCKS[self.sub20SN].release()
 				
 				if p.returncode != 0:
 					aspThreadsLogger.warning("readPSU: command returned %i; '%s;%s'", p.returncode, output, output2)
@@ -419,8 +421,6 @@ class PowerStatus(object):
 				self.status = "UNK"
 				self.lastError = str(e)
 				
-			SUB20_LOCKS[self.sub20SN].release()
-			
 			# Stop time
 			tStop = time.time()
 			aspThreadsLogger.debug('Finished updating PSU status for 0x%02X in %.3f seconds', self.deviceAddress, tStop - tStart)
