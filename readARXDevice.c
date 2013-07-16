@@ -197,7 +197,9 @@ int main(int argc, char* argv[]) {
 	}
 	simpleResponse[0] ^= 0x80;
 	temp = array_to_ushort(simpleResponse);
-	printf("%i: 0x%04X\n", num, temp);
+	if( num == device || device == 0 ) {
+		printf("%i: 0x%04X\n", num, temp);
+	}
 	
 	j = 1;
 	for(i=num; i>0; i--) {
@@ -227,7 +229,7 @@ int main(int argc, char* argv[]) {
 		simpleResponse[0] ^= 0x80;
 		
 		temp = array_to_ushort(simpleResponse);
-		if( num-j == device || device == 0 ) {
+		if( (num-j == device || device == 0) && num != j ) {
 			printf("%i: 0x%04X\n", num-j, temp);
 		}
 		
