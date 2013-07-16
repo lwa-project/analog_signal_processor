@@ -53,13 +53,13 @@ int main(int argc, char* argv[]) {
 	hex_to_array(argv[4], simpleData);
 	hex_to_array("0x0000", simpleNoOp);
 	ushort_to_array(marker, simpleMarker);
-
+	
 	// Make sure we have a device number that makes sense
 	if( device < 0 || device > num ) {
 		fprintf(stderr, "sendARXDevice - Device #%i is out-of-range\n", device);
 		exit(1);
 	}
-
+	
 	// Report on where we are at
 	temp = array_to_ushort(simpleData);
 	if( device != 0 ) {
@@ -67,13 +67,13 @@ int main(int argc, char* argv[]) {
 	} else {
 		fprintf(stderr, "Sending data 0x%04X (%u) to all %i devices\n", temp, temp, num);
 	}
-
-
+	
+	
 	/************************************
 	* SUB-20 device selection and ready *
 	************************************/
 	struct usb_device* dev;
-
+	
 	// Find the right SUB-20
 	found = 0;
 	int openTries = 0;
@@ -109,8 +109,8 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "sendARXDevice - Cannot find or open SUB-20 %s\n", requestedSN);
 		exit(1);
 	}
-
-
+	
+	
 	/****************************************
 	* Send the command and get the response *
 	****************************************/
@@ -132,7 +132,7 @@ int main(int argc, char* argv[]) {
 			exit(1);
 		}
 	}
-
+	
 	// Fill the data array with the commands to send
 	j = 0;
 	fullData[j++] = simpleMarker[0];
@@ -163,11 +163,12 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "sendARXDevice - SPI write returned a marker of 0x%04X instead of 0x%04X\n", temp, marker);
 		exit(3);
 	}
-
+	
+	
 	/*******************
 	* Cleanup and exit *
 	*******************/
 	sub_close(fh);
-
+	
 	return 0;
 }
