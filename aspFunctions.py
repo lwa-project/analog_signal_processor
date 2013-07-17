@@ -1161,8 +1161,15 @@ class AnalogProcessor(object):
 			self.currentState['lastLog'] = 'Antennas %i through %i are unconfigured' % (dStart, dStop)
 			self.currentState['ready'] = False
 		else:
-			aspFunctionsLogger.debug("Received notification of configuration loss but subsystem is already in ERROR")
-			
+			# This condition overrides the ARXSUPPLY ERROR...
+			if self.currentState['info'].find('ARXSUPPLY!') != -1:
+				# ... if the power is on
+				if self.getARXPowerSupplyStatus()[1] == 'ON ':
+					self.currentState['status'] = 'ERROR'
+					self.currentState['info'] = 'SUMMARY! 0x%02X %s - Antennas %i through %i are unconfigured ' % (0x09, subsystemErrorCodes[0x09], dStart, dStop)
+					self.currentState['lastLog'] = 'Antennas %i through %i are unconfigured' % (dStart, dStop)
+					self.currentState['ready'] = False
+					
 		return True
 		
 	def processMissingSUB20(self):

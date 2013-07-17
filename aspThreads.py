@@ -569,14 +569,14 @@ class ChassisStatus(object):
 					else:
 						self.configured = False
 						
-						aspThreadsLogger.error("%s: 0x%04X appears to have lost is SPI configuation", type(self).__name__, self.sub20SN)
+						aspThreadsLogger.error("%s: 0x%04X lost SPI port configuation", type(self).__name__, self.sub20SN)
 						
 				if self.ASPCallbackInstance is not None:
 					if missingSUB20:
 						self.ASPCallbackInstance.processMissingSUB20()
 						
 					if not self.configured:
-						self.ASPCallbackInstance.UnconfiguredChassis(self.sub20SN)
+						self.ASPCallbackInstance.processUnconfiguredChassis(self.sub20SN)
 						
 			except Exception, e:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
