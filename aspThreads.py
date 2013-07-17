@@ -569,6 +569,8 @@ class ChassisStatus(object):
 					else:
 						self.configured = False
 						
+						aspThreadsLogger.error("%s: 0x%04X appears to have lost is SPI configuation", type(self).__name__, self.sub20SN)
+						
 				if self.ASPCallbackInstance is not None:
 					if missingSUB20:
 						self.ASPCallbackInstance.processMissingSUB20()
