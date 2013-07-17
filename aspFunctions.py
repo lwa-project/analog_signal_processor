@@ -1155,13 +1155,13 @@ class AnalogProcessor(object):
 		
 		dStart, dStop = SUB20_ANTENNA_MAPPING[sub20SN]
 		
-		if self.currentState['ready']:
+		if self.currentState['status'] != 'ERROR':
 			self.currentState['status'] = 'ERROR'
 			self.currentState['info'] = 'SUMMARY! 0x%02X %s - Antennas %i through %i are unconfigured ' % (0x09, subsystemErrorCodes[0x09], dStart, dStop)
 			self.currentState['lastLog'] = 'Antennas %i through %i are unconfigured' % (dStart, dStop)
 			self.currentState['ready'] = False
 		else:
-			pass
+			aspFunctionsLogger.debug("Received notification of configuration loss but subsystem is already in ERROR")
 			
 		return True
 		
