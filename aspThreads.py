@@ -21,12 +21,12 @@ except ImportError:
         import StringIO
         
 import run
-from aspCommon import SUB20_LOCKS
+from aspCommon import SUB20_LOCKS, SUB20_ANTENNA_MAPPING
 
 
-__version__ = '0.3'
+__version__ = '0.4'
 __revision__ = '$Rev$'
-__all__ = ['TemperatureSensors', 'PowerStatus', '__version__', '__revision__', '__all__']
+__all__ = ['TemperatureSensors', 'PowerStatus', 'ChassisStatus', '__version__', '__revision__', '__all__']
 
 
 aspThreadsLogger = logging.getLogger('__main__')
@@ -401,7 +401,7 @@ class PowerStatus(object):
 							aspThreadsLogger.critical('%s: monitorThread PS at 0x%02X is in %s', type(self).__name__, self.deviceAddress, modeOfFailure)
 							
 							self.ASPCallbackInstance.processCriticalPowerSupply(self.deviceAddress, modeOfFailure)
-						
+							
 			except Exception, e:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
 				aspThreadsLogger.error("%s: monitorThread 0x%02X failed with: %s at line %i", type(self).__name__, self.deviceAddress, str(e), traceback.tb_lineno(exc_traceback))
@@ -473,5 +473,141 @@ class PowerStatus(object):
 		Convenience function to get the module status as a human-readable 
 		string.
 		"""
-
+		
 		return self.status
+
+
+class ChassisStatus(object):
+	"""
+	Class for monitoring the configuration state of the boards to see if 
+	the configuration has been lost.
+	"""
+	
+	def __init__(self, sub20SN, config, ASPCallbackInstance=None):
+		self.sub20SN = int(sub20SN)
+		self.register = 0x000C
+		self.updateConfig(config)
+		
+		# Total number of devices on the chassis
+		dStart, dStop = SUB20_ANTENNA_MAPPING[self.sub20SN]
+		self.totalDevs = dStop - dStart + 1
+		self.configured = False
+		
+		# Setup the callback
+		self.ASPCallbackInstance = ASPCallbackInstance
+		
+		self.thread = None
+		self.alive = threading.Event()
+		
+	def updateConfig(self, config=None):
+		"""
+		Update the current configuration.
+		"""
+		
+		if config is None:
+			return True
+			
+		self.monitorPeriod = config['CHASSISPERIOD']
+		
+	def start(self):
+		"""
+		Start the monitoring thread.
+		"""
+
+		if self.thread is not None:
+			self.stop()
+			
+		self.thread = threading.Thread(target=self.monitorThread)
+		self.thread.setDaemon(1)
+		self.alive.set()
+		self.thread.start()
+		
+		time.sleep(1)
+
+	def stop(self):
+		"""
+		Stop the monitor thread, waiting until it's finished.
+		"""
+
+		if self.thread is not None:
+			self.alive.clear()          #clear alive event for thread
+			self.thread.join()          #wait until thread has finished
+			self.thread = None
+			self.configured = False
+			self.lastError = None
+
+	def monitorThread(self):
+		"""
+		Create a monitoring thread for the temperature.
+		"""
+
+		while self.alive.isSet():
+			tStart = time.time()
+			
+			try:
+				missingSUB20 = False
+				
+				SUB20_LOCKS[self.sub20SN].acquire()
+				
+				p = subprocess.Popen('/usr/local/bin/readARXDevice %04X %i 1 0x%04X' % (self.sub20SN, self.totalDevs, self.register), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				
+				output, output2 = p.communicate()
+				
+				SUB20_LOCKS[self.sub20SN].release()
+				
+				if p.returncode != 0:
+					aspThreadsLogger.warning("readARXDevice: command returned %i; '%s;%s'", p.returncode, output, output2)
+					
+					missingSUB20 = True
+				else:
+					output = output.split('\n')[:-1]
+					dev, resp = output[-1].split(': ', 1)
+					resp = int(resp, 16)
+					
+					if resp == (self.register | 0x5500):
+						self.configured = True
+					else:
+						self.configured = False
+						
+				if self.ASPCallbackInstance is not None:
+					if missingSUB20:
+						self.ASPCallbackInstance.processMissingSUB20()
+						
+					if not self.configured:
+						self.ASPCallbackInstance.UnconfiguredChassis(self.sub20SN)
+						
+			except Exception, e:
+				exc_type, exc_value, exc_traceback = sys.exc_info()
+				aspThreadsLogger.error("%s: monitorThread 0x%04X failed with: %s at line %i", type(self).__name__, self.sub20SN, str(e), traceback.tb_lineno(exc_traceback))
+				
+				## Grab the full traceback and save it to a string via StringIO
+				fileObject = StringIO.StringIO()
+				traceback.print_tb(exc_traceback, file=fileObject)
+				tbString = fileObject.getvalue()
+				fileObject.close()
+				## Print the traceback to the logger as a series of DEBUG messages
+				for line in tbString.split('\n'):
+					aspThreadsLogger.debug("%s", line)
+					
+				self.lastError = str(e)
+				
+			# Stop time
+			tStop = time.time()
+			aspThreadsLogger.debug('Finished updating chassis status for 0x%04X in %.3f seconds', self.sub20SN, tStop - tStart)
+			
+			# Sleep for a bit
+			sleepCount = 0
+			sleepTime = self.monitorPeriod - (tStop - tStart)
+			while (self.alive.isSet() and sleepCount < sleepTime):
+				time.sleep(0.2)
+				sleepCount += 0.2
+				
+	def getStatus(self):
+		"""
+		Convenience function to get the chassis status as a string
+		"""
+		
+		if self.configured:
+			return "Configured"
+		else:
+			return "Unconfigured"

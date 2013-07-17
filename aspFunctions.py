@@ -105,6 +105,7 @@ class AnalogProcessor(object):
 		## Monitoring and background threads
 		self.currentState['tempThread'] = None
 		self.currentState['powerThreads'] = None
+		self.currentState['chassisThreads'] = None
 		
 		# Board and stand counts
 		self.num_boards = 0
@@ -210,6 +211,13 @@ class AnalogProcessor(object):
 					self.currentState['tempThread'].updateConfig(self.config)
 				else:
 					self.currentState['tempThread'] = TemperatureSensors(SUB20_I2C_MAPPING, self.config, ASPCallbackInstance=self)
+				if self.currentState['chassisThreads'] is not None:
+					for t in self.currentState['chassisThreads']:
+						t.stop()
+						t.updateConfig(self.config)
+				else:
+					self.currentState['chassisThreads'] = []
+					self.currentState['chassisThreads'].append( ChassisStatus(SUB20_I2C_MAPPING, self.config, ASPCallbackInstance=self) )
 					
 				# Update the analog signal chain state
 				for i in xrange(self.num_stands):
@@ -232,7 +240,9 @@ class AnalogProcessor(object):
 				for t in self.currentState['powerThreads']:
 					t.start()
 				self.currentState['tempThread'].start()
-				
+				for t in self.currentState['chassisThreads']:
+					t.start()
+					
 				if status:
 					self.currentState['status'] = 'NORMAL'
 					self.currentState['info'] = 'System operating normally'
@@ -314,7 +324,10 @@ class AnalogProcessor(object):
 				t.stop()
 		if self.currentState['tempThread'] is not None:
 			self.currentState['tempThread'].stop()
-			
+		if self.currentState['chassisThreads'] is not None:
+			for t in self.currentState['chassisThreads']:
+				t.stop()
+				
 		# Do SPI bus stuff (only if the boards are on)
 		if self.getARXPowerSupplyStatus()[1] == 'ON ':
 			status = spiSend(0, SPI_cfg_shutdown)		# Into sleep mode
@@ -1132,6 +1145,24 @@ class AnalogProcessor(object):
 			self.currentState['lastLog'] = 'FEE power supply critical - %s - powered off' % reason
 			self.currentState['ready'] = False
 		
+		return True
+		
+	def processUnconfiguredChassis(self, sub20SN):
+		"""
+		Function to put the system into ERROR if one of the chassis appears to 
+		be unconfigured.
+		"""
+		
+		dStart, dStop = SUB20_ANTENNA_MAPPING[sub20SN]
+		
+		if self.currentState['ready']:
+			self.currentState['status'] = 'ERROR'
+			self.currentState['info'] = 'SUMMARY! 0x%02X %s - Antennas %i through %i are unconfigured ' % (0x09, subsystemErrorCodes[0x09], dStart, dStop)
+			self.currentState['lastLog'] = 'Antennas %i through %i are unconfigured' % (dStart, dStop)
+			self.currentState['ready'] = False
+		else:
+			pass
+			
 		return True
 		
 	def processMissingSUB20(self):
