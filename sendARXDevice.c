@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
 	int success, num, device, found;
 	unsigned short temp;
 	char requestedSN[20], sn[20], simpleData[2], simpleNoOp[2], simpleMarker[2];
-	char fullData[2*33*8+2], fullResponse[2*33*8+2];
+	char fullData[2*MAX_BOARDS*STANDS_PER_BOARD+2], fullResponse[2*MAX_BOARDS*STANDS_PER_BOARD+2];
 
 	// Make sure we have the right number of arguments to continue
 	if( argc != 4+1 ) {

@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
 	int success, num, found;
 	unsigned short temp;
 	char requestedSN[20], sn[20], lcd_str[20], simpleNoOp[2], simpleMarker[2];
-	char fullData[2*11*8+2], fullResponse[2*11*8+2];
+	char fullData[2*MAX_BOARDS*STANDS_PER_BOARD+2], fullResponse[2*MAX_BOARDS*STANDS_PER_BOARD+2];
 	
 	// Make sure we have the right number of arguments to continue
 	if( argc != 1+1 ) {
@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
 	
 	success = 1;
 	while( success ) {
-		success = sub_spi_config(fh, SPI_ENABLE|SPI_CPOL_FALL|SPI_SETUP_SMPL|SPI_MSB_FIRST|SPI_CLK_125KHZ, NULL);
+		success = sub_spi_config(fh, ARX_SPI_CONFIG, NULL);
 		if( success ) {
 			fprintf(stderr, "countBoards - set config - %s\n", sub_strerror(sub_errno));
 			exit(0);
