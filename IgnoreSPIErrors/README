@@ -1,0 +1,3 @@
+This directory stores an alternate version of the ASP MCS code that ignores
+the various SUB-20 and SPI bus errors.  This is useful to trying to debugging
+problems with the ARX boards.
