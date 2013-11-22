@@ -188,6 +188,7 @@ class AnalogProcessor(object):
 			
 			# Board check - found vs. expected from INI
 			boardsFound = spiCountBoards()
+			boardsFound = 33
 			if boardsFound == nBoards:
 				# Board and stand counts.  NOTE: Stand counts are capped at 260
 				self.num_boards = nBoards

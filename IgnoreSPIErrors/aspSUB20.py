@@ -111,7 +111,7 @@ class _spi_thread_count(threading.Thread):
 			
 			if p.returncode == 0:
 				aspSUB20Logger.warning("%s: SUB-20 S/N %04X command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
-				status = False
+				status = True
 			else:
 				self.boards = p.returncode
 				status = True
@@ -161,7 +161,7 @@ class _spi_thread_device(threading.Thread):
 			
 			if p.returncode != 0:
 				aspSUB20Logger.warning("%s: SUB-20 S/N %04X command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
-				status = False
+				status = True
 			else:
 				status = True
 			
