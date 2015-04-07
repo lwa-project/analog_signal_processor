@@ -19,7 +19,7 @@ from aspSUB20 import *
 from aspThreads import *
 
 
-__version__ = '0.4'
+__version__ = '0.5'
 __revision__ = '$Rev$'
 __all__ = ['modeDict', 'commandExitCodes', 'AnaloglProcessor', '__version__', '__revision__', '__all__']
 
@@ -82,7 +82,7 @@ class AnalogProcessor(object):
 		
 		# ASP system information
 		self.subSystem = 'ASP'
-		self.serialNumber = 'ASP01'
+		self.serialNumber = self.config['SERIALNUMBER']
 		self.version = str(__version__)
 		
 		# ASP system state
@@ -231,6 +231,7 @@ class AnalogProcessor(object):
 				status  = True
 				status &= spiSend(0, SPI_cfg_shutdown)				# Into sleep mode
 				status &= spiSend(0, SPI_cfg_normal)				# Out of sleep mode
+				stauts &= spiSend(0, SPI_cfg_output_P12_13_14_15)		# Set outputs
 				status &= spiSend(0, SPI_cfg_output_P16_17_18_19)		# Set outputs
 				status &= spiSend(0, SPI_cfg_output_P20_21_22_23)		# Set outputs
 				status &= spiSend(0, SPI_cfg_output_P24_25_26_27)		# Set outputs
@@ -377,7 +378,7 @@ class AnalogProcessor(object):
 		if stand < 0 or stand > self.num_stands:
 			self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x02]
 			return False, 0x02
-		if filterCode < 0 or filterCode > 3:
+		if filterCode < 0 or filterCode > 5:
 			self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x04]
 			return False, 0x04
 			
@@ -398,11 +399,20 @@ class AnalogProcessor(object):
 		
 		# Do SPI bus stuff
 		status = True
-		if filterCode == 3:
-			# Set Filters OFF
-			status &= spiSend(stand, SPI_P19_on )
-			status &= spiSend(stand, SPI_P18_on )
-		elif filterCode == 1:
+		if filterCode <= 3:
+			# Set 10 MHz mode
+			status &= spiSend(stand, SPI_P14_on )
+			status &= spiSend(stand, SPI_P15_off)
+		else:
+			# Set 3 MHz mode
+			status &= spiSend(stand, SPI_P14_off)
+			status &= spiSend(stand, SPI_P15_on )
+			
+		if filterCode == 0 or filterCode == 4:
+			# Set Filter to Split Bandwidth
+			status &= spiSend(stand, SPI_P19_off)
+			status &= spiSend(stand, SPI_P18_off)
+		elif filterCode == 1 or filterCode == 5:
 			# Set Filter to Full Bandwidth
 			status &= spiSend(stand, SPI_P19_off)
 			status &= spiSend(stand, SPI_P18_on )
@@ -410,10 +420,10 @@ class AnalogProcessor(object):
 			# Set Filter to Reduced Bandwidth
 			status &= spiSend(stand, SPI_P19_on )
 			status &= spiSend(stand, SPI_P18_off)
-		elif filterCode == 0:
-			# Set Filter to Split Bandwidth
-			status &= spiSend(stand, SPI_P19_off)
-			status &= spiSend(stand, SPI_P18_off)
+		elif filterCode == 3:
+			# Set Filters OFF
+			status &= spiSend(stand, SPI_P19_on )
+			status &= spiSend(stand, SPI_P18_on )
 			
 		if status:
 			self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
