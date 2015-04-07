@@ -231,7 +231,7 @@ class AnalogProcessor(object):
 				status  = True
 				status &= spiSend(0, SPI_cfg_shutdown)				# Into sleep mode
 				status &= spiSend(0, SPI_cfg_normal)				# Out of sleep mode
-				stauts &= spiSend(0, SPI_cfg_output_P12_13_14_15)		# Set outputs
+				status &= spiSend(0, SPI_cfg_output_P12_13_14_15)		# Set outputs
 				status &= spiSend(0, SPI_cfg_output_P16_17_18_19)		# Set outputs
 				status &= spiSend(0, SPI_cfg_output_P20_21_22_23)		# Set outputs
 				status &= spiSend(0, SPI_cfg_output_P24_25_26_27)		# Set outputs
