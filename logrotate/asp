@@ -1,0 +1,48 @@
+# Keep three weeks worth of temperature logs
+/data/temp.txt {
+        daily
+        rotate 21
+        compress
+        delaycompress
+        copytruncate
+        ifempty
+}
+# Keep three weeks worth of Power supply logs
+/data/psu-*.txt {
+	daily
+        rotate 21
+        compress
+        delaycompress
+        copytruncate
+        ifempty
+}
+
+# Keep three weeks worth of asp_cmnd logs
+/lwa/runtime/runtime.log {
+        daily
+        rotate 21
+        compress
+        delaycompress
+        copytruncate
+        ifempty
+}
+
+# Keep a months worth of asp_cmnd start logs
+/lwa/runtime/start {
+        weekly
+        rotate 4
+        compress
+        delaycompress
+        copytruncate
+        ifempty
+}
+
+# Keep three weeks worth of board logs
+/home/ops/board.log {
+	daily
+	rotate 21
+	compress
+	delaycompress
+        copytruncate
+        ifempty
+}
