@@ -399,12 +399,12 @@ class AnalogProcessor(object):
 		
 		# Do SPI bus stuff
 		status = True
-		if filterCode <= 3:
-			# Set 10 MHz mode
+		if filterCode > 3:
+			# Set 3 MHz mode
 			status &= spiSend(stand, SPI_P14_on )
 			status &= spiSend(stand, SPI_P15_off)
 		else:
-			# Set 3 MHz mode
+			# Set 10 MHz mode
 			status &= spiSend(stand, SPI_P14_off)
 			status &= spiSend(stand, SPI_P15_on )
 			
