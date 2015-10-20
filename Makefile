@@ -4,7 +4,7 @@
 all: LIBSUB sendARXDevice writeARXLCD \
      countBoards countPSUs countThermometers \
      readPSU readThermometers \
-     onoffPSU \
+     onoffPSU configPSU \
      readARXDevice
 
 #------------------------------------------------------------------------------
