@@ -51,7 +51,7 @@ int array_to_ushort(char*);
 //#define __DECODE_MODULE_TYPE__
 
 // Uncomment the next line to use input rather than the module outuput current
-#define __USE_INPUT_CURRENT__
+//#define __USE_INPUT_CURRENT__
 
 
 /*
