@@ -7,7 +7,7 @@ import subprocess
 from socket import gethostname
 
 
-URL = "http://lwalab.phys.unm.edu/OpScreen/update.php"
+URL = "https://lwalab.phys.unm.edu/OpScreen/update.php"
 KEY = "c0843461abe746a4608dd9c897f9b261"
 SITE = gethostname().split("-",1)[0]
 SUBSYSTEM = "ASP"
