@@ -50,7 +50,7 @@ sub_handle* fh = NULL;
 int main(int argc, char* argv[]) {
 	char *endptr;
 	int i, device, success, nPSU, done, mode, found;
-	float argument;
+	float argument = 0.0;
 	unsigned short temp;
 	char psuAddresses[128], requestedSN[20], sn[20], command[33], simpleData[2], bigData[5];
 	
@@ -97,12 +97,12 @@ int main(int argc, char* argv[]) {
 	/************************************
 	* SUB-20 device selection and ready *
 	************************************/
-	struct usb_device* dev;
+	struct usb_device* dev = NULL;
 	
 	// Find the right SUB-20
 	found = 0;
 	int openTries = 0;
-	while( dev = sub_find_devices(dev) ) {
+	while( (dev = sub_find_devices(dev)) ) {
 		// Open the USB device (or die trying)
 		fh = sub_open(dev);
 		while( (fh == NULL) && (openTries < SUB20_OPEN_MAX_ATTEMPTS) ) {

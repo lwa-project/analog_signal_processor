@@ -29,9 +29,13 @@ sub_handle* fh = NULL;
 
 
 int main(int argc, char* argv[]) {
-	int i, j, success, num, nPSU, modules, found;
+	int i, success, num, nPSU, found;
 	char requestedSN[20], sn[20], psuAddresses[128];
-	unsigned char simpleData[2];
+    
+#ifdef __INCLUDE_MODULE_TEMPS__
+    int j = 0, modules = 0;
+	unsigned char simpleData[2] = { 0 };
+#endif
 
 	// Make sure we have the right number of arguments to continue
 	if( argc != 1+1 ) {
@@ -45,11 +49,11 @@ int main(int argc, char* argv[]) {
 	/************************************
 	* SUB-20 device selection and ready *
 	************************************/
-	struct usb_device* dev;
+	struct usb_device* dev = NULL;
 	
 	// Find the right SUB-20
 	found = 0;
-	while( dev = sub_find_devices(dev) ) {
+	while( (dev = sub_find_devices(dev)) ) {
 		// Open the USB device (or die trying)
 		fh = sub_open(dev);
 		if( !fh ) {
@@ -83,17 +87,13 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
-	simpleData[0] = 0;
-	simpleData[1] = 0;
-
 	num = 0;
-	modules = 0;
 	for(i=0; i<nPSU; i++) {
 		if( psuAddresses[i] > 0x1F ) {
 			continue;
 		}
 
-		#ifdef __INCLUDE_MODULE_TEMPS__
+#ifdef __INCLUDE_MODULE_TEMPS__
 			// Get a list of smart modules for polling
 			success = sub_i2c_read(fh, psuAddresses[i], 0xD3, 1, (char *) simpleData, 2);
 			if( success ) {
@@ -108,9 +108,7 @@ int main(int argc, char* argv[]) {
 			for(j=0; j<16; j++) {
 				num += ((modules >> j) & 1);
 			}
-		#else
-			j = 0;
-		#endif
+#endif
 
 		// And there are two overall sensors per PSU
 		num += 2;

@@ -20,6 +20,7 @@ $LastChangedDate$
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "libsub.h"
@@ -45,12 +46,12 @@ int main(int argc, char* argv[]) {
 	/************************************
 	* SUB-20 device selection and ready *
 	************************************/
-	struct usb_device* dev;
+	struct usb_device* dev = NULL;
 	
 	// Find the right SUB-20
 	found = 0;
 	int openTries = 0;
-	while( dev = sub_find_devices(dev) ) {
+	while( (dev = sub_find_devices(dev)) ) {
 		// Open the USB device (or die trying)
 		fh = sub_open(dev);
 		while( (fh == NULL) && (openTries < SUB20_OPEN_MAX_ATTEMPTS) ) {

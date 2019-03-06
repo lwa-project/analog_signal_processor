@@ -17,6 +17,7 @@ $LastChangedDate$
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 
 #include "libsub.h"
@@ -53,7 +54,7 @@ int main(int argc, char* argv[]) {
 	// Find the right SUB-20
 	found = 0;
 	int openTries = 0;
-	while( dev = sub_find_devices(dev) ) {
+	while( (dev = sub_find_devices(dev)) ) {
 		// Open the USB device (or die trying)
 		fh = sub_open(dev);
 		while( (fh == NULL) && (openTries < SUB20_OPEN_MAX_ATTEMPTS) ) {

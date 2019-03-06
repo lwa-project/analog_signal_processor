@@ -38,11 +38,11 @@ int main(int argc, char* argv[]) {
 	/************************************
 	* SUB-20 device selection and ready *
 	************************************/
-	struct usb_device* dev;
+	struct usb_device* dev = NULL;
 
 	// Loop through all SUB-20s
 	total = 0;
-	while( dev = sub_find_devices(dev) ) {
+	while( (dev = sub_find_devices(dev)) ) {
 		// Open the USB device (or die trying)
 		fh = sub_open(dev);
 		if( !fh ) {

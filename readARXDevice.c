@@ -37,7 +37,6 @@ int main(int argc, char* argv[]) {
 	int success, num, device, found;
 	unsigned short temp;
 	char requestedSN[20], sn[20], simpleData[2], simpleNoOp[2], simpleMarker[2];
-	char fullData[2*MAX_BOARDS*STANDS_PER_BOARD+2], fullResponse[2*MAX_BOARDS*STANDS_PER_BOARD+2];
 
 	// Make sure we have the right number of arguments to continue
 	if( argc != 4+1 ) {
@@ -77,12 +76,12 @@ int main(int argc, char* argv[]) {
 	/************************************
 	* SUB-20 device selection and ready *
 	************************************/
-	struct usb_device* dev;
+	struct usb_device* dev = NULL;
 
 	// Find the right SUB-20
 	found = 0;
 	int openTries = 0;
-	while( dev = sub_find_devices(dev) ) {
+	while( (dev = sub_find_devices(dev)) ) {
 		// Open the USB device (or die trying)
 		fh = sub_open(dev);
 		while( (fh == NULL) && (openTries < SUB20_OPEN_MAX_ATTEMPTS) ) {

@@ -34,13 +34,15 @@ int main(int argc, char* argv[]) {
 	* Command line parsing   *
 	*************************/
 	char *endptr;
-	int success, num, device, found;
+	int p, success, num, device, found;
 	unsigned short temp;
-	char requestedSN[20], sn[20], simpleData[2], simpleNoOp[2], simpleMarker[2];
+	char requestedSN[20], sn[20], simpleMarker[2];
+    int devices[MAX_BOARDS*STANDS_PER_BOARD] = { 0 };
+    char simpleDatas[MAX_BOARDS*STANDS_PER_BOARD][2] = { { 0 } };
 	char fullData[2*MAX_BOARDS*STANDS_PER_BOARD+2], fullResponse[2*MAX_BOARDS*STANDS_PER_BOARD+2];
 
 	// Make sure we have the right number of arguments to continue
-	if( argc != 4+1 ) {
+	if( argc < 4+1 ) {
 		fprintf(stderr, "sendARXDevice - Need %i arguments, %i provided\n", 4, argc-1);
 		exit(1);
 	}
@@ -49,35 +51,47 @@ int main(int argc, char* argv[]) {
 	strncpy(requestedSN, argv[1], 17);
 	// Convert the strings into integer values
 	num    = strtod(argv[2], &endptr);
-	device = strtod(argv[3], &endptr);
-	hex_to_array(argv[4], simpleData);
-	hex_to_array("0x0000", simpleNoOp);
+    for(p=3; p<argc; p+=2) {
+        devices[(p-3)/2] = strtod(argv[p+0], &endptr);
+        hex_to_array(argv[p+1], simpleDatas[(p-3)/2]);
+    }
+    devices[(p-3)/2] = -1;
 	ushort_to_array(marker, simpleMarker);
 	
-	// Make sure we have a device number that makes sense
-	if( device < 0 || device > num ) {
-		fprintf(stderr, "sendARXDevice - Device #%i is out-of-range\n", device);
-		exit(1);
+	// Make sure we have a device numbers that makes sense
+    for(p=0; p<num; p++) {
+        if( devices[p] < 0 ) {
+            break;
+        }
+        if( devices[p] < 0 || devices[p] > num ) {
+            fprintf(stderr, "sendARXDevice - Device #%i is out-of-range\n", devices[p]);
+            exit(1);
+        }
 	}
 	
 	// Report on where we are at
-	temp = array_to_ushort(simpleData);
-	if( device != 0 ) {
-		fprintf(stderr, "Sending data 0x%04X (%u) to device %i of %i\n", temp, temp, device, num);
-	} else {
-		fprintf(stderr, "Sending data 0x%04X (%u) to all %i devices\n", temp, temp, num);
-	}
+	for(p=0; p<num; p++) {
+        if( devices[p] < 0 ) {
+            break;
+        }
+        temp = array_to_ushort(simpleDatas[p]);
+        if( devices[p] != 0 ) {
+            fprintf(stderr, "Sending data 0x%04X (%u) to device %i of %i\n", temp, temp, devices[p], num);
+        } else {
+            fprintf(stderr, "Sending data 0x%04X (%u) to all %i devices\n", temp, temp, num);
+        }
+    }
 	
 	
 	/************************************
 	* SUB-20 device selection and ready *
 	************************************/
-	struct usb_device* dev;
+	struct usb_device* dev = NULL;
 	
 	// Find the right SUB-20
 	found = 0;
 	int openTries = 0;
-	while( dev = sub_find_devices(dev) ) {
+	while( (dev = sub_find_devices(dev)) ) {
 		// Open the USB device (or die trying)
 		fh = sub_open(dev);
 		while( (fh == NULL) && (openTries < SUB20_OPEN_MAX_ATTEMPTS) ) {
@@ -114,7 +128,7 @@ int main(int argc, char* argv[]) {
 	/****************************************
 	* Send the command and get the response *
 	****************************************/
-	int i, j;
+	int i, j, k, l;
 	char simpleResponse[2];
 	
 	// Enable the SPI bus operations on the SUB-20 board
@@ -138,13 +152,22 @@ int main(int argc, char* argv[]) {
 	fullData[j++] = simpleMarker[0];
 	fullData[j++] = simpleMarker[1];
 	for(i=num; i>0; i--) {
-		if( i == device || device == 0 ) {
-			fullData[j++] = simpleData[0];
-			fullData[j++] = simpleData[1];
-		} else {
-			fullData[j++] = simpleNoOp[0];
-			fullData[j++] = simpleNoOp[1];
-		}
+        l = 0;
+        for(k=0; k<num; k++) {
+            if( devices[k] == -1 ) {
+                break;
+            }
+            if( i == devices[k] || devices[k] == 0 ) {
+                fullData[j++] = simpleDatas[k][0];
+                fullData[j++] = simpleDatas[k][1];
+                l = 1;
+                break;
+            }
+        }
+        if( l == 0 ) {
+            fullData[j++] = 0;
+            fullData[j++] = 0;
+        }
 	}
 	
 	// Read & write (2*num+2) bytes at a time making sure to return chip select to high 
