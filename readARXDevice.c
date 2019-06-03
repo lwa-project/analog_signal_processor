@@ -67,9 +67,9 @@ int main(int argc, char* argv[]) {
 	// Report on where we are at
 	temp = array_to_ushort(simpleData);
 	if( device != 0 ) {
-		fprintf(stderr, "Reading data 0x%04X (%u) to device %i of %i\n", temp, temp, device, num);
+		fprintf(stderr, "Reading data 0x%04X (%u) from device %i of %i\n", temp, temp, device, num);
 	} else {
-		fprintf(stderr, "Reading data 0x%04X (%u) to all %i devices\n", temp, temp, num);
+		fprintf(stderr, "Reading data 0x%04X (%u) from all %i devices\n", temp, temp, num);
 	}
 	
 	
@@ -111,7 +111,7 @@ int main(int argc, char* argv[]) {
 	// Make sure we actually have a SUB-20 device
 	if( !found ) {
 		fprintf(stderr, "readARXDevice - Cannot find or open SUB-20 %s\n", requestedSN);
-		exit(1);
+		exit(2);
 	}
 	
 	
@@ -133,7 +133,7 @@ int main(int argc, char* argv[]) {
 		success = sub_spi_config(fh, ARX_SPI_CONFIG, NULL);
 		if( success ) {
 			fprintf(stderr, "readARXDevice - set config - %s\n", sub_strerror(sub_errno));
-			exit(1);
+			exit(2);
 		}
 	}
 	
@@ -180,7 +180,7 @@ int main(int argc, char* argv[]) {
 	temp = array_to_ushort(simpleResponse);
 	if( temp != marker ) {
 		fprintf(stderr, "readARXDevice - SPI write returned a marker of 0x%04X instead of 0x%04X\n", temp, marker);
-		exit(1);
+		exit(3);
 	}
 	
 	
@@ -243,7 +243,7 @@ int main(int argc, char* argv[]) {
 	temp = array_to_ushort(simpleResponse);
 	if( temp != marker ) {
 		fprintf(stderr, "readARXDevice - SPI write returned a marker of 0x%04X instead of 0x%04X\n", temp, marker);
-		exit(1);
+		exit(3);
 	}
 	
 	
