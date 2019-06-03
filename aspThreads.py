@@ -559,6 +559,9 @@ class ChassisStatus(object):
 					aspThreadsLogger.warning("readARXDevice: command returned %i; '%s;%s'", p.returncode, output, output2)
 					
 					missingSUB20 = True
+					if p.returncode == 3:
+                        self.configured = False
+                        
 				else:
 					output = output.split('\n')[:-1]
 					dev, resp = output[-1].split(': ', 1)
