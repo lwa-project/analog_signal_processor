@@ -560,8 +560,8 @@ class ChassisStatus(object):
 					
 					missingSUB20 = True
 					if p.returncode == 3:
-                        self.configured = False
-                        
+						self.configured = False
+						
 				else:
 					output = output.split('\n')[:-1]
 					dev, resp = output[-1].split(': ', 1)
