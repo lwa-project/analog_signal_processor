@@ -25,7 +25,7 @@ except ValueError:
 	junk = []
 lastUpdated = float(lastUpdated)
 if time.time() > lastUpdated + 300:
-	test = "%.2f,%s" % (time.time(), ','.join(["NaN" for i in xrange(4)]))
+	test = "%.2f,%s" % (time.time(), ','.join(["NaN" for i in range(4)]))
 
 # Send the update to lwalab
 p = urllib.urlencode({'key': KEY, 'site': SITE, 'subsystem': SUBSYSTEM, 'data': test})
