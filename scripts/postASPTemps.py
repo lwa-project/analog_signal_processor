@@ -15,6 +15,10 @@ SUBSYSTEM = "ASP"
 # Get the last line of the log file
 t = subprocess.Popen(["tail", "-n1", '/data/temp.txt'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 test, junk = t.communicate()
+try:
+    test = test.decode('ascii')
+except AttributeError:
+    pass
 test = test.replace('\n', '')
 
 # Check to see if the log is actually getting updated.  If not, send NaNs
@@ -28,6 +32,7 @@ if time.time() > lastUpdated + 300:
 	test = "%.2f,%s" % (time.time(), ','.join(["NaN" for i in range(4)]))
 
 # Send the update to lwalab
-f = requests.post(URL, data={'key': KEY, 'site': SITE, 'subsystem': SUBSYSTEM, 'data': test})
+f = requests.post(URL,
+                  data={'key': KEY, 'site': SITE, 'subsystem': SUBSYSTEM, 'data': test})
 f.close()
 

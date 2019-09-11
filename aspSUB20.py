@@ -113,7 +113,12 @@ class _spi_thread_count(threading.Thread):
             p = subprocess.Popen('/usr/local/bin/countBoards %04X' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
             output, output2 = p.communicate()
-            
+            try:
+                output = output.decode('ascii')
+                output2 = output2.decode('ascii')
+            except AttributeError:
+                pass
+                
             if p.returncode == 0:
                 aspSUB20Logger.warning("%s: SUB-20 S/N %04X command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
                 status = False
@@ -163,7 +168,12 @@ class _spi_thread_device(threading.Thread):
             p = subprocess.Popen('/usr/local/bin/sendARXDevice %04X %i %i 0x%04x' % (self.sub20SN, num, self.device, self.Data), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
             output, output2 = p.communicate()
-            
+            try:
+                output = output.decode('ascii')
+                output2 = output2.decode('ascii')
+            except AttributeError:
+                pass
+                
             if p.returncode != 0:
                 aspSUB20Logger.warning("%s: SUB-20 S/N %04X command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
                 status = False
@@ -263,7 +273,12 @@ def lcdSend(sub20SN, message):
     p = subprocess.Popen('/usr/local/bin/writeARXLCD %04X "%s"' % (sub20SN, message), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     
     output, output2 = p.communicate()
-    
+    try:
+        output = output.decode('ascii')
+        output2 = output2.decode('ascii')
+    except AttributeError:
+        pass
+        
     SUB20_LOCKS[sub20SN].release()
     
     if p.returncode != 0:
@@ -283,7 +298,12 @@ def psuSend(sub20SN, psuAddress, state):
     p = subprocess.Popen('/usr/local/bin/onoffPSU %04X 0x%02X %s' % (sub20SN, psuAddress, str(state)), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     
     output, output2 = p.communicate()
-    
+    try:
+        output = output.decode('ascii')
+        output2 = output2.decode('ascii')
+    except AttributeError:
+        pass
+        
     SUB20_LOCKS[sub20SN].release()
     
     if p.returncode != 0:

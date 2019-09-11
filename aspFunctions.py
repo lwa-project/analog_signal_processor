@@ -12,7 +12,6 @@ import time
 import ctypes
 import logging
 import threading
-import subprocess
 
 from aspCommon import *
 from aspSUB20 import *
