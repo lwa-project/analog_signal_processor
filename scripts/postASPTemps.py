@@ -23,13 +23,13 @@ test = test.replace('\n', '')
 
 # Check to see if the log is actually getting updated.  If not, send NaNs
 try:
-	lastUpdated, junk = test.split(',', 1)
+    lastUpdated, junk = test.split(',', 1)
 except ValueError:
-	lastUpdated = 0
-	junk = []
+    lastUpdated = 0
+    junk = []
 lastUpdated = float(lastUpdated)
 if time.time() > lastUpdated + 300:
-	test = "%.2f,%s" % (time.time(), ','.join(["NaN" for i in range(4)]))
+    test = "%.2f,%s" % (time.time(), ','.join(["NaN" for i in range(4)]))
 
 # Send the update to lwalab
 f = requests.post(URL,
