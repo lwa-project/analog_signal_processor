@@ -189,7 +189,7 @@ class TemperatureSensors(object):
                     
             except Exception, e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                aspThreadsLogger.error("%s: monitorThread failed with: %s at line %i", type(self).__name__, str(e), traceback.tb_lineno(exc_traceback))
+                aspThreadsLogger.error("%s: monitorThread failed with: %s at line %i", type(self).__name__, str(e), exc_traceback.tb_lineno)
                 
                 ## Grab the full traceback and save it to a string via StringIO
                 fileObject = StringIO.StringIO()
@@ -404,7 +404,7 @@ class PowerStatus(object):
                             
             except Exception, e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                aspThreadsLogger.error("%s: monitorThread 0x%02X failed with: %s at line %i", type(self).__name__, self.deviceAddress, str(e), traceback.tb_lineno(exc_traceback))
+                aspThreadsLogger.error("%s: monitorThread 0x%02X failed with: %s at line %i", type(self).__name__, self.deviceAddress, str(e), exc_traceback.tb_lineno)
                 
                 ## Grab the full traceback and save it to a string via StringIO
                 fileObject = StringIO.StringIO()
@@ -583,7 +583,7 @@ class ChassisStatus(object):
                         
             except Exception, e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                aspThreadsLogger.error("%s: monitorThread 0x%04X failed with: %s at line %i", type(self).__name__, self.sub20SN, str(e), traceback.tb_lineno(exc_traceback))
+                aspThreadsLogger.error("%s: monitorThread 0x%04X failed with: %s at line %i", type(self).__name__, self.sub20SN, str(e), exc_traceback.tb_lineno)
                 
                 ## Grab the full traceback and save it to a string via StringIO
                 fileObject = StringIO.StringIO()
