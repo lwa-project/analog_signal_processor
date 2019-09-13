@@ -16,10 +16,10 @@ import threading
 import traceback
 import subprocess
 try:
-        import cStringIO as StringIO
+    from cStringIO import StringIO
 except ImportError:
-        import StringIO
-        
+    from io import StringIO
+    
 import run
 from aspCommon import SUB20_LOCKS, SUB20_ANTENNA_MAPPING
 
@@ -120,9 +120,13 @@ class TemperatureSensors(object):
                 SUB20_LOCKS[self.sub20SN].acquire()
                 
                 p = subprocess.Popen('/usr/local/bin/readThermometers %04X' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                
                 output, output2 = p.communicate()
-                
+                try:
+                    output = output.decode('ascii')
+                    outpu2 = output2.decode('ascii')
+                except AttributeError:
+                    pass
+                    
                 SUB20_LOCKS[self.sub20SN].release()
                 
                 if p.returncode != 0:
@@ -192,7 +196,7 @@ class TemperatureSensors(object):
                 aspThreadsLogger.error("%s: monitorThread failed with: %s at line %i", type(self).__name__, str(e), exc_traceback.tb_lineno)
                 
                 ## Grab the full traceback and save it to a string via StringIO
-                fileObject = StringIO.StringIO()
+                fileObject = StringIO()
                 traceback.print_tb(exc_traceback, file=fileObject)
                 tbString = fileObject.getvalue()
                 fileObject.close()
@@ -357,9 +361,13 @@ class PowerStatus(object):
                 SUB20_LOCKS[self.sub20SN].acquire()
                 
                 p = subprocess.Popen('/usr/local/bin/readPSU %04X 0x%02X' % (self.sub20SN, self.deviceAddress), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                
                 output, output2 = p.communicate()
-                
+                try:
+                    output = output.decode('ascii')
+                    outpu2 = output2.decode('ascii')
+                except AttributeError:
+                    pass
+                    
                 SUB20_LOCKS[self.sub20SN].release()
                 
                 if p.returncode != 0:
@@ -407,7 +415,7 @@ class PowerStatus(object):
                 aspThreadsLogger.error("%s: monitorThread 0x%02X failed with: %s at line %i", type(self).__name__, self.deviceAddress, str(e), exc_traceback.tb_lineno)
                 
                 ## Grab the full traceback and save it to a string via StringIO
-                fileObject = StringIO.StringIO()
+                fileObject = StringIO()
                 traceback.print_tb(exc_traceback, file=fileObject)
                 tbString = fileObject.getvalue()
                 fileObject.close()
@@ -586,7 +594,7 @@ class ChassisStatus(object):
                 aspThreadsLogger.error("%s: monitorThread 0x%04X failed with: %s at line %i", type(self).__name__, self.sub20SN, str(e), exc_traceback.tb_lineno)
                 
                 ## Grab the full traceback and save it to a string via StringIO
-                fileObject = StringIO.StringIO()
+                fileObject = StringIO()
                 traceback.print_tb(exc_traceback, file=fileObject)
                 tbString = fileObject.getvalue()
                 fileObject.close()
