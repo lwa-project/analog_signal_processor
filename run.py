@@ -13,7 +13,6 @@ import string
 import struct
 import subprocess
 import sys
-import thread
 import time
 import select
 import shutil
