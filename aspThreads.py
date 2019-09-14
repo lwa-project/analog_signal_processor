@@ -8,6 +8,8 @@ $LastChangedBy$
 $LastChangedDate$
 """
 
+from __future__ import division
+
 import os
 import sys
 import time
@@ -79,7 +81,7 @@ class TemperatureSensors(object):
         if self.thread is not None:
             self.stop()
             
-        self.nTemps = os.system("/usr/local/bin/countThermometers %04X" % self.sub20SN) / 256
+        self.nTemps = os.system("/usr/local/bin/countThermometers %04X" % self.sub20SN) // 256
         self.description = ["UNK" for i in range(self.nTemps)]
         self.temp = [0.0 for i in range(self.nTemps)]
         self.coldCount = 0
@@ -123,7 +125,7 @@ class TemperatureSensors(object):
                 output, output2 = p.communicate()
                 try:
                     output = output.decode('ascii')
-                    outpu2 = output2.decode('ascii')
+                    output2 = output2.decode('ascii')
                 except AttributeError:
                     pass
                     
@@ -364,7 +366,7 @@ class PowerStatus(object):
                 output, output2 = p.communicate()
                 try:
                     output = output.decode('ascii')
-                    outpu2 = output2.decode('ascii')
+                    output2 = output2.decode('ascii')
                 except AttributeError:
                     pass
                     
@@ -560,7 +562,12 @@ class ChassisStatus(object):
                 p = subprocess.Popen('/usr/local/bin/readARXDevice %04X %i 1 0x%04X' % (self.sub20SN, self.totalDevs, self.register), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 
                 output, output2 = p.communicate()
-                
+                try:
+                    output = output.decode('ascii')
+                    output2 = output2.decode('ascii')
+                except AttributeError:
+                    pass
+                    
                 SUB20_LOCKS[self.sub20SN].release()
                 
                 if p.returncode != 0:
