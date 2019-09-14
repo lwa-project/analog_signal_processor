@@ -191,7 +191,7 @@ class TemperatureSensors(object):
                     else:
                         self.ASPCallbackInstance.processWarningTemperature(clear=True)
                     
-            except Exception, e:
+            except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread failed with: %s at line %i", type(self).__name__, str(e), exc_traceback.tb_lineno)
                 
@@ -410,7 +410,7 @@ class PowerStatus(object):
                             
                             self.ASPCallbackInstance.processCriticalPowerSupply(self.deviceAddress, modeOfFailure)
                             
-            except Exception, e:
+            except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread 0x%02X failed with: %s at line %i", type(self).__name__, self.deviceAddress, str(e), exc_traceback.tb_lineno)
                 
@@ -589,7 +589,7 @@ class ChassisStatus(object):
                     if not self.configured:
                         self.ASPCallbackInstance.processUnconfiguredChassis(self.sub20SN)
                         
-            except Exception, e:
+            except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread 0x%04X failed with: %s at line %i", type(self).__name__, self.sub20SN, str(e), exc_traceback.tb_lineno)
                 

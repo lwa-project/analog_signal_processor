@@ -108,7 +108,7 @@ def parseConfigFile(filename):
                 else:
                     config[paramName] = val
                     
-            except Exception, e:
+            except Exception as e:
                 logger.error("Error parsing parameter %s: %s", paramName, str(e))
                 cfile_error = True
                 
@@ -605,7 +605,7 @@ def main(args):
             logger.info('Exiting on ctrl-c')
             break
             
-        except Exception, e:
+        except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             logger.error("asp_cmnd.py failed with: %s at line %i", str(e), exc_traceback.tb_lineno)
                 
