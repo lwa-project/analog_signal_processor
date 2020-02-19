@@ -1,5 +1,15 @@
 #!/bin/bash
 
+### BEGIN INIT INFO
+# Provides:        StartASP
+# Required-Start:  $network $local_fs
+# Required-Stop:   none
+# Default-Start:   2 3 4 5
+# Default-Stop:    0 1 6
+# Short-Description: Start ASP
+### END INIT INFO
+
+
 case "$1" in
 'start')
   echo -n "Starting ASP MCS..."
