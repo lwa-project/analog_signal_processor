@@ -9,10 +9,6 @@
     * hex_to_array - convert a hexadecimal string to an 2-byte array
     * ushort_to_array - convert an unsigned short to a 2-byte array
     * array_to_ushort - convert a 2-byte array to an unsigned short
-    
-$Rev$
-$LastChangedBy$
-$LastChangedDate$
 */
 
 #include <stdlib.h>

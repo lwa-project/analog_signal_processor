@@ -22,8 +22,7 @@ import logging
 from signal import SIGKILL
 
 __version__ = '0.2'
-__revision__ = '$Rev$'
-__all__ = ['flushfile', 'run_process', 'spawn_process', '__version__', '__revision__', '__all__']
+__all__ = ['flushfile', 'run_process', 'spawn_process']
 
 
 runLogger = logging.getLogger('__main__')

@@ -12,10 +12,6 @@ Usage:
 
 Options:
   None
-
-$Rev$
-$LastChangedBy$
-$LastChangedDate$
 *****************************************************/
 
 

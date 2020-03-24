@@ -5,10 +5,6 @@ MCSComminunicate framework that specified how to processes MCS commands that
 arrive via UDP.  All that is needed for a sub-system is to overload the 
 MCSCommunicate.processCommand() function to deal with the subsystem-specific
 MIBs and commands.
-
-$Rev: 1789 $
-$LastChangedBy: jdowell $
-$LastChangedDate: 2019-09-13 16:14:42 -0600 (Fri, 13 Sep 2019) $
 """
 
 import sys
@@ -29,9 +25,7 @@ from datetime import datetime
 from collections import deque
 
 __version__ = "0.1"
-__revision__ = "$Rev: 1789 $"
-__date__ = "$LastChangedDate: 2019-09-13 16:14:42 -0600 (Fri, 13 Sep 2019) $"
-__all__ = ['MCS_RCV_BYTES', 'getTime', 'Communicate', '__version__', '__revision__', '__date__', '__all__']
+__all__ = ['MCS_RCV_BYTES', 'getTime', 'Communicate']
 
 
 # Maximum number of bytes to receive from MCS

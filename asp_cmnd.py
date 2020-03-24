@@ -4,10 +4,6 @@
 """
 asp_cmnd - Software for controlling ASP within the guidelines of the ASP and 
 MCS ICDs.
-
-$Rev$
-$LastChangedBy$
-$LastChangedDate$
 """
 
 from __future__ import print_function
@@ -39,9 +35,7 @@ from aspFunctions import  AnalogProcessor
 
 
 __version__ = '0.3'
-__revision__ = '$Rev$'
-__date__ = '$LastChangedDate$'
-__all__ = ['DEFAULTS_FILENAME', 'parseConfigFile', 'MCSCommunicate', '__version__', '__revision__', '__date__', '__all__']
+__all__ = ['DEFAULTS_FILENAME', 'parseConfigFile', 'MCSCommunicate']
 
 
 #
@@ -551,13 +545,8 @@ def main(args):
     mjd, mpm = getTime()
     
     # Report on who we are
-    shortRevision = __revision__.split()[1]
-    shortDate = ' '.join(__date__.split()[1:4])
-    
     logger.info('Starting asp_cmnd.py with PID %i', os.getpid())
     logger.info('Version: %s', __version__)
-    logger.info('Revision: %s', shortRevision)
-    logger.info('Last Changed: %s',shortDate)
     logger.info('Current MJD: %i', mjd)
     logger.info('Current MPM: %i', mpm)
     logger.info('All dates and times are in UTC except where noted')

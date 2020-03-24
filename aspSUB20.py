@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Module for storing the various SUB-20 function calls
-
-$Rev$
-$LastChangedBy$
-$LastChangedDate$
 """
 
 import time
@@ -15,7 +11,6 @@ import subprocess
 from aspCommon import MAX_SPI_RETRY, WAIT_SPI_RETRY, SUB20_ANTENNA_MAPPING, SUB20_LOCKS
 
 __version__ = '0.2'
-__revision__ = '$Rev$'
 __all__ = ['spiCountBoards', 'spiSend', 'lcdSend', 'psuSend', 
            'SPI_cfg_normal', 'SPI_cfg_shutdown', 
            'SPI_cfg_output_P12_13_14_15', 'SPI_cfg_output_P16_17_18_19', 'SPI_cfg_output_P20_21_22_23', 'SPI_cfg_output_P24_25_26_27', 'SPI_cfg_output_P28_29_30_31',
@@ -23,7 +18,7 @@ __all__ = ['spiCountBoards', 'spiSend', 'lcdSend', 'psuSend',
            'SPI_P18_on', 'SPI_P18_off', 'SPI_P19_on', 'SPI_P19_off', 'SPI_P20_on', 'SPI_P20_off', 'SPI_P21_on', 'SPI_P21_off', 
            'SPI_P22_on', 'SPI_P22_off', 'SPI_P23_on', 'SPI_P23_off', 'SPI_P24_on', 'SPI_P24_off', 'SPI_P25_on', 'SPI_P25_off', 
            'SPI_P26_on', 'SPI_P26_off', 'SPI_P27_on', 'SPI_P27_off', 'SPI_P28_on', 'SPI_P28_off', 'SPI_P29_on', 'SPI_P29_off', 
-           'SPI_P30_on', 'SPI_P30_off', 'SPI_P31_on', 'SPI_P31_off', 'SPI_NoOp', '__version__', '__revision__', '__all__']
+           'SPI_P30_on', 'SPI_P30_off', 'SPI_P31_on', 'SPI_P31_off', 'SPI_NoOp']
 
 
 aspSUB20Logger = logging.getLogger('__main__')

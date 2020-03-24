@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Module for storing the miscellaneous functions used by asp_cmnd for running ASP.
-
-$Rev$
-$LastChangedBy$
-$LastChangedDate$
 """
 
 import os
@@ -19,8 +15,7 @@ from aspThreads import *
 
 
 __version__ = '0.5'
-__revision__ = '$Rev$'
-__all__ = ['modeDict', 'commandExitCodes', 'AnaloglProcessor', '__version__', '__revision__', '__all__']
+__all__ = ['modeDict', 'commandExitCodes', 'AnaloglProcessor']
 
 
 aspFunctionsLogger = logging.getLogger('__main__')

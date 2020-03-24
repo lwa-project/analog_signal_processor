@@ -2,10 +2,6 @@
 
 """
 Module implementing the various ASP monitoring threads.
-
-$Rev$
-$LastChangedBy$
-$LastChangedDate$
 """
 
 from __future__ import division
@@ -27,8 +23,7 @@ from aspCommon import SUB20_LOCKS, SUB20_ANTENNA_MAPPING
 
 
 __version__ = '0.4'
-__revision__ = '$Rev$'
-__all__ = ['TemperatureSensors', 'PowerStatus', 'ChassisStatus', '__version__', '__revision__', '__all__']
+__all__ = ['TemperatureSensors', 'PowerStatus', 'ChassisStatus']
 
 
 aspThreadsLogger = logging.getLogger('__main__')
