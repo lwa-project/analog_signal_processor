@@ -3,10 +3,6 @@
 """
 Module to store "common" values used by ASP as well as the getTime() function for
 finding out the current MJD and MPM values.
-
-$Rev$
-$LastChangedBy$
-$LastChangedDate$
 """
 
 import math
@@ -14,12 +10,10 @@ import threading
 from datetime import datetime
 
 __version__ = '0.4'
-__revision__ = '$Rev$'
 __all__ = ['STANDS_PER_BOARD', 'MAX_BOARDS', 'MAX_STANDS', 'MAX_ATTEN', 
            'SUB20_I2C_MAPPING', 'SUB20_ANTENNA_MAPPING', 'SUB20_LOCKS', 
            'MAX_SPI_RETRY', 'WAIT_SPI_RETRY', 
-           'ARX_PS_ADDRESS', 'FEE_PS_ADDRESS',
-           '__version__', '__revision__', '__all__']
+           'ARX_PS_ADDRESS', 'FEE_PS_ADDRESS']
 
 # Read in the aspCommon.h file to make sure that the C and Python codes are on 
 # the same page.  The filling of this file should probably be part of the 
