@@ -1,0 +1,22 @@
+# Configuration files
+aspCommon.py
+defaults.cfg
+
+# Object files
+*.o
+
+# Libraries
+*.a
+*.so
+
+# Executables
+configPSU
+countBoards
+countPSUs
+countThermometers
+onoffPSU
+readARXDevice
+readPSU
+readThermometers
+sendARXDevice
+writeARXLCD
