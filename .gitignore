@@ -2,6 +2,9 @@
 aspCommon.py
 defaults.cfg
 
+# Python stuff
+*.pyc
+
 # Object files
 *.o
 
