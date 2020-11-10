@@ -427,7 +427,7 @@ class PowerStatus(object):
                          "tags": {"subsystem": "asp",
                                   "monitorpoint": "psu%s" % self.deviceAddress},
                          "time": int(time.time()*1e9),
-                         "fields": {""voltage": self.voltage,
+                         "fields": {"voltage": self.voltage,
                                     "current": self.current}},]
                 json[0]['fields']['power'] = json[0]['fields']['voltage']*json[0]['fields']['current']
                 try:
