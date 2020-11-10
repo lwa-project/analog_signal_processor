@@ -18,6 +18,8 @@ try:
 except ImportError:
     from io import StringIO
     
+from influxdb import InfluxDBClient
+
 import run
 from aspCommon import SUB20_LOCKS, SUB20_ANTENNA_MAPPING
 
@@ -187,7 +189,21 @@ class TemperatureSensors(object):
                         self.ASPCallbackInstance.processWarningTemperature()
                     else:
                         self.ASPCallbackInstance.processWarningTemperature(clear=True)
-                    
+                        
+                    json = [{"measurement": "temperature",
+                             "tags": {"subsystem": "asp",
+                                      "monitorpoint": "temperature"},
+                             "time": int(time.time()*1e9),
+                             "fields": {}},]
+                    for i in range(self.nTemps):
+                        json[0]['fields'][self.description[i].replace(' ', '_')] = self.temp[i]
+                    try:
+                        ifdb = InfluxDBClient('fornax.phys.unm.edu', 8086, 'root', 'root', 'lwasv')
+                        ifdb.write_points(json)
+                        ifdb.close()
+                    except Exception as e:
+                        print(e)
+                        
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread failed with: %s at line %i", type(self).__name__, str(e), exc_traceback.tb_lineno)
@@ -407,6 +423,20 @@ class PowerStatus(object):
                             
                             self.ASPCallbackInstance.processCriticalPowerSupply(self.deviceAddress, modeOfFailure)
                             
+                json = [{"measurement": "power",
+                         "tags": {"subsystem": "asp",
+                                  "monitorpoint": "psu%s" % self.deviceAddress},
+                         "time": int(time.time()*1e9),
+                         "fields": {""voltage": self.voltage,
+                                    "current": self.current}},]
+                json[0]['fields']['power'] = json[0]['fields']['voltage']*json[0]['fields']['current']
+                try:
+                    ifdb = InfluxDBClient('fornax.phys.unm.edu', 8086, 'root', 'root', 'lwasv')
+                    ifdb.write_points(json)
+                    ifdb.close()
+                except Exception as e:
+                    print(e)
+                    
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread 0x%02X failed with: %s at line %i", type(self).__name__, self.deviceAddress, str(e), exc_traceback.tb_lineno)

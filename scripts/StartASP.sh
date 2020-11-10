@@ -18,7 +18,7 @@ case "$1" in
   echo "starting asp_cmnd.py" >> /lwa/runtime/runtime.log
 
   cd /lwa/software
-  python /lwa/software/asp_cmnd.py -c /lwa/software/defaults.cfg -d -l /lwa/runtime/runtime.log
+  python3 /lwa/software/asp_cmnd.py -c /lwa/software/defaults.cfg -d -l /lwa/runtime/runtime.log
 
   echo "done"
   ;;
