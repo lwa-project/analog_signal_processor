@@ -18,7 +18,7 @@ try:
 except ImportError:
     from io import StringIO
     
-from influxdb import InfluxDBClient
+from lwainflux import LWAInfluxClient
 
 import run
 from aspCommon import SUB20_LOCKS, SUB20_ANTENNA_MAPPING
@@ -69,6 +69,7 @@ class TemperatureSensors(object):
         self.minTemp  = config['TEMPMIN']
         self.warnTemp = config['TEMPWARN']
         self.maxTemp  = config['TEMPMAX']
+        self.influxdb = LWAInfluxClient.from_config(config)
         
     def start(self):
         """
@@ -193,17 +194,12 @@ class TemperatureSensors(object):
                     json = [{"measurement": "temperature",
                              "tags": {"subsystem": "asp",
                                       "monitorpoint": "temperature"},
-                             "time": int(time.time()*1e9),
+                             "time": self.influx.now(),
                              "fields": {}},]
                     for i in range(self.nTemps):
                         json[0]['fields'][self.description[i].replace(' ', '_')] = self.temp[i]
-                    try:
-                        ifdb = InfluxDBClient('fornax.phys.unm.edu', 8086, 'root', 'root', 'lwasv')
-                        ifdb.write_points(json)
-                        ifdb.close()
-                    except Exception as e:
-                        print(e)
-                        
+                    self.influx.write(json)
+                     
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread failed with: %s at line %i", type(self).__name__, str(e), exc_traceback.tb_lineno)
@@ -326,6 +322,7 @@ class PowerStatus(object):
             return True
             
         self.monitorPeriod = config['POWERPERIOD']
+        self.influxdb = LWAInfluxClient.from_config(config)
         
     def start(self):
         """
@@ -426,17 +423,12 @@ class PowerStatus(object):
                 json = [{"measurement": "power",
                          "tags": {"subsystem": "asp",
                                   "monitorpoint": "psu%s" % self.deviceAddress},
-                         "time": int(time.time()*1e9),
+                         "time": self.influx.now(),
                          "fields": {"voltage": self.voltage,
                                     "current": self.current}},]
                 json[0]['fields']['power'] = json[0]['fields']['voltage']*json[0]['fields']['current']
-                try:
-                    ifdb = InfluxDBClient('fornax.phys.unm.edu', 8086, 'root', 'root', 'lwasv')
-                    ifdb.write_points(json)
-                    ifdb.close()
-                except Exception as e:
-                    print(e)
-                    
+                self.influx.write(json)
+                 
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread 0x%02X failed with: %s at line %i", type(self).__name__, self.deviceAddress, str(e), exc_traceback.tb_lineno)

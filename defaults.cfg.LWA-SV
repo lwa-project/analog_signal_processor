@@ -21,3 +21,8 @@ TempMax                40.0
 TempPeriod              60
 PowerPeriod             60
 ChassisPeriod          120
+
+# InfluxDB access
+InfluxUser             lwasv
+InfluxPassword         logging4Fun@SV
+InfluxDatabase         lwasv
