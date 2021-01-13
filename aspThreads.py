@@ -194,11 +194,11 @@ class TemperatureSensors(object):
                     json = [{"measurement": "temperature",
                              "tags": {"subsystem": "asp",
                                       "monitorpoint": "temperature"},
-                             "time": self.influx.now(),
+                             "time": self.influxdb.now(),
                              "fields": {}},]
                     for i in range(self.nTemps):
                         json[0]['fields'][self.description[i].replace(' ', '_')] = self.temp[i]
-                    self.influx.write(json)
+                    self.influxdb.write(json)
                      
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -423,11 +423,11 @@ class PowerStatus(object):
                 json = [{"measurement": "power",
                          "tags": {"subsystem": "asp",
                                   "monitorpoint": "psu%s" % self.deviceAddress},
-                         "time": self.influx.now(),
+                         "time": self.influxdb.now(),
                          "fields": {"voltage": self.voltage,
                                     "current": self.current}},]
                 json[0]['fields']['power'] = json[0]['fields']['voltage']*json[0]['fields']['current']
-                self.influx.write(json)
+                self.influxdb.write(json)
                  
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
