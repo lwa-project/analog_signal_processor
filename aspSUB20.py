@@ -156,7 +156,8 @@ class _spi_thread_device(threading.Thread):
                 if attempt != 0:
                     time.sleep(self.waitRetry)
                     
-                p = subprocess.Popen('/usr/local/bin/sendARXDevice %04X %i %i 0x%04x' % (self.sub20SN, num, self.device, self.Data), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                p = subprocess.Popen('/usr/local/bin/sendARXDevice %04X %i %i 0x%04x' % (self.sub20SN, num, self.device, self.Data), shell=True,
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 output, output2 = p.communicate()
                 try:
                     output = output.decode('ascii')
@@ -257,7 +258,8 @@ def lcdSend(sub20SN, message):
     """
     
     with SUB20_LOCKS[sub20SN]:
-        p = subprocess.Popen('/usr/local/bin/writeARXLCD %04X "%s"' % (sub20SN, message), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen('/usr/local/bin/writeARXLCD %04X "%s"' % (sub20SN, message), shell=True,
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, output2 = p.communicate()
         try:
             output = output.decode('ascii')
@@ -278,7 +280,8 @@ def psuSend(sub20SN, psuAddress, state):
     """
     
     with SUB20_LOCKS[sub20SN]:
-        p = subprocess.Popen('/usr/local/bin/onoffPSU %04X 0x%02X %s' % (sub20SN, psuAddress, str(state)), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen('/usr/local/bin/onoffPSU %04X 0x%02X %s' % (sub20SN, psuAddress, str(state)), shell=True,
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, output2 = p.communicate()
         try:
             output = output.decode('ascii')
