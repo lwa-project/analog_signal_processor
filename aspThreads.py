@@ -117,18 +117,15 @@ class TemperatureSensors(object):
             try:
                 missingSUB20 = False
                 
-                SUB20_LOCKS[self.sub20SN].acquire()
-                
-                p = subprocess.Popen('/usr/local/bin/readThermometers %04X' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                output, output2 = p.communicate()
-                try:
-                    output = output.decode('ascii')
-                    output2 = output2.decode('ascii')
-                except AttributeError:
-                    pass
-                    
-                SUB20_LOCKS[self.sub20SN].release()
-                
+                with SUB20_LOCKS[self.sub20SN]:
+                    p = subprocess.Popen('/usr/local/bin/readThermometers %04X' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    output, output2 = p.communicate()
+                    try:
+                        output = output.decode('ascii')
+                        output2 = output2.decode('ascii')
+                    except AttributeError:
+                        pass
+                        
                 if p.returncode != 0:
                     aspThreadsLogger.warning("readThermometers: command returned %i; '%s;%s'", p.returncode, output, output2)
                     self.lastError = str(output2)
@@ -368,18 +365,15 @@ class PowerStatus(object):
             try:
                 missingSUB20 = False
                 
-                SUB20_LOCKS[self.sub20SN].acquire()
-                
-                p = subprocess.Popen('/usr/local/bin/readPSU %04X 0x%02X' % (self.sub20SN, self.deviceAddress), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                output, output2 = p.communicate()
-                try:
-                    output = output.decode('ascii')
-                    output2 = output2.decode('ascii')
-                except AttributeError:
-                    pass
-                    
-                SUB20_LOCKS[self.sub20SN].release()
-                
+                with SUB20_LOCKS[self.sub20SN]:
+                    p = subprocess.Popen('/usr/local/bin/readPSU %04X 0x%02X' % (self.sub20SN, self.deviceAddress), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    output, output2 = p.communicate()
+                    try:
+                        output = output.decode('ascii')
+                        output2 = output2.decode('ascii')
+                    except AttributeError:
+                        pass
+                        
                 if p.returncode != 0:
                     aspThreadsLogger.warning("readPSU: command returned %i; '%s;%s'", p.returncode, output, output2)
                     self.voltage = 0.0
@@ -574,19 +568,15 @@ class ChassisStatus(object):
             try:
                 missingSUB20 = False
                 
-                SUB20_LOCKS[self.sub20SN].acquire()
-                
-                p = subprocess.Popen('/usr/local/bin/readARXDevice %04X %i 1 0x%04X' % (self.sub20SN, self.totalDevs, self.register), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                
-                output, output2 = p.communicate()
-                try:
-                    output = output.decode('ascii')
-                    output2 = output2.decode('ascii')
-                except AttributeError:
-                    pass
-                    
-                SUB20_LOCKS[self.sub20SN].release()
-                
+                with SUB20_LOCKS[self.sub20SN]:
+                    p = subprocess.Popen('/usr/local/bin/readARXDevice %04X %i 1 0x%04X' % (self.sub20SN, self.totalDevs, self.register), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    output, output2 = p.communicate()
+                    try:
+                        output = output.decode('ascii')
+                        output2 = output2.decode('ascii')
+                    except AttributeError:
+                        pass
+                        
                 if p.returncode != 0:
                     aspThreadsLogger.warning("readARXDevice: command returned %i; '%s;%s'", p.returncode, output, output2)
                     
