@@ -97,34 +97,31 @@ class _spi_thread_count(threading.Thread):
         if self.sub20SN not in SUB20_LOCKS:
             return False
         
-        SUB20_LOCKS[self.sub20SN].acquire()
-        
-        attempt = 0
-        status = False
-        while ((not status) and (attempt <= self.maxRetry)):
-            if attempt != 0:
-                time.sleep(self.waitRetry)
+        with SUB20_LOCKS[self.sub20SN]:
+            attempt = 0
+            status = False
+            while ((not status) and (attempt <= self.maxRetry)):
+                if attempt != 0:
+                    time.sleep(self.waitRetry)
+                    
+                p = subprocess.Popen('/usr/local/bin/countBoards %04X' % self.sub20SN, shell=True,
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                output, output2 = p.communicate()
+                try:
+                    output = output.decode('ascii')
+                    output2 = output2.decode('ascii')
+                except AttributeError:
+                    pass
+                    
+                if p.returncode == 0:
+                    aspSUB20Logger.warning("%s: SUB-20 S/N %04X command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
+                    status = False
+                else:
+                    self.boards = p.returncode
+                    status = True
                 
-            p = subprocess.Popen('/usr/local/bin/countBoards %04X' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        
-            output, output2 = p.communicate()
-            try:
-                output = output.decode('ascii')
-                output2 = output2.decode('ascii')
-            except AttributeError:
-                pass
+                attempt += 1
                 
-            if p.returncode == 0:
-                aspSUB20Logger.warning("%s: SUB-20 S/N %04X command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
-                status = False
-            else:
-                self.boards = p.returncode
-                status = True
-            
-            attempt += 1
-            
-        SUB20_LOCKS[self.sub20SN].release()
-        
         self.status = status
 
 
@@ -150,35 +147,31 @@ class _spi_thread_device(threading.Thread):
         if self.sub20SN not in SUB20_LOCKS:
             return False
         
-        SUB20_LOCKS[self.sub20SN].acquire()
-        
-        num = SUB20_ANTENNA_MAPPING[self.sub20SN][1] - SUB20_ANTENNA_MAPPING[self.sub20SN][0] + 1
-        
-        attempt = 0
-        status = False
-        while ((not status) and (attempt <= self.maxRetry)):
-            if attempt != 0:
-                time.sleep(self.waitRetry)
-                
-            p = subprocess.Popen('/usr/local/bin/sendARXDevice %04X %i %i 0x%04x' % (self.sub20SN, num, self.device, self.Data), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        
-            output, output2 = p.communicate()
-            try:
-                output = output.decode('ascii')
-                output2 = output2.decode('ascii')
-            except AttributeError:
-                pass
-                
-            if p.returncode != 0:
-                aspSUB20Logger.warning("%s: SUB-20 S/N %04X command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
-                status = False
-            else:
-                status = True
+        with SUB20_LOCKS[self.sub20SN]:
+            num = SUB20_ANTENNA_MAPPING[self.sub20SN][1] - SUB20_ANTENNA_MAPPING[self.sub20SN][0] + 1
             
-            attempt += 1
-            
-        SUB20_LOCKS[self.sub20SN].release()
-        
+            attempt = 0
+            status = False
+            while ((not status) and (attempt <= self.maxRetry)):
+                if attempt != 0:
+                    time.sleep(self.waitRetry)
+                    
+                p = subprocess.Popen('/usr/local/bin/sendARXDevice %04X %i %i 0x%04x' % (self.sub20SN, num, self.device, self.Data), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                output, output2 = p.communicate()
+                try:
+                    output = output.decode('ascii')
+                    output2 = output2.decode('ascii')
+                except AttributeError:
+                    pass
+                    
+                if p.returncode != 0:
+                    aspSUB20Logger.warning("%s: SUB-20 S/N %04X command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
+                    status = False
+                else:
+                    status = True
+                
+                attempt += 1
+                
         self.status = status
 
 
@@ -263,19 +256,15 @@ def lcdSend(sub20SN, message):
     Return the status of the operation as a boolean.
     """
     
-    SUB20_LOCKS[sub20SN].acquire()
-    
-    p = subprocess.Popen('/usr/local/bin/writeARXLCD %04X "%s"' % (sub20SN, message), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    
-    output, output2 = p.communicate()
-    try:
-        output = output.decode('ascii')
-        output2 = output2.decode('ascii')
-    except AttributeError:
-        pass
-        
-    SUB20_LOCKS[sub20SN].release()
-    
+    with SUB20_LOCKS[sub20SN]:
+        p = subprocess.Popen('/usr/local/bin/writeARXLCD %04X "%s"' % (sub20SN, message), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, output2 = p.communicate()
+        try:
+            output = output.decode('ascii')
+            output2 = output2.decode('ascii')
+        except AttributeError:
+            pass
+            
     if p.returncode != 0:
         aspSUB20Logger.warning("lcdSend: command returned %i; '%s;%s'", p.returncode, output, output2)
         return False
@@ -288,19 +277,15 @@ def psuSend(sub20SN, psuAddress, state):
     Set the state of the power supply unit at the provided I2C address.
     """
     
-    SUB20_LOCKS[sub20SN].acquire()
-    
-    p = subprocess.Popen('/usr/local/bin/onoffPSU %04X 0x%02X %s' % (sub20SN, psuAddress, str(state)), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    
-    output, output2 = p.communicate()
-    try:
-        output = output.decode('ascii')
-        output2 = output2.decode('ascii')
-    except AttributeError:
-        pass
-        
-    SUB20_LOCKS[sub20SN].release()
-    
+    with SUB20_LOCKS[sub20SN]:
+        p = subprocess.Popen('/usr/local/bin/onoffPSU %04X 0x%02X %s' % (sub20SN, psuAddress, str(state)), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, output2 = p.communicate()
+        try:
+            output = output.decode('ascii')
+            output2 = output2.decode('ascii')
+        except AttributeError:
+            pass
+            
     if p.returncode != 0:
         aspSUB20Logger.warning("psuSend: command returned %i; '%s;%s'", p.returncode, output, output2)
         return False
