@@ -11,6 +11,7 @@ import threading
 
 from aspCommon import *
 from aspSUB20 import *
+from aspRS485 import *
 from aspThreads import *
 
 
@@ -61,16 +62,6 @@ class AnalogProcessor(object):
       * See commandExitCodes
     """
     
-    class StandMapping(ctypes.LittleEndianStructure):
-        """
-        Class for helping store the mapping information needed for the new
-        multi-SUB-20 architecture.
-        """
-        
-        _fields_ = [("SUB20", ctypes.c_char*5), 
-                    ("stand", ctypes.c_ushort),
-                    ("redStand", ctypes.c_ushort)]
-                  
     def __init__(self, config):
         self.config = config
         
@@ -166,8 +157,8 @@ class AnalogProcessor(object):
         self.currentState['info'] = 'Running INI sequence'
         self.currentState['activeProcess'].append('INI')
         
-        # Make sure the SUB-20 is present
-        if os.system('lsusb -d 04d8: >/dev/null') == 0:
+        # Make sure the RS485 is present
+        if os.system('lsusb -d 10c4: >/dev/null') == 0:
             # Good, we can continue
             
             # Turn off the power supplies
@@ -181,7 +172,7 @@ class AnalogProcessor(object):
             time.sleep(1)
             
             # Board check - found vs. expected from INI
-            boardsFound = spiCountBoards()
+            boardsFound = rs485CountBoards()
             if boardsFound == nBoards:
                 # Board and stand counts.  NOTE: Stand counts are capped at 260
                 self.num_boards = nBoards
@@ -211,7 +202,7 @@ class AnalogProcessor(object):
                         t.updateConfig(self.config)
                 else:
                     self.currentState['chassisThreads'] = []
-                    self.currentState['chassisThreads'].append( ChassisStatus(SUB20_I2C_MAPPING, self.config, ASPCallbackInstance=self) )
+                    self.currentState['chassisThreads'].append( ChassisStatus(self.config, ASPCallbackInstance=self) )
                     
                 # Update the analog signal chain state
                 for i in range(self.num_stands):
@@ -221,15 +212,8 @@ class AnalogProcessor(object):
                     self.currentState['at2'][i] = 30
                     self.currentState['ats'][i] = 30
                     
-                # Do the SPI bus stuff
-                status  = True
-                status &= spiSend(0, SPI_cfg_shutdown)                   # Into sleep mode
-                status &= spiSend(0, SPI_cfg_normal)                     # Out of sleep mode
-                status &= spiSend(0, SPI_cfg_output_P12_13_14_15)        # Set outputs
-                status &= spiSend(0, SPI_cfg_output_P16_17_18_19)        # Set outputs
-                status &= spiSend(0, SPI_cfg_output_P20_21_22_23)        # Set outputs
-                status &= spiSend(0, SPI_cfg_output_P24_25_26_27)        # Set outputs
-                status &= spiSend(0, SPI_cfg_output_P28_29_30_31)        # Set outputs
+                # Do the RS485 bus stuff
+                status = rs485Reset()
                 
                 # Start the threads
                 for t in self.currentState['powerThreads']:
@@ -323,12 +307,7 @@ class AnalogProcessor(object):
             for t in self.currentState['chassisThreads']:
                 t.stop()
                 
-        # Do SPI bus stuff (only if the boards are on)
-        if self.getARXPowerSupplyStatus()[1] == 'ON ':
-            status = spiSend(0, SPI_cfg_shutdown)        # Into sleep mode
-            time.sleep(5)
         status = True
-        
         if status:
             # Power off the power supplies
             self.__rxpProcess(00, internal=True)
@@ -391,34 +370,36 @@ class AnalogProcessor(object):
         Background process for FIL commands so that other commands can keep on running.
         """
         
-        # Do SPI bus stuff
+        # Do RS485 bus stuff
         status = True
-        if filterCode > 3:
-            # Set 3 MHz mode
-            status &= spiSend(stand, SPI_P14_on )
-            status &= spiSend(stand, SPI_P15_off)
-        else:
-            # Set 10 MHz mode
-            status &= spiSend(stand, SPI_P14_off)
-            status &= spiSend(stand, SPI_P15_on )
-            
-        if filterCode == 0 or filterCode == 4:
-            # Set Filter to Split Bandwidth
-            status &= spiSend(stand, SPI_P19_off)
-            status &= spiSend(stand, SPI_P18_off)
-        elif filterCode == 1 or filterCode == 5:
-            # Set Filter to Full Bandwidth
-            status &= spiSend(stand, SPI_P19_off)
-            status &= spiSend(stand, SPI_P18_on )
-        elif filterCode == 2:
-            # Set Filter to Reduced Bandwidth
-            status &= spiSend(stand, SPI_P19_on )
-            status &= spiSend(stand, SPI_P18_off)
-        elif filterCode == 3:
-            # Set Filters OFF
-            status &= spiSend(stand, SPI_P19_on )
-            status &= spiSend(stand, SPI_P18_on )
-            
+        config = rs485Get(stand)
+        for c in config:
+            if filterCode > 3:
+                # Set 3 MHz mode
+                c['narrow_lpf'] = True
+                c['sig_on'] = True
+            else:
+                # Set 10 MHz mode
+                c['narrow_lpf'] = False
+                c['sig_on'] = True
+                
+            if filterCode == 0 or filterCode == 4:
+                # Set Filter to Split Bandwidth
+                c['narrow_lpf'] = True
+                c['sig_on'] = True
+            elif filterCode == 1 or filterCode == 5:
+                # Set Filter to Full Bandwidth
+                c['narrow_lpf'] = False
+                c['sig_on'] = True
+            elif filterCode == 2:
+                # Set Filter to Reduced Bandwidth
+                c['narrow_lpf'] = True
+                c['sig_on'] = True
+            elif filterCode == 3:
+                # Set Filters OFF
+                c['sig_on'] = False
+        status = rs485Send(stand, config)
+        
         if status:
             self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
             aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
@@ -482,41 +463,20 @@ class AnalogProcessor(object):
         Background process for AT1/AT2/ATS commands so that other commands can keep on running.
         """
         
-        # Do SPI bus stuff
+        # Do RS485 bus stuff
         setting = 2*attenSetting
+        setting = int(round(setting*2))*0.5
+        key = 'first_atten'
+        if mode == 2:
+            key = 'second_atten'
+        else:
+            key = 'split_atten'
+            
+        config = rs485Get(stand)
+        for c in config:
+            c[key] = setting
+        status = rs485Send(stand, config)
         
-        if mode == 1:
-            order = ((SPI_P27_on, SPI_P27_off), (SPI_P24_on, SPI_P24_off), (SPI_P25_on, SPI_P25_off), (SPI_P26_on, SPI_P26_off))
-        elif mode == 2:
-            order = ((SPI_P23_on, SPI_P23_off), (SPI_P21_on, SPI_P21_off), (SPI_P20_on, SPI_P20_off), (SPI_P22_on, SPI_P22_off))
-        else:
-            order = ((SPI_P31_on, SPI_P31_off), (SPI_P28_on, SPI_P28_off), (SPI_P29_on, SPI_P29_off), (SPI_P30_on, SPI_P30_off))
-            
-        status = True
-        if setting >= 16:
-            status &= spiSend(stand, order[0][0])
-            setting -= 16
-        else:
-            status &= spiSend(stand, order[0][1])
-            
-        if setting >= 8:
-            status &= spiSend(stand, order[1][0])
-            setting -= 8
-        else:
-            status &= spiSend(stand, order[1][1])
-            
-        if setting >= 4:
-            status &= spiSend(stand, order[2][0])
-            setting -= 4
-        else:
-            status &= spiSend(stand, order[2][1])
-            
-        if setting >= 2:
-            status &= spiSend(stand, order[3][0])
-            setting -= 2
-        else:
-            status &= spiSend(stand, order[3][1])
-            
         if status:
             self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
             aspFunctionsLogger.debug('%s - Set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
@@ -582,17 +542,20 @@ class AnalogProcessor(object):
         
         # Do SPI bus stuff
         status = True
-        if state == 11:
-            if pol == 1:
-                status &= spiSend(stand, SPI_P17_on )
-            elif pol == 2:
-                status &= spiSend(stand, SPI_P16_on )
-        elif state == 0:
-            if pol == 1:
-                status &= spiSend(stand, SPI_P17_off)
-            elif pol == 2:
-                status &= spiSend(stand, SPI_P16_off)
-                
+        config = rs485Get(stand)
+        for i,c in enumerate(config):
+            if state == 11:
+                if pol == 1 and i%2 == 0:
+                    c['dc_on'] = True
+                elif pol == 2 and i%2 == 1:
+                    c['dc_on'] = True
+            elif state == 0:
+                if pol == 1 and i%2 == 0:
+                    c['dc_on'] = False
+                elif pol == 2 and i%2 == 1:
+                    c['dc_on'] = False
+        status = rs485Send(stand, config)
+        
         if status:
             self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
             aspFunctionsLogger.debug('FPW - Set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
@@ -1150,13 +1113,13 @@ class AnalogProcessor(object):
         
         return True
         
-    def processUnconfiguredChassis(self, sub20SN):
+    def processUnconfiguredChassis(self, antennas):
         """
         Function to put the system into ERROR if one of the chassis appears to 
         be unconfigured.
         """
         
-        dStart, dStop = SUB20_ANTENNA_MAPPING[sub20SN]
+        dStart, dStop = antennas[0]
         
         if self.currentState['status'] != 'ERROR':
             self.currentState['status'] = 'ERROR'
@@ -1173,25 +1136,4 @@ class AnalogProcessor(object):
                     self.currentState['lastLog'] = 'Antennas %i through %i are unconfigured' % (dStart, dStop)
                     self.currentState['ready'] = False
                     
-        return True
-        
-    def processMissingSUB20(self):
-        """
-        Function to put the system into ERROR if the SUB-20 is missing or dead.
-        """
-        
-        # Try it out
-        if os.system('lsusb -d 04d8: >/dev/null') == 0:
-            # Nope, it's really there
-            return False
-            
-        else:
-            # Yep, the SUB-20 is gone
-            aspFunctionsLogger.critical('SUB-20 has disappeared from the list of USB devices')
-            
-            self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - SUB-20 device not found' % (0x07, subsystemErrorCodes[0x07])
-            self.currentState['lastLog'] = 'SUB-20 device has disappeared'
-            self.currentState['ready'] = False
-            
         return True

@@ -21,7 +21,7 @@ except ImportError:
 from lwainflux import LWAInfluxClient
 
 import run
-from aspCommon import SUB20_LOCKS, SUB20_ANTENNA_MAPPING
+from aspCommon import SUB20_LOCKS
 
 
 __version__ = '0.4'
@@ -504,14 +504,8 @@ class ChassisStatus(object):
     the configuration has been lost.
     """
     
-    def __init__(self, sub20SN, config, ASPCallbackInstance=None):
-        self.sub20SN = int(sub20SN)
-        self.register = 0x000C
+    def __init__(self, config, ASPCallbackInstance=None):
         self.updateConfig(config)
-        
-        # Total number of devices on the chassis
-        dStart, dStop = SUB20_ANTENNA_MAPPING[self.sub20SN]
-        self.totalDevs = dStop - dStart + 1
         self.configured = False
         
         # Setup the callback
@@ -566,42 +560,10 @@ class ChassisStatus(object):
             tStart = time.time()
             
             try:
-                missingSUB20 = False
-                
-                with SUB20_LOCKS[self.sub20SN]:
-                    p = subprocess.Popen('/usr/local/bin/readARXDevice %04X %i 1 0x%04X' % (self.sub20SN, self.totalDevs, self.register), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
-                if p.returncode != 0:
-                    aspThreadsLogger.warning("readARXDevice: command returned %i; '%s;%s'", p.returncode, output, output2)
-                    
-                    missingSUB20 = True
-                    if p.returncode == 3:
-                        self.configured = False
-                        
-                else:
-                    output = output.split('\n')[:-1]
-                    dev, resp = output[-1].split(': ', 1)
-                    resp = int(resp, 16)
-                    
-                    if resp == (self.register | 0x5500):
-                        self.configured = True
-                    else:
-                        self.configured = False
-                        
-                        aspThreadsLogger.error("%s: 0x%04X lost SPI port configuation", type(self).__name__, self.sub20SN)
-                        
+                self.configured, failed = rs485Check()
                 if self.ASPCallbackInstance is not None:
-                    if missingSUB20:
-                        self.ASPCallbackInstance.processMissingSUB20()
-                        
                     if not self.configured:
-                        self.ASPCallbackInstance.processUnconfiguredChassis(self.sub20SN)
+                        self.ASPCallbackInstance.processUnconfiguredChassis(failed)
                         
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
