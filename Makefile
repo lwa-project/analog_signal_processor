@@ -1,11 +1,10 @@
 #------------------------------------------------------------------------------
 # Main Targets
 #------------------------------------------------------------------------------
-all: LIBSUB sendARXDevice writeARXLCD \
-     countBoards countPSUs countThermometers \
+all: LIBSUB writeARXLCD \
+     countPSUs countThermometers \
      readPSU readThermometers \
-     onoffPSU configPSU \
-     readARXDevice
+     onoffPSU configPSU
 
 #------------------------------------------------------------------------------
 # Config
@@ -51,13 +50,7 @@ LDFLAGS += -L/usr/local/lib -lusb-1.0 -lm
 LIBSUB: 
 	make -C libsub
 
-sendARXDevice: sendARXDevice.o
-	$(CC) -o $@ $^ $(LDFLAGS)
-
 writeARXLCD: writeARXLCD.o
-	$(CC) -o $@ $^ $(LDFLAGS)
-
-countBoards: countBoards.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 countPSUs: countPSUs.o
@@ -78,30 +71,22 @@ onoffPSU: onoffPSU.o
 configPSU: configPSU.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
-readARXDevice: readARXDevice.o
-	$(CC) -o $@ $^ $(LDFLAGS)
-
 install:
-	cp sendARXDevice /usr/local/bin
 	cp writeARXLCD /usr/local/bin
-	cp countBoards /usr/local/bin
 	cp countPSUs /usr/local/bin
 	cp countThermometers /usr/local/bin
 	cp readPSU /usr/local/bin
 	cp readThermometers /usr/local/bin
 	cp onoffPSU /usr/local/bin
 	cp configPSU /usr/local/bin
-	cp readARXDevice /usr/local/bin
-	chown root:root /usr/local/bin/sendARXDevice /usr/local/bin/writeARXLCD \
-                        /usr/local/bin/countBoards /usr/local/bin/countPSUs /usr/local/bin/countThermometers \
+	chown root:root /usr/local/bin/writeARXLCD \
+                        /usr/local/bin/countPSUs /usr/local/bin/countThermometers \
                         /usr/local/bin/readPSU /usr/local/bin/readThermometers \
-                        /usr/local/bin/onoffPSU /usr/local/bin/configPSU \
-                        /usr/local/bin/readARXDevice
-	chmod +s /usr/local/bin/sendARXDevice /usr/local/bin/writeARXLCD \
-                 /usr/local/bin/countBoards /usr/local/bin/countPSUs /usr/local/bin/countThermometers \
+                        /usr/local/bin/onoffPSU /usr/local/bin/configPSU
+	chmod +s /usr/local/bin/writeARXLCD \
+                 /usr/local/bin/countPSUs /usr/local/bin/countThermometers \
                  /usr/local/bin/readPSU /usr/local/bin/readThermometers \
-                 /usr/local/bin/onoffPSU /usr/local/bin/configPSU \
-                 /usr/local/bin/readARXDevice
+                 /usr/local/bin/onoffPSU /usr/local/bin/configPSU
 
 clean:
 	rm -f *.o *.out *.err *.exe *.a *.so
