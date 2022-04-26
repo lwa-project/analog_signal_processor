@@ -11,7 +11,7 @@ import subprocess
 from lwautils import lwa_arx
 _ARX = lwa_arx.ARX()
 
-from aspCommon import RS485_LOCK, RS485_ANTENNA_MAPPING
+from aspCommon import RS485_LOCK, RS485_ANTENNA_MAPPING, MAX_RS485_RETRY, WAIT_RS485_RETRY
 
 __version__ = '0.1'
 __all__ = ['rs485CountBoards', 'rs485Reset', 'rs485Echo', 'rs485Check',
@@ -35,11 +35,11 @@ def _stand_to_board_chans(stand):
     return board, chan0, chan1
 
 
-def rs485CountBoards(maxRetry=5, waitRetry=0.5):
+def rs485CountBoards(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
     found = 0
     with RS485_LOCK:
         for board in RS485_ANTENNA_MAPPING.keys():
-            for attempt in range(maxRetry):
+            for attempt in range(maxRetry+1):
                 try:
                     _ARX.get_board_info(board, 0)
                     found += 1
@@ -50,12 +50,12 @@ def rs485CountBoards(maxRetry=5, waitRetry=0.5):
     return found
 
 
-def rs485Reset(maxRetry=5, waitRetry=0.5):
+def rs485Reset(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
     success = True
     with RS485_LOCK:
         for board in RS485_ANTENNA_MAPPING.keys():
             board_success = False
-            for attempt in range(maxRetry):
+            for attempt in range(maxRetry+1):
                 try:
                     _ARX.reset()
                     board_success = True
@@ -66,7 +66,7 @@ def rs485Reset(maxRetry=5, waitRetry=0.5):
     return success
 
 
-def rs485Check(maxRetry=5, waitRetry=0.5):
+def rs485Check(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
     data = "check_for_me"
     
     success = True
@@ -74,7 +74,7 @@ def rs485Check(maxRetry=5, waitRetry=0.5):
     with RS485_LOCK:
         for board in RS485_ANTENNA_MAPPING.keys():
             board_success = False
-            for attempt in range(maxRetry):
+            for attempt in range(maxRetry+1):
                 try:
                     echo_data = _ARX.echo(data)
                     if echo_data == data:
@@ -90,7 +90,7 @@ def rs485Check(maxRetry=5, waitRetry=0.5):
     return success, failed
 
 
-def rs485Get(stand, maxRetry=5, waitRetry=0.5):
+def rs485Get(stand, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
     config = []
     if stand == 0:
         with RS485_LOCK:
@@ -110,7 +110,7 @@ def rs485Get(stand, maxRetry=5, waitRetry=0.5):
     return config
 
 
-def rs485Send(stand, config, maxRetry=5, waitRetry=0.5):
+def rs485Send(stand, config, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
     success = True
     if stand == 0:
         with RS485_LOCK:

@@ -18,12 +18,6 @@
 #define SUB20_OPEN_WAIT_US  5000
 
 
-// SPI bus configuration settings
-#define ARX_SPI_CONFIG SPI_ENABLE|SPI_CPOL_FALL|SPI_SETUP_SMPL|SPI_MSB_FIRST|SPI_CLK_500KHZ
-#define TRANS_SPI_INTERMEDIATE SS_CONF(0, SS_L)
-#define TRANS_SPI_FINAL SS_CONF(0, SS_LO)
-
-
 // ARX board configuration
 #define STANDS_PER_BOARD 8
 #define MAX_BOARDS 33

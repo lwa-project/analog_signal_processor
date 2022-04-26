@@ -232,12 +232,12 @@ class AnalogProcessor(object):
                     
                 else:
                     self.currentState['status'] = 'ERROR'
-                    self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
+                    self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_RS485_RETRY)
                     self.currentState['lastLog'] = 'INI: finished with error'
                     self.currentState['ready'] = False
                     
                     lcdSend(SUB20_I2C_MAPPING, 'ASP\nINI fail')
-                    aspFunctionsLogger.critical("INI failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
+                    aspFunctionsLogger.critical("INI failed sending SPI bus commands after %i attempts", MAX_RS485_RETRY)
             else:
                 self.currentState['status'] = 'ERROR'
                 self.currentState['info'] = 'SUMMARY! 0x%02X %s - Found %i boards, expected %i' % (0x09, subsystemErrorCodes[0x09], boardsFound, nBoards)
@@ -321,12 +321,12 @@ class AnalogProcessor(object):
             
         else:
             self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
+            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_RS485_RETRY)
             self.currentState['lastLog'] = 'SHT: failed in %.3f s' % (time.time() - tStart,)
             self.currentState['ready'] = False
             
             lcdSend(SUB20_I2C_MAPPING, 'ASP\nSHT fail')
-            aspFunctionsLogger.critical("SHT failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
+            aspFunctionsLogger.critical("SHT failed sending SPI bus commands after %i attempts", MAX_RS485_RETRY)
         
         # Update the current state
         aspFunctionsLogger.info("Finished the SHT process in %.3f s", time.time() - tStart)
@@ -416,7 +416,7 @@ class AnalogProcessor(object):
             aspFunctionsLogger.error('FIL - Failed to set filter to %02i for stand %i', filterCode, stand)
             
             self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
+            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_RS485_RETRY)
             self.currentState['ready'] = False
             
         # Cleanup and save the state of FIL
@@ -493,7 +493,7 @@ class AnalogProcessor(object):
             aspFunctionsLogger.error('%s - Failed to set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
             
             self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
+            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_RS485_RETRY)
             self.currentState['ready'] = False
             
         # Cleanup
@@ -572,7 +572,7 @@ class AnalogProcessor(object):
             aspFunctionsLogger.error('FPW - Failed to set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
             
             self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
+            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_RS485_RETRY)
             self.currentState['ready'] = False
             
         # Cleanup
