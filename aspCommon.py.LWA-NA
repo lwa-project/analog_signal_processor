@@ -9,10 +9,10 @@ import math
 import threading
 from datetime import datetime
 
-__version__ = '0.4'
+__version__ = '0.5'
 __all__ = ['STANDS_PER_BOARD', 'MAX_BOARDS', 'MAX_STANDS', 'MAX_ATTEN', 
-           'SUB20_I2C_MAPPING', 'SUB20_ANTENNA_MAPPING', 'SUB20_LOCKS', 
-           'MAX_SPI_RETRY', 'WAIT_SPI_RETRY', 
+           'RS485_ANTENNA_MAPPING', 'RS485_LOCK', 'SUB20_I2C_MAPPING',
+           'SUB20_LOCKS', 'MAX_RS485_RETRY', 'WAIT_RS485_RETRY',
            'ARX_PS_ADDRESS', 'FEE_PS_ADDRESS']
 
 # Read in the aspCommon.h file to make sure that the C and Python codes are on 
@@ -31,44 +31,50 @@ try:
     
 except IOError:
     cDefines = {'STANDS_PER_BOARD': 8, 
-                'MAX_BOARDS': 33,}
+                'MAX_BOARDS': 32,}
 
 # ASP-ARX number of stands per board
 STANDS_PER_BOARD = int(cDefines['STANDS_PER_BOARD'])
 
 # ASP-ARX board and stand limits
 MAX_BOARDS = int(cDefines['MAX_BOARDS'])
-MAX_STANDS = 264
+MAX_STANDS = 256
 
 # Attenuator limits
 MAX_ATTEN = 15
 
-# SUB-20 I2C device interface
-SUB20_I2C_MAPPING = 0x0FD5
+# RS485 Antennas Mapping
+RS485_ANTENNA_MAPPING = {}
+RS485_ANTENNA_MAPPING[8243] = ( 1,  8)
+RS485_ANTENNA_MAPPING[8244] = ( 9, 16)
+RS485_ANTENNA_MAPPING[8245] = (17, 24)
+RS485_ANTENNA_MAPPING[8246] = (25, 32)
+RS485_ANTENNA_MAPPING[8247] = (33, 40)
+RS485_ANTENNA_MAPPING[8248] = (41, 48)
+RS485_ANTENNA_MAPPING[8249] = (49, 56)
+RS485_ANTENNA_MAPPING[8249] = (57, 64)
 
-# SUB-20 Antennas Mapping
-SUB20_ANTENNA_MAPPING = {}
-SUB20_ANTENNA_MAPPING[0x0FD5] = (  1,  64)
-SUB20_ANTENNA_MAPPING[0x18A0] = ( 65, 128)
-SUB20_ANTENNA_MAPPING[0x140C] = (129, 192)
-SUB20_ANTENNA_MAPPING[0x1419] = (193, 264)
+# RS485 lock
+RS485_LOCK = threading.Semaphore(1)
+
+# Maximum number of times to retry sending RS485 bus commands
+MAX_RS485_RETRY = 0
+
+# Base wait period in seconds between RS485 command retries
+WAIT_RS485_RETRY = 0.2
+
+# SUB-20 I2C device interface
+SUB20_I2C_MAPPING = 0x1877
 
 # SUB-20 semaphores
 SUB20_LOCKS = {}
 s = threading.Semaphore(1)
-for sn in SUB20_ANTENNA_MAPPING.keys():
+for sn in RS485_ANTENNA_MAPPING.keys():
     SUB20_LOCKS[int(sn)] = threading.Semaphore(1)
 SUB20_LOCKS[int(SUB20_I2C_MAPPING)] = threading.Semaphore(1)
-
-# Maximum number of times to retry sending SPI bus commands
-MAX_SPI_RETRY = 0
-
-# Base wait period in seconds between SPI command retries
-WAIT_SPI_RETRY = 0.2
 
 # ARX power supply I2C address
 ARX_PS_ADDRESS = 0x1F        # I2C connector with pins 6, 7, and 8 high
 
 # FEE power supply I2C address
 FEE_PS_ADDRESS = 0x1E        # I2C connector with pins 7 and 8 high, 6 low (shorted to ground)
-
