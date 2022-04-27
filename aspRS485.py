@@ -14,20 +14,18 @@ _ARX = lwa_arx.ARX()
 from aspCommon import RS485_LOCK, RS485_ANTENNA_MAPPING, MAX_RS485_RETRY, WAIT_RS485_RETRY
 
 __version__ = '0.1'
-__all__ = ['rs485CountBoards', 'rs485Reset', 'rs485Echo', 'rs485Check',
-           'rs485Get', 'rs485Send', 'rs485Power']
+__all__ = ['rs485CountBoards', 'rs485Reset', 'rs485Check', 'rs485Get',
+           'rs485Send', 'rs485Power']
 
 
 aspRS485Logger = logging.getLogger('__main__')
 
 
 def _stand_to_board_chans(stand):
-    found = False
     board = None
     chan0, chan1 = 0, 1
     for board,stands in RS485_ANTENNA_MAPPING.items():
-        if stand >= stands[0] and stand <= stands[1]
-            found = True
+        if stand >= stands[0] and stand <= stands[1]:
             chan = stand - stands[0]
             chan0 = 2*chan
             chan1 = chan0 + 1
@@ -112,8 +110,8 @@ def rs485Get(stand, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
         with RS485_LOCK:
             for attempt in range(maxRetry+1):
                 try:
-                    chan_config0 = _ARX.get_chan_cfg(board, chan0))
-                    chan_config1 = _ARX.get_chan_cfg(board, chan1))
+                    chan_config0 = _ARX.get_chan_cfg(board, chan0)
+                    chan_config1 = _ARX.get_chan_cfg(board, chan1)
                     config.append(chan_config0)
                     config.append(chan_config1)
                     break
