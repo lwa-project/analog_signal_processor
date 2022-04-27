@@ -20,8 +20,8 @@ except ImportError:
     
 from lwainflux import LWAInfluxClient
 
-import run
 from aspCommon import SUB20_LOCKS
+from aspRS485 import rs485Check, rs485Power
 
 
 __version__ = '0.4'
@@ -507,6 +507,8 @@ class ChassisStatus(object):
     def __init__(self, config, ASPCallbackInstance=None):
         self.updateConfig(config)
         self.configured = False
+        self.board_currents = []
+        self.fee_currents = []
         
         # Setup the callback
         self.ASPCallbackInstance = ASPCallbackInstance
@@ -565,6 +567,11 @@ class ChassisStatus(object):
                     if not self.configured:
                         self.ASPCallbackInstance.processUnconfiguredChassis(failed)
                         
+                status, boards, fees = rs485Power()
+                if status:
+                    self.board_currents = boards
+                    self.fee_currents = fees
+                    
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread 0x%04X failed with: %s at line %i", type(self).__name__, self.sub20SN, str(e), exc_traceback.tb_lineno)
@@ -600,3 +607,23 @@ class ChassisStatus(object):
             return "Configured"
         else:
             return "Unconfigured"
+            
+    def getBoardCurrent(self, board):
+        """
+        Convenience function to get the current draw of a board in amps.
+        """
+        
+        try:
+            return self.board_currents[board]
+        except IndexError:
+            return None
+            
+    def getFEECurrent(self, stand):
+        """
+        Convenience function to get the current draw of a FEE in amps.
+        """
+        
+        try:
+            return self.fee_currents[2*(stand-1):2*(stand-1)+2]
+        except IndexError:
+            return (None, None)

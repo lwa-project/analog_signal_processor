@@ -81,11 +81,7 @@ class AnalogProcessor(object):
         self.currentState['activeProcess'] = []
         
         ## Operational state - ASP
-        self.currentState['power']  = [[0,0] for i in range(MAX_BOARDS*STANDS_PER_BOARD)]
-        self.currentState['filter'] = [0     for i in range(MAX_BOARDS*STANDS_PER_BOARD)]
-        self.currentState['at1']    = [30    for i in range(MAX_BOARDS*STANDS_PER_BOARD)]
-        self.currentState['at2']    = [30    for i in range(MAX_BOARDS*STANDS_PER_BOARD)]
-        self.currentState['ats']    = [30    for i in range(MAX_BOARDS*STANDS_PER_BOARD)]
+        self.currentState['config']  = [{} for i in range(2*MAX_BOARDS*STANDS_PER_BOARD)]
         
         ## Monitoring and background threads
         self.currentState['tempThread'] = None
@@ -116,6 +112,12 @@ class AnalogProcessor(object):
         
         return self.currentState
         
+    def __getStandConfig(self, stand):
+        if stand == 0:
+            return self.currentState['config']
+        else:
+            return self.currentState['config'][2*(stand-1)+0:2*(stand-1)+2]
+            
     def ini(self, nBoards, config=None):
         """
         Initialize ASP (in a seperate thread).
@@ -204,16 +206,11 @@ class AnalogProcessor(object):
                     self.currentState['chassisThreads'] = []
                     self.currentState['chassisThreads'].append( ChassisStatus(self.config, ASPCallbackInstance=self) )
                     
-                # Update the analog signal chain state
-                for i in range(self.num_stands):
-                    self.currentState['power'][i] = [0,0]
-                    self.currentState['filter'][i] = 0
-                    self.currentState['at1'][i] = 30
-                    self.currentState['at2'][i] = 30
-                    self.currentState['ats'][i] = 30
-                    
                 # Do the RS485 bus stuff
                 status = rs485Reset()
+                
+                # Update the analog signal chain state
+                self.currentState['config'] = rs485Get(0)
                 
                 # Start the threads
                 for t in self.currentState['powerThreads']:
@@ -372,7 +369,7 @@ class AnalogProcessor(object):
         
         # Do RS485 bus stuff
         status = True
-        config = rs485Get(stand)
+        config = self.__getStandConfig(stand)
         for c in config:
             if filterCode > 3:
                 # Set 3 MHz mode
@@ -385,15 +382,15 @@ class AnalogProcessor(object):
                 
             if filterCode == 0 or filterCode == 4:
                 # Set Filter to Split Bandwidth
-                c['narrow_lpf'] = True
+                c['narrow_hpf'] = True
                 c['sig_on'] = True
             elif filterCode == 1 or filterCode == 5:
                 # Set Filter to Full Bandwidth
-                c['narrow_lpf'] = False
+                c['narrow_hpf'] = False
                 c['sig_on'] = True
             elif filterCode == 2:
                 # Set Filter to Reduced Bandwidth
-                c['narrow_lpf'] = True
+                c['narrow_hpf'] = True
                 c['sig_on'] = True
             elif filterCode == 3:
                 # Set Filters OFF
@@ -404,12 +401,11 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
             aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
         
-            #lcdSend(SUB20_I2C_MAPPING, 'Stand%03i\nFIL=%02i' % (stand, filterCode))
-            if stand != 0:
-                self.currentState['filter'][stand-1] = filterCode
+            if stand == 0:
+                self.currentState['config'] = config
             else:
-                for i in range(self.num_stands):
-                    self.currentState['filter'][i] = filterCode
+                self.currentState['config'][2*(stand-1)+0] = config[0]
+                self.currentState['config'][2*(stand-1)+1] = config[1]
         else:
             # Something failed, report
             self.currentState['lastLog'] = 'FIL: Failed to set filter to %02i for stand %i' % (filterCode, stand)
@@ -472,7 +468,7 @@ class AnalogProcessor(object):
         else:
             key = 'split_atten'
             
-        config = rs485Get(stand)
+        config = self.__getStandConfig(stand)
         for c in config:
             c[key] = setting
         status = rs485Send(stand, config)
@@ -481,12 +477,11 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
             aspFunctionsLogger.debug('%s - Set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
             
-            #lcdSend(SUB20_I2C_MAPPING, 'Stand%03i\n%3s=%02i' % (stand, modeDict[mode], attenSetting))
-            if stand != 0:
-                self.currentState[modeDict[mode].lower()][stand-1] = attenSetting
+            if stand == 0:
+                self.currentState['config'] = config
             else:
-                for i in range(self.num_stands):
-                    self.currentState[modeDict[mode].lower()][i] = attenSetting
+                self.currentState['config'][2*(stand-1)+0] = config[0]
+                self.currentState['config'][2*(stand-1)+1] = config[1]
         else:
             # Something failed, report
             self.currentState['lastLog'] = '%s: Failed to set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
@@ -542,17 +537,13 @@ class AnalogProcessor(object):
         
         # Do SPI bus stuff
         status = True
-        config = rs485Get(stand)
+        config = self.__getStandConfig(stand)
         for i,c in enumerate(config):
             if state == 11:
-                if pol == 1 and i%2 == 0:
-                    c['dc_on'] = True
-                elif pol == 2 and i%2 == 1:
+                if i%2 == (pol-1):
                     c['dc_on'] = True
             elif state == 0:
-                if pol == 1 and i%2 == 0:
-                    c['dc_on'] = False
-                elif pol == 2 and i%2 == 1:
+                if i%2 == (pol-1):
                     c['dc_on'] = False
         status = rs485Send(stand, config)
         
@@ -560,12 +551,11 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
             aspFunctionsLogger.debug('FPW - Set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
         
-            #lcdSend(SUB20_I2C_MAPPING, 'Stand%03i\npol%1i=%3s'% (stand, pol, 'on ' if state else 'off'))
-            if stand != 0:
-                self.currentState['power'][stand-1][pol-1] = state
+            if stand == 0:
+                self.currentState['config'] = config
             else:
-                for i in range(self.num_stands):
-                    self.currentState['power'][i][pol-1] = state
+                self.currentState['config'][2*(stand-1)+0] = config[0]
+                self.currentState['config'][2*(stand-1)+1] = config[1]
         else:
             # Something failed, report
             self.currentState['lastLog'] = 'FPW: Failed to set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
@@ -709,7 +699,11 @@ class AnalogProcessor(object):
         """
         
         if stand > 0 and stand <= self.num_stands:
-            return True, self.currentState['filter'][stand-1]
+            config = self.currentState['config'][2*(stand-1)+0]
+            filt = 2*config['narrow_hpf'] + 3*config['narrow_lpf']
+            if not config['sig_on']:
+                filt = 3
+            return True, filt
             
         else:
             self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
@@ -724,9 +718,10 @@ class AnalogProcessor(object):
         """
         
         if  stand > 0 and stand <= self.num_stands:
-            at1 = self.currentState['at1'][stand-1]
-            at2 = self.currentState['at2'][stand-1]
-            ats = self.currentState['ats'][stand-1]
+            config = self.currentState['config'][2*(stand-1)+0]
+            at1 = int(config['first_atten']/2)
+            at2 = int(config['second_atten']/2)
+            ats = 0
             return True, (at1, at2, ats)
             
         else:
@@ -742,8 +737,29 @@ class AnalogProcessor(object):
         """
         
         if stand > 0 and stand <= self.num_stands:
-            return True, tuple(self.currentState['power'][stand-1])
+            config0 = self.currentState['config'][2*(stand-1)+0]
+            config1 = self.currentState['config'][2*(stand-1)+1]
+            return True, tuple([config0['dc_on'], config1['dc_on']])
             
+        else:
+            self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
+            return False, ()
+            
+    def getFEECurrentDraw(self, stand):
+        """
+        Return the FEE current draw (pol 1, pol 2) for a given stand as a two-element tuple 
+        (success, values) where success is a boolean related to if the attenuator values were 
+        found.  See the currentState['lastLog'] entry for the reason for failure if the 
+        returned success value is False.
+        """
+        
+        if stand > 0 and stand <= self.num_stands:
+            if self.currentState['chassisThreads'] is None:
+                self.currentState['lastLog'] = 'FEEPOL1CUR: Monitoring processes are not running'
+                return False, ()
+                
+            fees = self.currentState['chassisThreads'][0].getFEECurrent(stand)
+            return True, tuple(fees)
         else:
             self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
             return False, ()
@@ -810,7 +826,7 @@ class AnalogProcessor(object):
                 self.currentState['lastLog'] = 'ARXPWRUNIT_%s: Invalid ARX power supply' % psNumb
                 return False, None
             
-    def getARXCurrentDraw(self):
+    def getARXPowerSupplyCurrentDraw(self):
         """
         Return the ARX current draw (in mA) as a two-element tuple (success, values) where 
         success is a boolean related to if the current value was found.  See the 
@@ -830,7 +846,7 @@ class AnalogProcessor(object):
                     
             return True, curr*1000.0
         
-    def getARXVoltage(self):
+    def getARXPowerSupplyVoltage(self):
         """
         Return the ARX output voltage (in V) as a two-element tuple (success, value) where
         success is a boolean related to if the current value was found.  See the 
@@ -912,7 +928,7 @@ class AnalogProcessor(object):
                 self.currentState['lastLog'] = 'Invalid ARX power supply (%i)' % psNumb
                 return False, None
             
-    def getFEECurrentDraw(self):
+    def getFEEPowerSupplyCurrentDraw(self):
         """
         Return the FEE power supply current draw (in mA) as a two-element tuple (success, values) 
         where success is a boolean related to if the current value was found.  See the 
@@ -932,7 +948,7 @@ class AnalogProcessor(object):
                     
             return True, curr*1000.0
         
-    def getFEEVoltage(self):
+    def getFEEPowerSupplyVoltage(self):
         """
         Return the ARX output voltage (in V) as a two-element tuple (success, value) where
         success is a boolean related to if the current value was found.  See the 

@@ -201,22 +201,13 @@ class MCSCommunicate(Communicate):
                     self.logger.debug('%s = exited with status %s', data, str(status))
                     
                 ## Analog chain state - Attenuators
-                elif data[0:4] == 'AT1_':
+                elif data[0:4] in ('AT1_', 'AT2_'):
                     stand = int(data[4:])
+                    atten = int(data[2]) - 1
                     
                     status, attens = self.SubSystemInstance.getAttenuators(stand)
                     if status:
-                        packed_data = str(attens[0])
-                    else:
-                        packed_data = self.SubSystemInstance.currentState['lastLog']
-                        
-                    self.logger.debug('%s = exited with status %s', data, str(status))
-                elif data[0:4] == 'AT2_':
-                    stand = int(data[4:])
-                    
-                    status, attens = self.SubSystemInstance.getAttenuators(stand)
-                    if status:
-                        packed_data = str(attens[1])
+                        packed_data = str(attens[atten])
                     else:
                         packed_data = self.SubSystemInstance.currentState['lastLog']
                         
@@ -233,12 +224,13 @@ class MCSCommunicate(Communicate):
                     self.logger.debug('%s = exited with status %s', data, str(status))
                     
                 ## Analog gain state - FEE power
-                elif data[0:11] == 'FEEPOL1PWR_':
+                elif data[0:11] in ('FEEPOL1PWR_', 'FEEPOL2PWR_'):
                     stand = int(data[11:])
+                    pol = int(data[6]) - 1
                     
                     status, power = self.SubSystemInstance.getFEEPowerState(stand)
                     if status:
-                        if power[0]:
+                        if power[pol]:
                             packed_data = 'ON '
                         else:
                             packed_data = 'OFF'
@@ -246,20 +238,20 @@ class MCSCommunicate(Communicate):
                         packed_data = self.SubSystemInstance.currentState['lastLog']
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
-                elif data[0:11] == 'FEEPOL2PWR_':
-                    stand = int(data[11:])
                     
-                    status, power = self.SubSystemInstance.getFEEPowerState(stand)
+                ## Analog gain state - FEE current draw
+                elif data[0:11] in ('FEEPOL1CUR_', 'FEEPOL2CUR_'):
+                    stand = int(data[11:])
+                    pol = int(data[6]) - 1
+                    
+                    status, current = self.SubSystemInstance.getFEECurrentDraw(stand)
                     if status:
-                        if power[1]:
-                            packed_data = 'ON '
-                        else:
-                            packed_data = 'OFF'
+                        packed_data = "%.1f" % current[pol]
                     else:
                         packed_data = self.SubSystemInstance.currentState['lastLog']
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
-                
+                    
                 ## ARX power supplies
                 elif data == 'ARXSUPPLY':
                     status, value = self.SubSystemInstance.getARXPowerSupplyStatus()
@@ -290,7 +282,7 @@ class MCSCommunicate(Communicate):
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
                 elif data == 'ARXCURR':
-                    status, value = self.SubSystemInstance.getARXCurrentDraw()
+                    status, value = self.SubSystemInstance.getARXPowerSupplyCurrentDraw()
                     if status:
                         packed_data = "%-7i" % value
                         
@@ -299,7 +291,7 @@ class MCSCommunicate(Communicate):
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
                 elif data == 'ARXVOLT':
-                    status, value = self.SubSystemInstance.getARXVoltage()
+                    status, value = self.SubSystemInstance.getARXPowerSupplyVoltage()
                     if status:
                         packed_data = "%-7.3f" % value
                         
@@ -338,7 +330,7 @@ class MCSCommunicate(Communicate):
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
                 elif data == 'FEECURR':
-                    status, value = self.SubSystemInstance.getFEECurrentDraw()
+                    status, value = self.SubSystemInstance.getFEEPowerSupplyCurrentDraw()
                     if status:
                         packed_data = "%-7i" % value
                         
@@ -347,7 +339,7 @@ class MCSCommunicate(Communicate):
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
                 elif data == 'FEEVOLT':
-                    status, value = self.SubSystemInstance.getFEEVoltage()
+                    status, value = self.SubSystemInstance.getFEEPowerSupplyVoltage()
                     if status:
                         packed_data = "%-7.3f" % value
                         
