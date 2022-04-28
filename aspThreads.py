@@ -20,11 +20,11 @@ except ImportError:
     
 from lwainflux import LWAInfluxClient
 
-from aspCommon import SUB20_LOCKS
 from aspRS485 import rs485Check, rs485Power
+from aspI2C import psuRead
 
 
-__version__ = '0.4'
+__version__ = '0.5'
 __all__ = ['TemperatureSensors', 'PowerStatus', 'ChassisStatus']
 
 
@@ -36,8 +36,8 @@ class TemperatureSensors(object):
     Class for monitoring temperature for the power supplies via the I2C interface.
     """
     
-    def __init__(self, sub20SN, config, logfile='/data/temp.txt', ASPCallbackInstance=None):
-        self.sub20SN = int(sub20SN)
+    def __init__(self, serialPort, config, logfile='/data/temp.txt', ASPCallbackInstance=None):
+        self.port = port
         self.logfile = logfile
         self.updateConfig(config)
         
@@ -79,7 +79,8 @@ class TemperatureSensors(object):
         if self.thread is not None:
             self.stop()
             
-        self.nTemps = os.system("/usr/local/bin/countThermometers %04X" % self.sub20SN) // 256
+        _, temps = psuTemperatureRead(self.port, 0x1F)
+        self.nTemps = len(temps)
         self.description = ["UNK" for i in range(self.nTemps)]
         self.temp = [0.0 for i in range(self.nTemps)]
         self.coldCount = 0
@@ -115,30 +116,11 @@ class TemperatureSensors(object):
             tStart = time.time()
             
             try:
-                missingSUB20 = False
-                
-                with SUB20_LOCKS[self.sub20SN]:
-                    p = subprocess.Popen('/usr/local/bin/readThermometers %04X' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
-                if p.returncode != 0:
-                    aspThreadsLogger.warning("readThermometers: command returned %i; '%s;%s'", p.returncode, output, output2)
-                    self.lastError = str(output2)
-                    
-                    missingSUB20 = True
-                    
-                else:
-                    for i,line in enumerate(output.split('\n')):
-                        if len(line) < 4:
-                            continue
-                        psu, desc, tempC = line.split(None, 2)
-                        self.description[i] = '%s %s' % (psu, desc)
-                        self.temp[i] = float(tempC)
+                status, temps = psuTemperatureRead(self.port, 0x1F)
+                if status:
+                    for i,t in enumerate(temps):
+                        self.description[i] = '%s %s' % (0x1F, i+1)
+                        self.temp[i] = t
                         
                 # Open the log file and save the temps
                 try:
@@ -170,9 +152,6 @@ class TemperatureSensors(object):
                     
                 # Make sure we aren't critical (on either side of good)
                 if self.ASPCallbackInstance is not None and self.temp is not None:
-                    if missingSUB20:
-                        self.ASPCallbackInstance.processMissingSUB20()
-                        
                     if self.hotCount >= 3:
                         aspThreadsLogger.critical('%s: monitorThread max. temperature is %.1f C, notifying the system', type(self).__name__, max(self.temp))
                         
@@ -288,8 +267,8 @@ class PowerStatus(object):
     for the power supplies via the I2C interface.
     """
     
-    def __init__(self, sub20SN, deviceAddress, config, logfile='/data/psu.txt', ASPCallbackInstance=None):
-        self.sub20SN = int(sub20SN)
+    def __init__(self, port, deviceAddress, config, logfile='/data/psu.txt', ASPCallbackInstance=None):
+        self.port = port
         self.deviceAddress = int(deviceAddress)
         base, ext = logfile.rsplit('.', 1)
         self.logfile = '%s-0x%02X.%s' % (base, self.deviceAddress, ext)
@@ -363,34 +342,13 @@ class PowerStatus(object):
             tStart = time.time()
             
             try:
-                missingSUB20 = False
-                
-                with SUB20_LOCKS[self.sub20SN]:
-                    p = subprocess.Popen('/usr/local/bin/readPSU %04X 0x%02X' % (self.sub20SN, self.deviceAddress), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
-                if p.returncode != 0:
-                    aspThreadsLogger.warning("readPSU: command returned %i; '%s;%s'", p.returncode, output, output2)
-                    self.voltage = 0.0
-                    self.current = 0.0
-                    self.onoff = "UNK"
-                    self.status = "UNK"
-                    self.lastError = str(output2)
-                    
-                    missingSUB20 = True
-                    
-                else:
-                    psu, desc, onoffHuh, statusHuh, voltageV, currentA, = output.replace('\n', '').split(None, 5)
-                    self.description = '%s - %s' % (psu, desc)
-                    self.voltage = float(voltageV)
-                    self.current = float(currentA)
-                    self.onoff = '%-3s' % onoffHuh
-                    self.status = statusHuh
+                success, voltage, current, onoff, status = psuRead(self.port, self.deviceAddress)
+                if success:
+                    self.description = '%s - %s' % (self.port, self.deviceAddress)
+                    elf.voltage = voltage
+                    self.current = current
+                    self.onoff = onoff
+                    self.status = status
                     
                 try:
                     log = open(self.logfile, 'a+')
@@ -405,9 +363,6 @@ class PowerStatus(object):
                 # Deal with power supplies that are over temperature, current, or voltage; 
                 # or under voltage; or has a module fault
                 if self.ASPCallbackInstance is not None:
-                    if missingSUB20:
-                        self.ASPCallbackInstance.processMissingSUB20()
-                        
                     for modeOfFailure in ('OverTemperature', 'OverCurrent', 'OverVolt', 'UnderVolt', 'ModuleFault'):
                         if self.status.find(modeOfFailure) != -1:
                             aspThreadsLogger.critical('%s: monitorThread PS at 0x%02X is in %s', type(self).__name__, self.deviceAddress, modeOfFailure)
@@ -574,7 +529,7 @@ class ChassisStatus(object):
                     
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                aspThreadsLogger.error("%s: monitorThread 0x%04X failed with: %s at line %i", type(self).__name__, self.sub20SN, str(e), exc_traceback.tb_lineno)
+                aspThreadsLogger.error("%s: monitorThread failed with: %s at line %i", type(self).__name__, str(e), exc_traceback.tb_lineno)
                 
                 ## Grab the full traceback and save it to a string via StringIO
                 fileObject = StringIO()
