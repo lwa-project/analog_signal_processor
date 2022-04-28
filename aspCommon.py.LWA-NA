@@ -9,11 +9,11 @@ import math
 import threading
 from datetime import datetime
 
-__version__ = '0.5'
+__version__ = '0.1'
 __all__ = ['STANDS_PER_BOARD', 'MAX_BOARDS', 'MAX_STANDS', 'MAX_ATTEN', 
-           'RS485_ANTENNA_MAPPING', 'RS485_LOCK', 'SUB20_I2C_MAPPING',
-           'SUB20_LOCKS', 'MAX_RS485_RETRY', 'WAIT_RS485_RETRY',
-           'ARX_PS_ADDRESS', 'FEE_PS_ADDRESS']
+           'RS485_ANTENNA_MAPPING', 'RS485_LOCK', 'MAX_RS485_RETRY',
+           'WAIT_RS485_RETRY', 'ARX_PS_PORT', 'ARX_PS_ADDRESS', 'FEE_PS_PORT',
+           'FEE_PS_ADDRESS']
 
 # Read in the aspCommon.h file to make sure that the C and Python codes are on 
 # the same page.  The filling of this file should probably be part of the 
@@ -63,18 +63,14 @@ MAX_RS485_RETRY = 0
 # Base wait period in seconds between RS485 command retries
 WAIT_RS485_RETRY = 0.2
 
-# SUB-20 I2C device interface
-SUB20_I2C_MAPPING = 0x1877
-
-# SUB-20 semaphores
-SUB20_LOCKS = {}
-s = threading.Semaphore(1)
-for sn in RS485_ANTENNA_MAPPING.keys():
-    SUB20_LOCKS[int(sn)] = threading.Semaphore(1)
-SUB20_LOCKS[int(SUB20_I2C_MAPPING)] = threading.Semaphore(1)
+# ARX power supply I2C adapter port
+ARX_PS_PORT = '/dev/ttyUSB0'
 
 # ARX power supply I2C address
 ARX_PS_ADDRESS = 0x1F        # I2C connector with pins 6, 7, and 8 high
 
+# FEE power supply I2C adapter port
+FEE_PS_PORT = '/dev/ttyUSB0'
+
 # FEE power supply I2C address
-FEE_PS_ADDRESS = 0x1E        # I2C connector with pins 7 and 8 high, 6 low (shorted to ground)
+FEE_PS_ADDRESS = 0x1F        # I2C connector with pins 7 and 8 high, 6 low (shorted to ground)
