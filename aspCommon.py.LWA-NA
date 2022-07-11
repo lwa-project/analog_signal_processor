@@ -15,44 +15,27 @@ __all__ = ['STANDS_PER_BOARD', 'MAX_BOARDS', 'MAX_STANDS', 'MAX_ATTEN',
            'WAIT_RS485_RETRY', 'ARX_PS_PORT', 'ARX_PS_ADDRESS', 'FEE_PS_PORT',
            'FEE_PS_ADDRESS']
 
-# Read in the aspCommon.h file to make sure that the C and Python codes are on 
-# the same page.  The filling of this file should probably be part of the 
-# Makefile but it isn't clear to me how to do that.
-try:
-    cDefines = {}
-    fh = open('aspCommon.h', 'r')
-    for d in filter(lambda x: x.find('#define') >= 0, fh):
-        try:
-            junk, name, value = d.split(None, 2)
-            cDefines[name] = value.replace('\n', '')
-        except ValueError:
-            pass
-    fh.close()
-    
-except IOError:
-    cDefines = {'STANDS_PER_BOARD': 8, 
-                'MAX_BOARDS': 32,}
 
 # ASP-ARX number of stands per board
-STANDS_PER_BOARD = int(cDefines['STANDS_PER_BOARD'])
+STANDS_PER_BOARD = 8
 
 # ASP-ARX board and stand limits
-MAX_BOARDS = int(cDefines['MAX_BOARDS'])
-MAX_STANDS = 256
+MAX_BOARDS = 8
+MAX_STANDS = 64
 
 # Attenuator limits
 MAX_ATTEN = 15
 
 # RS485 Antennas Mapping
 RS485_ANTENNA_MAPPING = {}
-RS485_ANTENNA_MAPPING[8243] = ( 1,  8)
-RS485_ANTENNA_MAPPING[8244] = ( 9, 16)
-RS485_ANTENNA_MAPPING[8245] = (17, 24)
-RS485_ANTENNA_MAPPING[8246] = (25, 32)
-RS485_ANTENNA_MAPPING[8247] = (33, 40)
+RS485_ANTENNA_MAPPING[8251] = ( 1,  8)
+RS485_ANTENNA_MAPPING[8252] = ( 9, 16)
+RS485_ANTENNA_MAPPING[8244] = (17, 24)
+RS485_ANTENNA_MAPPING[8249] = (25, 32)
+RS485_ANTENNA_MAPPING[8250] = (33, 40)
 RS485_ANTENNA_MAPPING[8248] = (41, 48)
-RS485_ANTENNA_MAPPING[8249] = (49, 56)
-RS485_ANTENNA_MAPPING[8249] = (57, 64)
+RS485_ANTENNA_MAPPING[8247] = (49, 56)
+RS485_ANTENNA_MAPPING[8246] = (57, 64)
 
 # RS485 lock
 RS485_LOCK = threading.Semaphore(1)
@@ -64,13 +47,13 @@ MAX_RS485_RETRY = 0
 WAIT_RS485_RETRY = 0.2
 
 # ARX power supply I2C adapter port
-ARX_PS_PORT = '/dev/ttyUSB0'
+ARX_PS_PORT = '/dev/ttyUSB1'
 
 # ARX power supply I2C address
 ARX_PS_ADDRESS = 0x1F        # I2C connector with pins 6, 7, and 8 high
 
 # FEE power supply I2C adapter port
-FEE_PS_PORT = '/dev/ttyUSB0'
+FEE_PS_PORT = '/dev/ttyUSB1'
 
 # FEE power supply I2C address
 FEE_PS_ADDRESS = 0x1F        # I2C connector with pins 7 and 8 high, 6 low (shorted to ground)
