@@ -39,7 +39,7 @@ def rs485CountBoards(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
         for board in RS485_ANTENNA_MAPPING.keys():
             for attempt in range(maxRetry+1):
                 try:
-                    _ARX.get_board_info(board, 0)
+                    _ARX.get_board_info(board & 0xFF)
                     found += 1
                     break
                 except Exception as e:
@@ -55,7 +55,7 @@ def rs485Reset(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    _ARX.reset()
+                    _ARX.reset(board & 0xFF)
                     board_success = True
                 except Exception as e:
                     aspRS485Logger.warning("Could not reset board %s: %s", board, str(e))
@@ -95,7 +95,7 @@ def rs485Get(stand, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
             for board in RS485_ANTENNA_MAPPING.keys():
                 for attempt in range(maxRetry+1):
                     try:
-                        board_config = _ARX.get_all_chan_cfg(board)
+                        board_config = _ARX.get_all_chan_cfg(board & 0xFF)
                         config.extend(board_config)
                         break
                     except Exception as e:
@@ -110,8 +110,8 @@ def rs485Get(stand, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
         with RS485_LOCK:
             for attempt in range(maxRetry+1):
                 try:
-                    chan_config0 = _ARX.get_chan_cfg(board, chan0)
-                    chan_config1 = _ARX.get_chan_cfg(board, chan1)
+                    chan_config0 = _ARX.get_chan_cfg(board & 0xFF, chan0)
+                    chan_config1 = _ARX.get_chan_cfg(board & 0xFF, chan1)
                     config.append(chan_config0)
                     config.append(chan_config1)
                     break
@@ -130,7 +130,7 @@ def rs485Send(stand, config, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
-                        _ARX.set_all_different_chan_config(board, config)
+                        _ARX.set_all_different_chan_config(board & 0xFF, config)
                         board_success = True
                         break
                     except Exception as e:
@@ -148,8 +148,8 @@ def rs485Send(stand, config, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    _ARX.set_chan_cfg(board, chan0, config[0])
-                    _ARX.set_chan_cfg(board, chan1, config[1])
+                    _ARX.set_chan_cfg(board & 0xFF, chan0, config[0])
+                    _ARX.set_chan_cfg(board & 0xFF, chan1, config[1])
                     board_success = True
                     break
                 except Exception as e:
@@ -169,8 +169,8 @@ def rs485Power(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    new_board = _ARX.get_board_current(board)
-                    new_fees = _ARX.get_all_chan_current(board)
+                    new_board = _ARX.get_board_current(board & 0xFF)
+                    new_fees = _ARX.get_all_chan_current(board & 0xFF)
                     boards.append(new_board)
                     fees.extend(new_fees)
                     board_success = True
