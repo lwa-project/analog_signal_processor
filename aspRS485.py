@@ -74,7 +74,7 @@ def rs485Check(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    echo_data = _ARX.echo(data)
+                    echo_data = _ARX.echo(board & 0xFF,data)
                     if echo_data == data:
                         board_success = True
                     else:
