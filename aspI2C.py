@@ -30,41 +30,41 @@ def _read_until_done(fh):
 
 def psuRead(serialPort, psuAddress):
     success, voltage, current, onoff, status = True, 0.0, 0.0, "UNK", "UNK"
-    with serial.Serial(serialPort, baudrate=9600, timeout=1) as fh:
-        fh.open()
-        
-        fh.write(b'device %i' % psuAddress)
-        response = _read_until_done(fh)
-        fh.write(b'voltage')
-        response += _read_until_done(fh)
-        fh.write(b'current')
-        response += _read_until_done(fh)
-        fh.write(b'summary')
-        response += _read_until_done(fh)
-        
-        if response.find('ERROR') == -1:
-            p = re.compile(r'Voltage: (?P<value>\d+\.\d+)')
-            m = p.search(response)
-            if m is not None:
-                voltage = float(m.group('value'))
-            p = re.compile(r'Current: (?P<value>\d+\.\d+)')
-            m = p.search(response)
-            if m is not None:
-                current = float(m.group('value'))
-            p = re.compile(r'Power status: (?P<value>[OoNnFf]+)')
-            m = p.search(response)
-            if m is not None:
-                onoff = m.group('value')
-            p = re.compile(r'Module \d+: .*')
-            ms = p.findall(response)
-            new_status = ''
-            for m in ms:
-                new_status += ' & '+m
-            if new_status != '':
-                status = new_status.replace('\n', '')
-        else:
-            success = False
-            aspI2CLogger.warning("psuRead: Error during polling - %s", response)
+    # with serial.Serial(serialPort, baudrate=9600, timeout=1) as fh:
+    #     fh.open()
+    # 
+    #     fh.write(b'device %i' % psuAddress)
+    #     response = _read_until_done(fh)
+    #     fh.write(b'voltage')
+    #     response += _read_until_done(fh)
+    #     fh.write(b'current')
+    #     response += _read_until_done(fh)
+    #     fh.write(b'summary')
+    #     response += _read_until_done(fh)
+    # 
+    #     if response.find('ERROR') == -1:
+    #         p = re.compile(r'Voltage: (?P<value>\d+\.\d+)')
+    #         m = p.search(response)
+    #         if m is not None:
+    #             voltage = float(m.group('value'))
+    #         p = re.compile(r'Current: (?P<value>\d+\.\d+)')
+    #         m = p.search(response)
+    #         if m is not None:
+    #             current = float(m.group('value'))
+    #         p = re.compile(r'Power status: (?P<value>[OoNnFf]+)')
+    #         m = p.search(response)
+    #         if m is not None:
+    #             onoff = m.group('value')
+    #         p = re.compile(r'Module \d+: .*')
+    #         ms = p.findall(response)
+    #         new_status = ''
+    #         for m in ms:
+    #             new_status += ' & '+m
+    #         if new_status != '':
+    #             status = new_status.replace('\n', '')
+    #     else:
+    #         success = False
+    #         aspI2CLogger.warning("psuRead: Error during polling - %s", response)
             
     return success, voltage, current, onoff, status
 
@@ -75,44 +75,44 @@ def psuSend(serialPort, psuAddress, state):
     """
     
     status = True
-    with serial.Serial(serialPort, baudrate=9600, timeout=1) as fh:
-        fh.open()
-        
-        fh.write(b'device %i' % psuAddress)
-        response = _read_until_done(fh)
-        if response.find('ERROR'):
-            status = False
-        fh.write(b'on' if state == '11' else b'off')
-        response += _read_until_done(fh)
-        if response.find('ERROR'):
-            status = False
-            
-    if not status:
-        aspI2CLogger.warning("psuSend: Error during polling - %s", response)
+    # with serial.Serial(serialPort, baudrate=9600, timeout=1) as fh:
+    #     fh.open()
+    # 
+    #     fh.write(b'device %i' % psuAddress)
+    #     response = _read_until_done(fh)
+    #     if response.find('ERROR'):
+    #         status = False
+    #     fh.write(b'on' if state == '11' else b'off')
+    #     response += _read_until_done(fh)
+    #     if response.find('ERROR'):
+    #         status = False
+    # 
+    # if not status:
+    #     aspI2CLogger.warning("psuSend: Error during polling - %s", response)
     return status
 
 
 def psuTemperatureRead(serialPort, psuAddress):
     status, temperatures = True, []
-    with serial.Serial(serialPort, baudrate=9600, timeout=1) as fh:
-        fh.open()
-        
-        fh.write(b'device %i' % psuAddress)
-        response = _read_until_done(fh)
-        fh.write(b'temperatures')
-        response += _read_until_done(fh)
-        
-        if response.find('ERROR') == -1:
-            p = re.compile(r'Temperatures: (?P<value0>\d+\.\d+)( +(?P<value1>\d+\.\d+))?')
-            m = p.search(response)
-            if m is not None:
-                temperatures.append(float(m.group('value0')))
-                try:
-                    temperatures.append(float(m.group('value1')))
-                except IndexError:
-                    pass
-        else:
-            status = False
-            aspI2CLogger.warning("psuTemperatureRead: Error during polling - %s", response)
+    # with serial.Serial(serialPort, baudrate=9600, timeout=1) as fh:
+    #     fh.open()
+    # 
+    #     fh.write(b'device %i' % psuAddress)
+    #     response = _read_until_done(fh)
+    #     fh.write(b'temperatures')
+    #     response += _read_until_done(fh)
+    # 
+    #     if response.find('ERROR') == -1:
+    #         p = re.compile(r'Temperatures: (?P<value0>\d+\.\d+)( +(?P<value1>\d+\.\d+))?')
+    #         m = p.search(response)
+    #         if m is not None:
+    #             temperatures.append(float(m.group('value0')))
+    #             try:
+    #                 temperatures.append(float(m.group('value1')))
+    #             except IndexError:
+    #                 pass
+    #     else:
+    #         status = False
+    #         aspI2CLogger.warning("psuTemperatureRead: Error during polling - %s", response)
             
     return status, temperatures
