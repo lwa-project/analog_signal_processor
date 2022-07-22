@@ -866,8 +866,8 @@ class AnalogProcessor(object):
         """
         
         self.currentState['lastLog'] = 'FEEVOLT: This function is now depreciated'
-            return False, 0.0
-        
+        return False, 0.0
+
     def getTemperatureStatus(self):
         """
         Return the summary status (IN_RANGE, OVER_TEMP, UNDER_TEMP) for ASP as a two-element
