@@ -85,7 +85,6 @@ class AnalogProcessor(object):
         
         ## Monitoring and background threads
         self.currentState['tempThread'] = None
-        self.currentState['powerThreads'] = None
         self.currentState['chassisThreads'] = None
         
         # Board and stand counts
@@ -185,14 +184,6 @@ class AnalogProcessor(object):
                 aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
                     
                 # Stop all threads.  If the don't exist yet, create them.
-                if self.currentState['powerThreads'] is not None:
-                    for t in self.currentState['powerThreads']:
-                        t.stop()
-                        t.updateConfig(self.config)
-                else:
-                    self.currentState['powerThreads'] = []
-                    self.currentState['powerThreads'].append( PowerStatus(SUB20_I2C_MAPPING, ARX_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
-                    self.currentState['powerThreads'].append( PowerStatus(SUB20_I2C_MAPPING, FEE_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
                 if self.currentState['tempThread'] is not None:
                     self.currentState['tempThread'].stop()
                     self.currentState['tempThread'].updateConfig(self.config)
@@ -213,8 +204,6 @@ class AnalogProcessor(object):
                 self.currentState['config'] = rs485Get(0)
                 
                 # Start the threads
-                for t in self.currentState['powerThreads']:
-                    t.start()
                 self.currentState['tempThread'].start()
                 for t in self.currentState['chassisThreads']:
                     t.start()
@@ -290,9 +279,6 @@ class AnalogProcessor(object):
         self.currentState['ready'] = False
         
         # Stop all threads.
-        if self.currentState['powerThreads'] is not None:
-            for t in self.currentState['powerThreads']:
-                t.stop()
         if self.currentState['tempThread'] is not None:
             self.currentState['tempThread'].stop()
         if self.currentState['chassisThreads'] is not None:
@@ -754,207 +740,135 @@ class AnalogProcessor(object):
             
     def getARXPowerSupplyStatus(self):
         """
-        Return the overall ARX power supply status as a two-element tuple (success, values) 
+        Now depreciated
+        
+        Old: Return the overall ARX power supply status as a two-element tuple (success, values) 
         where success is a boolean related to if the status was found.  See the 
         currentState['lastLog'] entry for the reason for failure if the returned success 
         value is False.
         """
         
-        if self.currentState['powerThreads'] is None:
-            self.currentState['lastLog'] = 'ARXSUPPLY: Monitoring processes are not running'
-            return False, 'UNK'
-            
-        else:
-            status = 'UNK'
-            for t in self.currentState['powerThreads']:
-                if t.getDeviceAddress() == ARX_PS_ADDRESS:
-                    status = t.getOnOff()
-                
-            return True, status
+        self.currentState['lastLog'] = 'ARXSUPPLY: This function is depreciated'
+        return False, 'UNK'
             
     def getARXPowerSupplyCount(self):
         """
-        Return the number of ARX power supplies being polled as a two-element tuple (success, 
+        Now depreciated
+        
+        Old: Return the number of ARX power supplies being polled as a two-element tuple (success, 
         value) where success is a boolean related to if the status was found.  See the 
         currentState['lastLog'] entry for the reason for failure if the returned success 
         value is False.
         """
         
-        if self.currentState['powerThreads'] is None:
-            self.currentState['lastLog'] = 'ARXSUPPLY-NO: Monitoring processes are not running'
-            return False, 0
-            
-        else:
-            return True, 1
+        self.currentState['lastlog'] = 'ARXSUPPLY-NO: This function is depreciated'    
+        return True, 0
         
     def getARXPowerSupplyInfo(self, psNumb):
         """
-        Return information (name - status) about the  various ARX power supplies as a two-
+        Now depreciated
+        
+        Old: Return information (name - status) about the  various ARX power supplies as a two-
         element tuple (success, values) where success is a boolean related to if the values 
         were found.  See the currentState['lastLog'] entry for the reason for failure if 
         the returned success value is False.
         """
         
-        if self.currentState['powerThreads'] is None:
-            self.currentState['lastLog'] = 'ARXPWRUNIT_%s: Monitoring processes are not running' % psNumb
-            return False, None
-            
-        else:
-            if psNumb > 0 and psNumb < 2:
-                info = 'UNK - UNK'
-                for t in self.currentState['powerThreads']:
-                    if t.getDeviceAddress() == ARX_PS_ADDRESS:
-                        info1 = t.getDescription()
-                        info2 = t.getStatus()
-                        info = "%s - %s" % (info1, info2)
-            
-                return True, info
-                
-            else:
-                self.currentState['lastLog'] = 'ARXPWRUNIT_%s: Invalid ARX power supply' % psNumb
-                return False, None
+        self.currentState['lastLog'] = 'ARXPWRUNIT_%s: This function is now depreciated' % psNumb
+        return False, None
+        
             
     def getARXPowerSupplyCurrentDraw(self):
         """
-        Return the ARX current draw (in mA) as a two-element tuple (success, values) where 
+        Now depreciated
+        
+        Old: Return the ARX current draw (in mA) as a two-element tuple (success, values) where 
         success is a boolean related to if the current value was found.  See the 
         currentState['lastLog'] entry for the reason for failure if the returned success 
         value is False.
         """
         
-        if self.currentState['powerThreads'] is None:
-            self.currentState['lastLog'] = 'ARXCURR: Monitoring processes are not running'
-            return False, 0
-            
-        else:
-            curr = 0.0
-            for t in self.currentState['powerThreads']:
-                if t.getDeviceAddress() == ARX_PS_ADDRESS:
-                    curr = t.getCurrent()
-                    
-            return True, curr*1000.0
+        self.currentState['lastLog'] = 'ARXCURR: This function is now depreciated'
+        return False, 0
+        
         
     def getARXPowerSupplyVoltage(self):
         """
-        Return the ARX output voltage (in V) as a two-element tuple (success, value) where
+        Now depreciated
+        
+        Old: Return the ARX output voltage (in V) as a two-element tuple (success, value) where
         success is a boolean related to if the current value was found.  See the 
         currentState['lastLog'] entry for the reason for failure if the returned success 
         value is False.
         """
         
-        if self.currentState['powerThreads'] is None:
-            self.currentState['lastLog'] = 'ARXVOLT: Monitoring processes are not running'
-            return False, 0.0
-            
-        else:
-            volt = 0.0
-            for t in self.currentState['powerThreads']:
-                if t.getDeviceAddress() == ARX_PS_ADDRESS:
-                    volt = t.getVoltage()
-                    
-            return True, volt
+        self.currentState['lastLog'] = 'ARXVOLT: This function is now depreciated'
+        return False, 0.0
         
     def getFEEPowerSupplyStatus(self):
         """
-        Return the overall FEE power supply status as a two-element tuple (success, values) 
+        Now depreciated
+        
+        Old: Return the overall FEE power supply status as a two-element tuple (success, values) 
         where success is a boolean related to if the status was found.  See the 
         currentState['lastLog'] entry for the reason for failure if the returned success 
         value is False.
         """
         
-        if self.currentState['powerThreads'] is None:
-            self.currentState['lastLog'] = 'FEESUPPLY: Monitoring processes are not running'
-            return False, 'UNK'
-            
-        else:
-            status = 'UNK'
-            for t in self.currentState['powerThreads']:
-                if t.getDeviceAddress() == FEE_PS_ADDRESS:
-                    status = t.getOnOff()
-                
-            return True, status
+        self.currentState['lastLog'] = 'FEESUPPLY: This function is now depreciated'
+        return False, 'UNK'
             
     def getFEEPowerSupplyCount(self):
         """
-        Return the number of FEE power supplies being polled as a two-element tuple (success, 
+        Now depreciated
+        
+        Old: Return the number of FEE power supplies being polled as a two-element tuple (success, 
         value) where success is a boolean related to if the status was found.  See the 
         currentState['lastLog'] entry for the reason for failure if the returned success 
         value is False.
         """
         
-        if self.currentState['powerThreads'] is None:
-            self.currentState['lastLog'] = 'FEESUPPLY-NO: Monitoring processes are not running'
-            return False, 0
-            
-        else:
-            return True, 1
+        self.currentState['lastLog'] = 'FEESUPPLY-NO: This function is now depreciated'
+        return False, 0
         
     def getFEEPowerSupplyInfo(self, psNumb):
         """
-        Return information (name and status) about the  various FEE power supplies as a three-
+        Now depreciated
+        
+        Old: Return information (name and status) about the  various FEE power supplies as a three-
         element tuple (success, name, status string) where success is a boolean related to if 
         the values were found.  See the currentState['lastLog'] entry for the reason for 
         failure if the returned success value is False.
         """
         
-        if self.currentState['powerThreads'] is None:
-            self.currentState['lastLog'] = 'FEEPWRUNIT_%s: Monitoring processes are not running' % psNumb
-            return False, None
-            
-        else:
-            if psNumb > 0 and psNumb < 2:
-                info = 'UNK - UNK'
-                for t in self.currentState['powerThreads']:
-                    if t.getDeviceAddress() == FEE_PS_ADDRESS:
-                        info1 = t.getDescription()
-                        info2 = t.getStatus()
-                        info = "%s - %s" % (info1, info2)
-            
-                return True, info
-                
-            else:
-                self.currentState['lastLog'] = 'Invalid ARX power supply (%i)' % psNumb
-                return False, None
+        self.currentState['lastLog'] = 'FEEPWRUNIT_%s: This function is now depreciated' % psNumb
+        return False, None
             
     def getFEEPowerSupplyCurrentDraw(self):
         """
-        Return the FEE power supply current draw (in mA) as a two-element tuple (success, values) 
+        Now depreciated
+        
+        Old: Return the FEE power supply current draw (in mA) as a two-element tuple (success, values) 
         where success is a boolean related to if the current value was found.  See the 
         currentState['lastLog'] entry for the reason for failure if the returned success 
         value is False.
         """
         
-        if self.currentState['powerThreads'] is None:
-            self.currentState['lastLog'] = 'FEECURR: Monitoring processes are not running'
-            return False, 0
-            
-        else:
-            curr = 0.0
-            for t in self.currentState['powerThreads']:
-                if t.getDeviceAddress() == FEE_PS_ADDRESS:
-                    curr = t.getCurrent()
-                    
-            return True, curr*1000.0
+        self.currentState['lastLog'] = 'FEECURR: This function is now depreciated'
+        return False, 0
         
     def getFEEPowerSupplyVoltage(self):
         """
-        Return the ARX output voltage (in V) as a two-element tuple (success, value) where
+        Now depreciated
+        
+        Old: Return the ARX output voltage (in V) as a two-element tuple (success, value) where
         success is a boolean related to if the current value was found.  See the 
         currentState['lastLog'] entry for the reason for failure if the returned success 
         value is False.
         """
         
-        if self.currentState['powerThreads'] is None:
-            self.currentState['lastLog'] = 'FEEVOLT: Monitoring processes are not running'
+        self.currentState['lastLog'] = 'FEEVOLT: This function is now depreciated'
             return False, 0.0
-            
-        else:
-            volt = 0.0
-            for t in self.currentState['powerThreads']:
-                if t.getDeviceAddress() == FEE_PS_ADDRESS:
-                    volt = t.getVoltage()
-                    
-            return True, volt
         
     def getTemperatureStatus(self):
         """
