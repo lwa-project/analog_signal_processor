@@ -776,7 +776,6 @@ class AnalogProcessor(object):
         
         self.currentState['lastLog'] = 'ARXPWRUNIT_%s: This function is now depreciated' % psNumb
         return False, None
-        
             
     def getARXPowerSupplyCurrentDraw(self):
         """
@@ -789,8 +788,7 @@ class AnalogProcessor(object):
         """
         
         self.currentState['lastLog'] = 'ARXCURR: This function is now depreciated'
-        return False, 0
-        
+        return False, 0 
         
     def getARXPowerSupplyVoltage(self):
         """
