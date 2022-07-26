@@ -188,7 +188,7 @@ class AnalogProcessor(object):
                     self.currentState['tempThread'].stop()
                     self.currentState['tempThread'].updateConfig(self.config)
                 else:
-                    self.currentState['tempThread'] = TemperatureSensors(SUB20_I2C_MAPPING, self.config, ASPCallbackInstance=self)
+                    self.currentState['tempThread'] = None
                 if self.currentState['chassisThreads'] is not None:
                     for t in self.currentState['chassisThreads']:
                         t.stop()
@@ -204,7 +204,7 @@ class AnalogProcessor(object):
                 self.currentState['config'] = rs485Get(0)
                 
                 # Start the threads
-                self.currentState['tempThread'].start()
+                # self.currentState['tempThread'].start() # might bring back later
                 for t in self.currentState['chassisThreads']:
                     t.start()
                     
