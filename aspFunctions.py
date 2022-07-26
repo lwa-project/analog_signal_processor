@@ -195,7 +195,7 @@ class AnalogProcessor(object):
                         t.updateConfig(self.config)
                 else:
                     self.currentState['chassisThreads'] = []
-                    self.currentState['chassisThreads'].append( ChassisStatus(self.config, ASPCallbackInstance=self) )
+                    #self.currentState['chassisThreads'].append( ChassisStatus(self.config, ASPCallbackInstance=self) )
                     
                 # Do the RS485 bus stuff
                 status = rs485Reset()
