@@ -199,9 +199,6 @@ class AnalogProcessor(object):
                     
                 # Do the RS485 bus stuff
                 status = rs485Reset()
-
-                # Check if reset is finished
-                success, failed = rs485Check()
                 
                 # Update the analog signal chain state
                 aspFunctionsLogger.debug('This is the part where we run rs485Get(0)')
