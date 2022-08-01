@@ -64,7 +64,7 @@ def rs485Reset(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
 
     # Do some sort of waiting check
     reset_check, failed = rs485Check(1, 1, False)
-    sucess &= reset_check
+    success &= reset_check
 
     return success
 
