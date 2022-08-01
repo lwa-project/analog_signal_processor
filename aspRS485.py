@@ -61,10 +61,15 @@ def rs485Reset(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
                     aspRS485Logger.warning("Could not reset board %s: %s", board, str(e))
                     time.sleep(waitRetry)
             success &= board_success
+
+    # Do some sort of waiting check
+    reset_check, failed = rs485Check(1, 1, False)
+    sucess &= reset_check
+    
     return success
 
 
-def rs485Check(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
+def rs485Check(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY, verbose=True):
     data = "check_for_me"
     
     success = True
@@ -76,7 +81,8 @@ def rs485Check(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
                 try:
                     echo_data = _ARX.echo(board & 0xFF,data)
                 except Exception as e:
-                    aspRS485Logger.warning("Could not echo '%s' to board %s: %s", data, board, str(e))
+                    if vernose:
+                        aspRS485Logger.warning("Could not echo '%s' to board %s: %s", data, board, str(e))
                     time.sleep(waitRetry)
             success &= board_success
             if not board_success:
