@@ -63,7 +63,7 @@ def rs485Reset(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
             success &= board_success
 
     # Do some sort of waiting check
-    reset_check, failed = rs485Check(1, 1, False)
+    reset_check, failed = rs485Check(1, 10, False)
     success &= reset_check
 
     return success
