@@ -92,8 +92,11 @@ def rs485Get(stand, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
                 for attempt in range(maxRetry+1):
                     try:
                         dummy = _ARX._send(board&0xFF, 'geta', '', 15)
-                        aspRS485Logger.debug(f'{board}: {dummy}')
+                        chan_cfg_dummy = dummy['chan_config']
                         board_config = _ARX.get_all_chan_cfg(board & 0xFF)
+
+
+                        aspRS485Logger.debug(f'{board}: {chan_cfg_dummy} and {board_config}')
                         config.extend(board_config)
                         break
                     except Exception as e:
