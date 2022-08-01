@@ -198,7 +198,7 @@ class AnalogProcessor(object):
                     self.currentState['chassisThreads'].append( ChassisStatus(self.config, ASPCallbackInstance=self) )
                     
                 # Do the RS485 bus stuff
-                status = rs485Reset()
+                #status = rs485Reset()
                 
                 # Update the analog signal chain state
                 aspFunctionsLogger.debug('This is the part where we run rs485Get(0)')
