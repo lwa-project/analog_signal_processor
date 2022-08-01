@@ -92,7 +92,7 @@ def rs485Get(stand, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
                 for attempt in range(maxRetry+1):
                     try:
                         aspRS485Logger.debug('Dummy1')
-                        dummy = _ARX._send(board&0xFF, 'geta', '', 15)
+                        #dummy = _ARX._send(board&0xFF, 'geta', '', 15)
                         aspRS485Logger.debug('Dummy2')
                         board_config = _ARX.get_all_chan_cfg(board & 0xFF, 30)
                         aspRS485Logger.debug('Dummy3')
