@@ -98,6 +98,7 @@ def rs485Get(stand, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
 
                         aspRS485Logger.debug(f'{board}: {chan_cfg_dummy} and {board_config}')
                         config.extend(board_config)
+                        aspRS485Logger.debug(f'after board {board}, config is now {len(config)} long')
                         break
                     except Exception as e:
                         aspRS485Logger.warning("Could not get channel info. for board %s: %s", board, str(e))
