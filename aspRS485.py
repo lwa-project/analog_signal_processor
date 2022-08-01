@@ -65,7 +65,7 @@ def rs485Reset(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
     # Do some sort of waiting check
     reset_check, failed = rs485Check(1, 1, False)
     sucess &= reset_check
-    
+
     return success
 
 
@@ -81,7 +81,7 @@ def rs485Check(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY, verbose=Tru
                 try:
                     echo_data = _ARX.echo(board & 0xFF,data)
                 except Exception as e:
-                    if vernose:
+                    if verbose:
                         aspRS485Logger.warning("Could not echo '%s' to board %s: %s", data, board, str(e))
                     time.sleep(waitRetry)
             success &= board_success
