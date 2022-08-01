@@ -201,9 +201,7 @@ class AnalogProcessor(object):
                 status = rs485Reset()
                 
                 # Update the analog signal chain state
-                aspFunctionsLogger.debug('This is the part where we run rs485Get(0)')
                 self.currentState['config'] = rs485Get(0)
-                aspFunctionsLogger.debug('Finished running rs485Get(0)')
                 
                 # Start the threads
                 # self.currentState['tempThread'].start() # might bring back later
