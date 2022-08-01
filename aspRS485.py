@@ -82,6 +82,7 @@ def rs485Check(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY, verbose=Tru
             for attempt in range(maxRetry+1):
                 try:
                     echo_data = _ARX.echo(board & 0xFF,data)
+                    board_success = True
                 except Exception as e:
                     if verbose:
                         aspRS485Logger.warning("Could not echo '%s' to board %s: %s", data, board, str(e))
