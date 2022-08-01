@@ -64,7 +64,7 @@ def rs485Reset(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
 
     # Do some sort of waiting check
     time.sleep(15)
-    reset_check, failed = rs485Check(2, 30, False)
+    reset_check, failed = rs485Check(2, 30, True)
     aspRS485Logger.debug(f'reset_check={reset_check}, failed={failed}')
     success &= reset_check
 
