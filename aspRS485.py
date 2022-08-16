@@ -106,7 +106,7 @@ def rs485Get(stand, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
                         aspRS485Logger.warning("Could not get channel info. for board %s: %s", board, str(e))
                         time.sleep(waitRetry)
     else:
-        board, chan0, chan1 = _stand_to_board_chan(stand)
+        board, chan0, chan1 = _stand_to_board_chans(stand)
         if board is None:
             aspRS485Logger.warning("Unable to relate stand %i to a RS485 board", stand)
             return False
@@ -143,7 +143,7 @@ def rs485Send(stand, config, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                 success &= board_success
                 
     else:
-        board, chan0, chan1 = _stand_to_board_chan(stand)
+        board, chan0, chan1 = _stand_to_board_chans(stand)
         if board is None:
             aspRS485Logger.warning("Unable to relate stand %i to a RS485 board", stand)
             return False
