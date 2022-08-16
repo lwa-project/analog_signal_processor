@@ -416,7 +416,7 @@ class AnalogProcessor(object):
             
         # Validate inputs
         if mode  == 3:
-            self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x05])
+            self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], 'ATS Setting Depreciated')
             return False, 0x05
         if stand < 0 or stand > self.num_stands:
             self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x02])
