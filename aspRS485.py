@@ -134,7 +134,7 @@ def rs485Send(stand, config, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
-                        aspRS485Logger.debug(f'Looking for error in {board}'+config)
+                        aspRS485Logger.debug(f'Looking for error in {board}'+str(config))
                         _ARX.set_all_different_chan_cfg(board & 0xFF, config)
                         board_success = True
                         break
