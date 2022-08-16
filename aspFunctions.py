@@ -494,7 +494,7 @@ class AnalogProcessor(object):
         if stand < 0 or stand > self.num_stands:
             self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x02]
             return False, 0x02
-        if pol < 0 or pol > 2:
+        if pol < 1 or pol > 2:
             self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x03]
             return False, 0x03
         if state not in (0, 11):
