@@ -139,7 +139,7 @@ def rs485Send(stand, config, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                         config_start = 2*(RS485_ANTENNA_MAPPING[board][0]-1)
                         config_end = 2*(RS485_ANTENNA_MAPPING[board][1])
                         subconfig = config[config_start:config_end]
-                        aspRS485Logger.debug(f'Before call {subconfig[0]}')
+                        aspRS485Logger.debug(f'Before call {_ARX.chan_cfg}')
                         _ARX.set_all_different_chan_cfg(board & 0xFF, subconfig)
                         board_success = True
                         break
