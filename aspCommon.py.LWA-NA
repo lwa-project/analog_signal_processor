@@ -38,7 +38,7 @@ RS485_ANTENNA_MAPPING[8247] = (49, 56)
 RS485_ANTENNA_MAPPING[8246] = (57, 64)
 
 # RS485 lock
-RS485_LOCK = threading.RLock()
+RS485_LOCK = threading.Semaphore(1)
 
 # Maximum number of times to retry sending RS485 bus commands
 MAX_RS485_RETRY = 0
