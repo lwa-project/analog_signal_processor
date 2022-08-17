@@ -39,6 +39,8 @@ def rs485CountBoards(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
         for board in RS485_ANTENNA_MAPPING.keys():
             for attempt in range(maxRetry+1):
                 try:
+                    test = _ARX._send(board&0xFF, 'arxn', '')
+                    aspRS485Logger.debug(f'test thing: {out}')
                     _ARX.get_board_info(board & 0xFF)
                     found += 1
                     break
@@ -136,7 +138,7 @@ def rs485Send(stand, config, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
             #for i, cfg in enumerate(zip(config[0::2], config[1::2])):
             #    check = rs485Send(i+1, cfg, maxRetry=maxRetry, waitRetry=waitRetry)
             #    success &= check
-            
+
             for board in RS485_ANTENNA_MAPPING.keys():
                 board_success = False
                 for attempt in range(maxRetry+1):
