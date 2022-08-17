@@ -142,9 +142,12 @@ def rs485Send(stand, config, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                         subconfig = config[config_start:config_end]
                         for chan, cfg in enumerate(subconfig):
                             _ARX._set_local_chan_cfg(chan, cfg)
-                        aspRS485Logger.debug(f'Before call {_ARX.chan_cfg}')
+                        aspRS485Logger.debug(f'Manually set local chan cfg with {_ARX.chan_cfg}')
+
+                        out = _ARX._send(board&0xFF, 'sets', '80010001'*8)
+                        aspRS485Logger.debug('Manaully sent the config out={out}')
                         # END DEBUG GARBAGE
-                        
+
                         _ARX.set_all_different_chan_cfg(board & 0xFF, subconfig)
                         board_success = True
                         break
