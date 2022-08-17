@@ -132,29 +132,9 @@ def rs485Send(stand, config, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
     success = True
     if stand == 0:
         with RS485_LOCK:
-            for board in RS485_ANTENNA_MAPPING.keys():
-                board_success = False
-                for attempt in range(maxRetry+1):
-                    try:
-                        # THIS IS ALL DEBUG GARBAGE
-                        config_start = 2*(RS485_ANTENNA_MAPPING[board][0]-1)
-                        config_end = 2*(RS485_ANTENNA_MAPPING[board][1])
-                        subconfig = config[config_start:config_end]
-                        for chan, cfg in enumerate(subconfig):
-                            _ARX._set_local_chan_cfg(chan, cfg)
-                        aspRS485Logger.debug(f'Manually set local chan cfg with {_ARX.chan_cfg}')
-
-                        out = _ARX._send(board&0xFF, 'sets', '80010001'*8)
-                        aspRS485Logger.debug('Manaully sent the config out={out}')
-                        # END DEBUG GARBAGE
-
-                        _ARX.set_all_different_chan_cfg(board & 0xFF, subconfig)
-                        board_success = True
-                        break
-                    except Exception as e:
-                        aspRS485Logger.warning("Could not set channel config. for board %s: %s", board, str(e))
-                        time.sleep(waitRetry)
-                success &= board_success
+            for i, cfg in enumerate(zip(config[0::2], config[1::2])):
+                check = rs485Send(i+1, cfg, maxRetry=maxRetry, waitRetry=waitRetry)
+                success &= check
                 
     else:
         board, chan0, chan1 = _stand_to_board_chans(stand)
