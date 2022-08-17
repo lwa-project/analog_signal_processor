@@ -57,6 +57,7 @@ def rs485Reset(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
                 try:
                     _ARX.reset(board & 0xFF)
                     board_success = True
+                    break
                 except Exception as e:
                     aspRS485Logger.warning("Could not reset board %s: %s", board, str(e))
                     time.sleep(waitRetry)
@@ -82,6 +83,7 @@ def rs485Check(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY, verbose=Tru
                 try:
                     echo_data = _ARX.echo(board & 0xFF,data)
                     board_success = True
+                    break
                 except Exception as e:
                     if verbose:
                         aspRS485Logger.warning("Could not echo '%s' to board %s: %s", data, board, str(e))
@@ -137,7 +139,7 @@ def rs485Send(stand, config, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                         config_start = 2*(RS485_ANTENNA_MAPPING[board][0]-1)
                         config_end = 2*(RS485_ANTENNA_MAPPING[board][1])
                         subconfig = config[config_start:config_end]
-                        aspRS485Logger.debug(f'Before call {config_start}:{config_end} {len(config)}->{len(subconfig)}')
+                        aspRS485Logger.debug(f'Before call {subconfig[0]}')
                         _ARX.set_all_different_chan_cfg(board & 0xFF, subconfig)
                         board_success = True
                         break
