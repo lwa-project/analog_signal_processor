@@ -84,6 +84,7 @@ class AnalogProcessor(object):
         self.currentState['config']  = [{} for i in range(2*MAX_BOARDS*STANDS_PER_BOARD)]
         
         ## Monitoring and background threads
+        self.currentState['serviceThread'] = None
         self.currentState['tempThread'] = None
         self.currentState['powerThreads'] = None
         self.currentState['chassisThreads'] = None
@@ -185,6 +186,10 @@ class AnalogProcessor(object):
                 aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
                     
                 # Stop all threads.  If the don't exist yet, create them.
+                if self.currentState['serviceThread'] is not None:
+                    self.currentState['serviceThread'].stop()
+                else:
+                    self.currentState['serviceThread'] = BackendService()
                 if self.currentState['powerThreads'] is not None:
                     for t in self.currentState['powerThreads']:
                         t.stop()
@@ -206,13 +211,16 @@ class AnalogProcessor(object):
                     self.currentState['chassisThreads'] = []
                     self.currentState['chassisThreads'].append( ChassisStatus(self.config, ASPCallbackInstance=self) )
                     
+                # Restart the service thread
+                self.currentState['serviceThread'].start()
+                
                 # Do the RS485 bus stuff
                 status = rs485Reset()
                 
                 # Update the analog signal chain state
                 self.currentState['config'] = rs485Get(0)
                 
-                # Start the threads
+                # Start the non-service threads
                 for t in self.currentState['powerThreads']:
                     t.start()
                 self.currentState['tempThread'].start()
@@ -289,7 +297,7 @@ class AnalogProcessor(object):
         self.currentState['activeProcess'].append('SHT')
         self.currentState['ready'] = False
         
-        # Stop all threads.
+        # Stop all threads except for the service thread.
         if self.currentState['powerThreads'] is not None:
             for t in self.currentState['powerThreads']:
                 t.stop()
@@ -317,6 +325,10 @@ class AnalogProcessor(object):
             
             aspFunctionsLogger.critical("SHT failed sending SPI bus commands after %i attempts", MAX_RS485_RETRY)
         
+        # Stop the service thread
+        if self.currentState['serviceThread'] is not None:
+            self.currentState['serviceThread'].stop()
+            
         # Update the current state
         aspFunctionsLogger.info("Finished the SHT process in %.3f s", time.time() - tStart)
         self.currentState['activeProcess'].remove('SHT')
