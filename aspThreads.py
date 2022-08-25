@@ -513,14 +513,44 @@ class ChassisStatus(object):
         Create a monitoring thread for the temperature.
         """
         
+        config_failures = 0
+        
         while self.alive.isSet():
             tStart = time.time()
             
             try:
+                ## Basic check for board presence
                 self.configured, failed = rs485Check()
                 if self.ASPCallbackInstance is not None:
                     if not self.configured:
                         self.ASPCallbackInstance.processUnconfiguredChassis(failed)
+                        
+                ## Detailed configuration check for the first 8 stands - only if
+                ## we have access to the current requested configuration
+                if self.ASPCallbackInstance is not None:
+                    config_status = True
+                    for stand in range(1, 8+1):
+                        ### Configuration from ASP-MCS
+                        req_config = self.ASPCallbackInstance.currentState['config'][2*(stand-1):2*(stand-1)+2]
+                        ### Configuration from the board itself
+                        act_config = rs485Get(stand)
+                        for pol in (0, 1):
+                            for key in req_config[pol].keys():
+                                if req_config[pol][key] != act_config[pol][key]:
+                                    config_status = False
+                                    break
+                            if not config_status:
+                                break
+                                
+                    if config_status:
+                        config_failures = 0
+                    else:
+                        config_failures += 1
+                        
+                    ## If we have had more than two consecutive polling failures,
+                    ## it's a problem
+                    if config_failures > 1:
+                        self.ASPCallbackInstance.processUnconfiguredChassis((1, 8))
                         
                 status, boards, fees = rs485Power()
                 if status:
