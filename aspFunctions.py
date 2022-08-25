@@ -189,7 +189,7 @@ class AnalogProcessor(object):
                 if self.currentState['serviceThread'] is not None:
                     self.currentState['serviceThread'].stop()
                 else:
-                    self.currentState['serviceThread'] = BackendService()
+                    self.currentState['serviceThread'] = BackendService(ASPCallbackInstance=self)
                 if self.currentState['powerThreads'] is not None:
                     for t in self.currentState['powerThreads']:
                         t.stop()
@@ -1046,6 +1046,20 @@ class AnalogProcessor(object):
                 self.currentState['lastLog'] = 'SENSOR-NAME-%i: Invalid temperature sensor' % sensorNumb
                 return False, 0.0
                 
+    def processNoBackendService(self, running):
+        """
+        Function to set ASP to ERROR if the backend service is not running when
+        it should be.
+        """
+        
+        if not running:
+            self.currentState['status'] = 'ERROR'
+            self.currentState['info'] = 'SUMMARY! 0x%02X %s' % (0x07, subsystemErrorCodes[0x07])
+            self.currentState['lastLog'] = 'ASP backend service not running'
+            self.currentState['ready'] = False
+            
+        return True
+        
     def processWarningTemperature(self, clear=False):
         """
         Function to set ASP to WARNING if the temperature is creeping up.  This 

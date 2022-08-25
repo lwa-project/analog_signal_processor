@@ -37,8 +37,11 @@ class BackendService(object):
     Class for managing the RS485 background service.
     """
     
-    def __init__(self):
+    def __init__(self, ASPCallbackInstance=None):
         self.service_running = False
+        
+        # Setup the callback
+        self.ASPCallbackInstance = ASPCallbackInstance
         
         self.thread = None
         self.alive = threading.Event()
@@ -82,7 +85,9 @@ class BackendService(object):
                     self.service_running = True
                 else:
                     self.service_running = False
-                    
+                    if self.ASPCallbackInstance is not None:
+                        self.ASPCallbackInstance.processNoBackendService(self.service_running)
+                        
                 ## Is there anything to read on stdout?
                 if watch_out.poll(1):
                     ### Good, read in all that we can
