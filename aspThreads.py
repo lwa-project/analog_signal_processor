@@ -9,6 +9,7 @@ from __future__ import division
 import os
 import sys
 import time
+import select
 import logging
 import threading
 import traceback
@@ -24,11 +25,96 @@ from aspRS485 import rs485Check, rs485Power
 from aspI2C import psuRead
 
 
-__version__ = '0.5'
-__all__ = ['TemperatureSensors', 'PowerStatus', 'ChassisStatus']
+__version__ = '0.6'
+__all__ = ['BackendService', 'TemperatureSensors', 'PowerStatus', 'ChassisStatus']
 
 
 aspThreadsLogger = logging.getLogger('__main__')
+
+
+class BackendService(object):
+    """
+    Class for managing the RS485 background service.
+    """
+    
+    def __init__(self):
+        self.thread = None
+        self.alive = threading.Event()
+        
+    def start(self):
+        """
+        Start the background service thread.
+        """
+        
+        if self.thread is not None:
+            self.stop()
+            
+        self.thread = threading.Thread(target=self.serviceThread)
+        self.thread.setDaemon(1)
+        self.alive.set()
+        self.thread.start()
+        
+        time.sleep(1)
+        
+    def stop(self):
+        """
+        Stop the background service thread, waiting until it's finished.
+        """
+        
+        if self.thread is not None:
+            self.alive.clear()          #clear alive event for thread
+            self.thread.join()          #wait until thread has finished
+            self.thread = None
+            self.nTemps = 0
+            self.lastError = None
+            
+    def serviceThread(self):
+        # Start the service
+        service = subprocess.Popen(['lwaARXSerial], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        watch_out = select.poll()
+        watch_out.register(service.stdout)
+        watch_err = select.poll()
+        watch_err.register(service.stderr)
+        
+        while self.alive.isSet():
+            try:
+                ## Is there anything to read on stdout?
+                if watch_out.poll(1):
+                    ### Good, read in all that we can
+                    aspThreadsLogger.debug("%s: serviceThread %s", type(self).__name__, service.stdout.readline())
+                    while watch_out.poll(1):
+                        aspThreadsLogger.debug("%s: serviceThread %s", type(self).__name__, service.stdout.readline())
+                        
+                ## Is there anything to read on stderr?
+                if watch_err.poll(1):
+                    ### Ugh, read in all that we can
+                    aspThreadsLogger.error("%s: serviceThread %s", type(self).__name__, service.stderr.readline())
+                    while watch_err.poll(1):
+                        aspThreadsLogger.error("%s: serviceThread %s", type(self).__name__, service.stderr.readline())
+                        
+            except Exception as e:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                aspThreadsLogger.error("%s: serviceThread failed with: %s at line %i", type(self).__name__, str(e), exc_traceback.tb_lineno)
+                
+                ## Grab the full traceback and save it to a string via StringIO
+                fileObject = StringIO()
+                traceback.print_tb(exc_traceback, file=fileObject)
+                tbString = fileObject.getvalue()
+                fileObject.close()
+                ## Print the traceback to the logger as a series of DEBUG messages
+                for line in tbString.split('\n'):
+                    aspThreadsLogger.debug("%s", line)
+                    
+            ## Sleep for a bit to wait on new log entries
+            time.sleep(1)
+            
+        # Clean up and get ready to exit
+        watch_out.unregister(service.stdout)
+        watch_out.unregister(service.stderr)
+        try:
+            service.kill()
+        except OSError:
+            pass
 
 
 class TemperatureSensors(object):
