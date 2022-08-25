@@ -38,6 +38,8 @@ class BackendService(object):
     """
     
     def __init__(self):
+        self.service_running = False
+        
         self.thread = None
         self.alive = threading.Event()
         
@@ -64,13 +66,10 @@ class BackendService(object):
         if self.thread is not None:
             self.alive.clear()          #clear alive event for thread
             self.thread.join()          #wait until thread has finished
-            self.thread = None
-            self.nTemps = 0
-            self.lastError = None
             
     def serviceThread(self):
         # Start the service
-        service = subprocess.Popen(['lwaARXSerial], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        service = subprocess.Popen(['lwaARXSerial'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         watch_out = select.poll()
         watch_out.register(service.stdout)
         watch_err = select.poll()
@@ -78,6 +77,12 @@ class BackendService(object):
         
         while self.alive.isSet():
             try:
+                ## Are we alive?
+                if service.poll() is None:
+                    self.service_running = True
+                else:
+                    self.service_running = False
+                    
                 ## Is there anything to read on stdout?
                 if watch_out.poll(1):
                     ### Good, read in all that we can
@@ -115,6 +120,10 @@ class BackendService(object):
             service.kill()
         except OSError:
             pass
+        self.service_running = False
+        
+    def isRunning(self):
+        return self.service_running
 
 
 class TemperatureSensors(object):
