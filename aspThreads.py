@@ -76,7 +76,7 @@ class BackendService(object):
         path = os.path.join(path, 'backend')
         
         # Start the service
-        service = subprocess.Popen([os.path.join(path, 'lwaARXSerial')],
+        service = subprocess.Popen([os.path.join(path, 'lwaARXSerial')], cwd=path, 
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         watch_out = select.poll()
         watch_out.register(service.stdout)
