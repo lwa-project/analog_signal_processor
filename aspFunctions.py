@@ -9,13 +9,12 @@ import ctypes
 import logging
 import threading
 
-from aspCommon import *
 from aspSUB20 import *
 from aspThreads import *
 
 
-__version__ = '0.5'
-__all__ = ['modeDict', 'commandExitCodes', 'AnaloglProcessor']
+__version__ = '0.6'
+__all__ = ['modeDict', 'commandExitCodes', 'AnalogProcessor']
 
 
 aspFunctionsLogger = logging.getLogger('__main__')
@@ -76,7 +75,7 @@ class AnalogProcessor(object):
         
         # ASP system information
         self.subSystem = 'ASP'
-        self.serialNumber = self.config['SERIALNUMBER']
+        self.serialNumber = self.config['serial_number']
         self.version = str(__version__)
         
         # ASP system state
@@ -90,11 +89,11 @@ class AnalogProcessor(object):
         self.currentState['activeProcess'] = []
         
         ## Operational state - ASP
-        self.currentState['power']  = [[0,0] for i in range(MAX_BOARDS*STANDS_PER_BOARD)]
-        self.currentState['filter'] = [0     for i in range(MAX_BOARDS*STANDS_PER_BOARD)]
-        self.currentState['at1']    = [30    for i in range(MAX_BOARDS*STANDS_PER_BOARD)]
-        self.currentState['at2']    = [30    for i in range(MAX_BOARDS*STANDS_PER_BOARD)]
-        self.currentState['ats']    = [30    for i in range(MAX_BOARDS*STANDS_PER_BOARD)]
+        self.currentState['power']  = [[0,0] for i in range(self.config['max_boards']*self.config['stands_per_board'])]
+        self.currentState['filter'] = [0     for i in range(self.config['max_boards']*self.config['stands_per_board'])]
+        self.currentState['at1']    = [30    for i in range(self.config['max_boards']*self.config['stands_per_board'])]
+        self.currentState['at2']    = [30    for i in range(self.config['max_boards']*self.config['stands_per_board'])]
+        self.currentState['ats']    = [30    for i in range(self.config['max_boards']*self.config['stands_per_board'])]
         
         ## Monitoring and background threads
         self.currentState['tempThread'] = None
@@ -137,7 +136,7 @@ class AnalogProcessor(object):
             return False, 0x08
             
         # Check to see if there is a valid number of boards
-        if nBoards < 0 or nBoards > MAX_BOARDS:
+        if nBoards < 0 or nBoards > self.config['max_boards']:
             aspFunctionsLogger.warning("INI command rejected due to invalid board count")
             self.currentState['lastLog'] = 'INI: %s' % commandExitCodes[0x01]
             return False, 0x01
@@ -185,10 +184,10 @@ class AnalogProcessor(object):
             if boardsFound == nBoards:
                 # Board and stand counts.  NOTE: Stand counts are capped at 260
                 self.num_boards = nBoards
-                self.num_stands = nBoards * STANDS_PER_BOARD
-                if self.num_stands > MAX_STANDS:
-                    self.num_stands = MAX_STANDS
-                self.num_chpairs = nBoards * STANDS_PER_BOARD
+                self.num_stands = nBoards * self.config['stands_per_board']
+                if self.num_stands > self.config['max_stands']:
+                    self.num_stands = self.config['max_stands']
+                self.num_chpairs = nBoards * self.config['stands_per_board']
                 aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
                     
                 # Stop all threads.  If the don't exist yet, create them.
@@ -198,20 +197,20 @@ class AnalogProcessor(object):
                         t.updateConfig(self.config)
                 else:
                     self.currentState['powerThreads'] = []
-                    self.currentState['powerThreads'].append( PowerStatus(SUB20_I2C_MAPPING, ARX_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
-                    self.currentState['powerThreads'].append( PowerStatus(SUB20_I2C_MAPPING, FEE_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
+                    self.currentState['powerThreads'].append( PowerStatus(self.config['sub20_i2c_mapping'], self.config['arx_ps_address'], self.config, ASPCallbackInstance=self) )
+                    self.currentState['powerThreads'].append( PowerStatus(self.config['sub20_i2c_mapping'], self.config['fee_ps_address'], self.config, ASPCallbackInstance=self) )
                 if self.currentState['tempThread'] is not None:
                     self.currentState['tempThread'].stop()
                     self.currentState['tempThread'].updateConfig(self.config)
                 else:
-                    self.currentState['tempThread'] = TemperatureSensors(SUB20_I2C_MAPPING, self.config, ASPCallbackInstance=self)
+                    self.currentState['tempThread'] = TemperatureSensors(self.config['sub20_i2c_mapping'], self.config, ASPCallbackInstance=self)
                 if self.currentState['chassisThreads'] is not None:
                     for t in self.currentState['chassisThreads']:
                         t.stop()
                         t.updateConfig(self.config)
                 else:
                     self.currentState['chassisThreads'] = []
-                    self.currentState['chassisThreads'].append( ChassisStatus(SUB20_I2C_MAPPING, self.config, ASPCallbackInstance=self) )
+                    self.currentState['chassisThreads'].append( ChassisStatus(self.config['sub20_i2c_mapping'], self.config, ASPCallbackInstance=self) )
                     
                 # Update the analog signal chain state
                 for i in range(self.num_stands):
@@ -244,7 +243,7 @@ class AnalogProcessor(object):
                     self.currentState['lastLog'] = 'INI: finished in %.3f s' % (time.time() - tStart,)
                     self.currentState['ready'] = True
                     
-                    lcdSend(SUB20_I2C_MAPPING, 'ASP\nReady')
+                    lcdSend(self.config['sub20_i2c_mapping'], 'ASP\nReady')
                     
                 else:
                     self.currentState['status'] = 'ERROR'
@@ -252,7 +251,7 @@ class AnalogProcessor(object):
                     self.currentState['lastLog'] = 'INI: finished with error'
                     self.currentState['ready'] = False
                     
-                    lcdSend(SUB20_I2C_MAPPING, 'ASP\nINI fail')
+                    lcdSend(self.config['sub20_i2c_mapping'], 'ASP\nINI fail')
                     aspFunctionsLogger.critical("INI failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
             else:
                 self.currentState['status'] = 'ERROR'
@@ -260,7 +259,7 @@ class AnalogProcessor(object):
                 self.currentState['lastLog'] = 'INI: finished with error'
                 self.currentState['ready'] = False
                 
-                lcdSend(SUB20_I2C_MAPPING, 'ASP\nINI fail')
+                lcdSend(self.config['sub20_i2c_mapping'], 'ASP\nINI fail')
                 aspFunctionsLogger.critical("INI failed; found %i boards, expected %i", boardsFound, nBoards)
                 
         else:
@@ -270,7 +269,7 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'INI: finished with error'
             self.currentState['ready'] = False
             
-            lcdSend(SUB20_I2C_MAPPING, 'ASP\nINI fail')
+            lcdSend(self.config['sub20_i2c_mapping'], 'ASP\nINI fail')
             aspFunctionsLogger.critical("INI failed due to missing SUB-20 device(s)")
         
         # Update the current state
@@ -334,7 +333,7 @@ class AnalogProcessor(object):
             self.__rxpProcess(00, internal=True)
             self.__fepProcess(00, internal=True)
 
-            lcdSend(SUB20_I2C_MAPPING, 'ASP\nshutdown')
+            lcdSend(self.config['sub20_i2c_mapping'], 'ASP\nshutdown')
             
             self.currentState['status'] = 'SHUTDWN'
             self.currentState['info'] = 'System has been shut down'
@@ -346,7 +345,7 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'SHT: failed in %.3f s' % (time.time() - tStart,)
             self.currentState['ready'] = False
             
-            lcdSend(SUB20_I2C_MAPPING, 'ASP\nSHT fail')
+            lcdSend(self.config['sub20_i2c_mapping'], 'ASP\nSHT fail')
             aspFunctionsLogger.critical("SHT failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
         
         # Update the current state
@@ -423,7 +422,7 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
             aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
         
-            #lcdSend(SUB20_I2C_MAPPING, 'Stand%03i\nFIL=%02i' % (stand, filterCode))
+            #lcdSend(self.config['sub20_i2c_mapping'], 'Stand%03i\nFIL=%02i' % (stand, filterCode))
             if stand != 0:
                 self.currentState['filter'][stand-1] = filterCode
             else:
@@ -463,7 +462,7 @@ class AnalogProcessor(object):
         if stand < 0 or stand > self.num_stands:
             self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x02])
             return False, 0x02
-        if attenSetting < 0 or attenSetting > MAX_ATTEN:
+        if attenSetting < 0 or attenSetting > self.config['max_atten']:
             self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x05])
             return False, 0x05
             
@@ -521,7 +520,7 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
             aspFunctionsLogger.debug('%s - Set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
             
-            #lcdSend(SUB20_I2C_MAPPING, 'Stand%03i\n%3s=%02i' % (stand, modeDict[mode], attenSetting))
+            #lcdSend(self.config['sub20_i2c_mapping'], 'Stand%03i\n%3s=%02i' % (stand, modeDict[mode], attenSetting))
             if stand != 0:
                 self.currentState[modeDict[mode].lower()][stand-1] = attenSetting
             else:
@@ -597,7 +596,7 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
             aspFunctionsLogger.debug('FPW - Set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
         
-            #lcdSend(SUB20_I2C_MAPPING, 'Stand%03i\npol%1i=%3s'% (stand, pol, 'on ' if state else 'off'))
+            #lcdSend(self.config['sub20_i2c_mapping'], 'Stand%03i\npol%1i=%3s'% (stand, pol, 'on ' if state else 'off'))
             if stand != 0:
                 self.currentState['power'][stand-1][pol-1] = state
             else:
@@ -651,12 +650,12 @@ class AnalogProcessor(object):
         supply.
         """
         
-        status = psuSend(SUB20_I2C_MAPPING, ARX_PS_ADDRESS, state)
+        status = psuSend(self.config['sub20_i2c_mapping'], self.config['arx_ps_address'], state)
         
         if status:
             aspFunctionsLogger.debug('RXP - Set ARX power supplies to state %02i', state)
             
-            lcdSend(SUB20_I2C_MAPPING, 'ARX PS\n%s' % ('OFF' if state == 0 else 'ON',))
+            lcdSend(self.config['sub20_i2c_mapping'], 'ARX PS\n%s' % ('OFF' if state == 0 else 'ON',))
             
             if state == 0 and not internal:
                 # Now that the ARX power supply is off, we need to be in error
@@ -711,12 +710,12 @@ class AnalogProcessor(object):
         supply.
         """
         
-        status = psuSend(SUB20_I2C_MAPPING, FEE_PS_ADDRESS, state)
+        status = psuSend(self.config['sub20_i2c_mapping'], self.config['fee_ps_address'], state)
         
         if status:
             aspFunctionsLogger.debug('FEP - Set FEE power supplies to state %02i', state)
             
-            lcdSend(SUB20_I2C_MAPPING, 'FEE PS\n%s' % ('OFF' if state == 0 else 'ON',))
+            lcdSend(self.config['sub20_i2c_mapping'], 'FEE PS\n%s' % ('OFF' if state == 0 else 'ON',))
             
             if state == 0 and not internal:
                 # Now that the FEE power supply is off, we need to be in error
@@ -800,7 +799,7 @@ class AnalogProcessor(object):
         else:
             status = 'UNK'
             for t in self.currentState['powerThreads']:
-                if t.getDeviceAddress() == ARX_PS_ADDRESS:
+                if t.getDeviceAddress() == self.config['arx_ps_address']:
                     status = t.getOnOff()
                 
             return True, status
@@ -836,7 +835,7 @@ class AnalogProcessor(object):
             if psNumb > 0 and psNumb < 2:
                 info = 'UNK - UNK'
                 for t in self.currentState['powerThreads']:
-                    if t.getDeviceAddress() == ARX_PS_ADDRESS:
+                    if t.getDeviceAddress() == self.config['arx_ps_address']:
                         info1 = t.getDescription()
                         info2 = t.getStatus()
                         info = "%s - %s" % (info1, info2)
@@ -862,7 +861,7 @@ class AnalogProcessor(object):
         else:
             curr = 0.0
             for t in self.currentState['powerThreads']:
-                if t.getDeviceAddress() == ARX_PS_ADDRESS:
+                if t.getDeviceAddress() == self.config['arx_ps_address']:
                     curr = t.getCurrent()
                     
             return True, curr*1000.0
@@ -882,7 +881,7 @@ class AnalogProcessor(object):
         else:
             volt = 0.0
             for t in self.currentState['powerThreads']:
-                if t.getDeviceAddress() == ARX_PS_ADDRESS:
+                if t.getDeviceAddress() == self.config['arx_ps_address']:
                     volt = t.getVoltage()
                     
             return True, volt
@@ -902,7 +901,7 @@ class AnalogProcessor(object):
         else:
             status = 'UNK'
             for t in self.currentState['powerThreads']:
-                if t.getDeviceAddress() == FEE_PS_ADDRESS:
+                if t.getDeviceAddress() == self.config['fee_ps_address']:
                     status = t.getOnOff()
                 
             return True, status
@@ -938,7 +937,7 @@ class AnalogProcessor(object):
             if psNumb > 0 and psNumb < 2:
                 info = 'UNK - UNK'
                 for t in self.currentState['powerThreads']:
-                    if t.getDeviceAddress() == FEE_PS_ADDRESS:
+                    if t.getDeviceAddress() == self.config['fee_ps_address']:
                         info1 = t.getDescription()
                         info2 = t.getStatus()
                         info = "%s - %s" % (info1, info2)
@@ -964,7 +963,7 @@ class AnalogProcessor(object):
         else:
             curr = 0.0
             for t in self.currentState['powerThreads']:
-                if t.getDeviceAddress() == FEE_PS_ADDRESS:
+                if t.getDeviceAddress() == self.config['fee_ps_address']:
                     curr = t.getCurrent()
                     
             return True, curr*1000.0
@@ -984,7 +983,7 @@ class AnalogProcessor(object):
         else:
             volt = 0.0
             for t in self.currentState['powerThreads']:
-                if t.getDeviceAddress() == FEE_PS_ADDRESS:
+                if t.getDeviceAddress() == self.config['fee_ps_address']:
                     volt = t.getVoltage()
                     
             return True, volt
@@ -1130,7 +1129,7 @@ class AnalogProcessor(object):
         else:
             return False
         
-        if deviceAddress == ARX_PS_ADDRESS:
+        if deviceAddress == self.config['arx_ps_address']:
             if self.getARXPowerSupplyStatus()[1] == 'ON ':
                 self.__rxpProcess(00, internal=True)
             
@@ -1139,7 +1138,7 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'ARX power supply critical - %s - powered off' % reason
             self.currentState['ready'] = False
             
-        elif deviceAddress == FEE_PS_ADDRESS:
+        elif deviceAddress == self.config['fee_ps_address']:
             if self.getFEEPowerSupplyStatus()[1] == 'ON ':
                 self.__fepProcess(00, internal=True)
             

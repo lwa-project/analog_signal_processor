@@ -19,14 +19,33 @@ except ImportError:
     from io import StringIO
     
 import run
-from aspCommon import SUB20_LOCKS, SUB20_ANTENNA_MAPPING
 
 
-__version__ = '0.4'
+__version__ = '0.6'
 __all__ = ['TemperatureSensors', 'PowerStatus', 'ChassisStatus']
 
 
 aspThreadsLogger = logging.getLogger('__main__')
+
+
+class LockLocker(dict):
+    _access_lock = threading.RLock()
+    
+    def __getitem__(self, name):
+        with self._access_lock:
+            try:
+                lock = dict.__getitem__(self, name)
+            except KeyError:
+                lock = threading.Lock()
+                dict.__setitem__(self, name, lock)
+        return lock
+        
+    def __setitem__(self, name, value):
+        with self._access_lock:
+            dict.__setitem__(self, name, value)
+
+
+SUB20_LOCKS = LockLocker()
 
 
 class TemperatureSensors(object):
@@ -63,10 +82,10 @@ class TemperatureSensors(object):
         if config is None:
             return True
             
-        self.monitorPeriod = config['TEMPPERIOD']
-        self.minTemp  = config['TEMPMIN']
-        self.warnTemp = config['TEMPWARN']
-        self.maxTemp  = config['TEMPMAX']
+        self.monitorPeriod = config['temp_period']
+        self.minTemp  = config['temp_min']
+        self.warnTemp = config['temp_warn']
+        self.maxTemp  = config['temp_max']
         
     def start(self):
         """
@@ -488,7 +507,7 @@ class ChassisStatus(object):
         self.updateConfig(config)
         
         # Total number of devices on the chassis
-        dStart, dStop = SUB20_ANTENNA_MAPPING[self.sub20SN]
+        dStart, dStop = config['sub20_antenna_mapping'][self.sub20SN]
         self.totalDevs = dStop - dStart + 1
         self.configured = False
         
@@ -506,7 +525,7 @@ class ChassisStatus(object):
         if config is None:
             return True
             
-        self.monitorPeriod = config['CHASSISPERIOD']
+        self.monitorPeriod = config['chassis_period']
         
     def start(self):
         """

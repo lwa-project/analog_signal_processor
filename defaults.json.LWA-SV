@@ -1,0 +1,35 @@
+{
+  "serial_number": "ASP02",
+  
+  "message_host": "10.1.2.2",
+  "message_out_port": 1741,
+  "message_in_port": 1740,
+  
+  "temp_min": 10.0,
+  "temp_warn": 40.0,
+  "temp_max": 45.0,
+  "temp_period": 60,
+  
+  "power_period": 60,
+  
+  "chassis_period": 120,
+  
+  "stands_per_board": 8,
+  "max_boards": 33,
+  "max_stands": 256,
+  "max_atten": 15,
+  
+  "sub20_i2c_mapping": 6263,
+  "sub20_antenna_mapping": {
+    "355": [1, 64],
+    "6263": [65, 128],
+    "12256": [129, 192],
+    "3551": [193, 256]
+  },
+  
+  "max_spi_retry": 0,
+  "wait_spi_retry": 0.2,
+  
+  "arx_ps_address": 31,
+  "fee_ps_address": 30
+}
