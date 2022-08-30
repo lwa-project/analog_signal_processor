@@ -1,0 +1,8 @@
+# Config file for lwaARXserial in YAML format
+
+# To  be deprecated settings. ignored them.
+arxboards: [2]
+arxrange: false
+
+# RS485/USB dongle.
+tty: /dev/arx
