@@ -29,6 +29,11 @@ aspThreadsLogger = logging.getLogger('__main__')
 
 
 class LockLocker(dict):
+    """
+    Class to automatically generate threading.Lock objects for any key that
+    might be requested.
+    """
+    
     _access_lock = threading.RLock()
     
     def __getitem__(self, name):
