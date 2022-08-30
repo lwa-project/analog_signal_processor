@@ -71,8 +71,13 @@ class BackendService(object):
             self.thread.join()          #wait until thread has finished
             
     def serviceThread(self):
+        # Determine the path for the service executable
+        path = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(path, 'backend')
+        
         # Start the service
-        service = subprocess.Popen(['lwaARXSerial'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        service = subprocess.Popen([os.path.join(path, 'lwaARXSerial')],
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         watch_out = select.poll()
         watch_out.register(service.stdout)
         watch_err = select.poll()
