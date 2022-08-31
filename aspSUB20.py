@@ -87,7 +87,7 @@ class _spi_thread_count(threading.Thread):
     """
     
     def __init__(self, sub20SN, sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
-        super(_spi_thread_count, self).__init__(name="%04X-count" % sub20SN)
+        super(_spi_thread_count, self).__init__(name="%04X-count" % int(sub20SN))
         
         self.sub20SN = int(sub20SN)
         self.sub20Mapper = sub20Mapper
@@ -137,7 +137,7 @@ class _spi_thread_device(threading.Thread):
     """
     
     def __init__(self, sub20SN, device, data, sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
-        super(_spi_thread_device, self).__init__(name="%04X-%i-0x%04x" % (sub20SN, device, data))
+        super(_spi_thread_device, self).__init__(name="%04X-%i-0x%04x" % (int(sub20SN), device, data))
         
         self.sub20SN = int(sub20SN)
         self.device = device
@@ -154,7 +154,7 @@ class _spi_thread_device(threading.Thread):
             return False
         
         with SUB20_LOCKS[self.sub20SN]:
-            num = self.sub20Mapper[self.sub20SN][1] - self.sub20Mapper[self.sub20SN][0] + 1
+            num = self.sub20Mapper[str(self.sub20SN)][1] - self.sub20Mapper[str(self.sub20SN][0] + 1
             
             attempt = 0
             status = False
@@ -286,7 +286,7 @@ def psuSend(sub20SN, psuAddress, state):
     """
     
     with SUB20_LOCKS[sub20SN]:
-        p = subprocess.Popen('/usr/local/bin/onoffPSU %04X 0x%02X %s' % (sub20SN, psuAddress, str(state)), shell=True,
+        p = subprocess.Popen('/usr/local/bin/onoffPSU %04X 0x%02X %s' % (int(sub20SN), psuAddress, str(state)), shell=True,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, output2 = p.communicate()
         try:
