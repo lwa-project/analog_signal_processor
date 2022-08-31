@@ -99,9 +99,6 @@ class _spi_thread_count(threading.Thread):
         self.status = False
         
     def run(self):
-        if self.sub20SN not in SUB20_LOCKS:
-            return False
-        
         with SUB20_LOCKS[self.sub20SN]:
             attempt = 0
             status = False
@@ -150,9 +147,6 @@ class _spi_thread_device(threading.Thread):
         self.status = False
         
     def run(self):
-        if self.sub20SN not in SUB20_LOCKS:
-            return False
-        
         with SUB20_LOCKS[self.sub20SN]:
             num = self.sub20Mapper[str(self.sub20SN)][1] - self.sub20Mapper[str(self.sub20SN)][0] + 1
             
