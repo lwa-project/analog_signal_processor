@@ -86,11 +86,11 @@ class _spi_thread_count(threading.Thread):
     Class to count the boards attached to a single SUB-20.
     """
     
-    def __init__(self, sub20SN, mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+    def __init__(self, sub20SN, sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
         super(_spi_thread_count, self).__init__(name="%04X-count" % sub20SN)
         
         self.sub20SN = int(sub20SN)
-        self.mapper = mapper
+        self.sub20Mapper = sub20Mapper
         
         self.maxRetry = maxRetry
         self.waitRetry = waitRetry
@@ -136,13 +136,13 @@ class _spi_thread_device(threading.Thread):
     single SUB-20.
     """
     
-    def __init__(self, sub20SN, device, Data, mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
-        super(_spi_thread_device, self).__init__(name="%04X-%i-0x%04x" % (sub20SN, device, Data))
+    def __init__(self, sub20SN, device, data, sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+        super(_spi_thread_device, self).__init__(name="%04X-%i-0x%04x" % (sub20SN, device, data))
         
         self.sub20SN = int(sub20SN)
         self.device = device
-        self.Data = Data
-        self.mapper = mapper
+        self.data = data
+        self.sub20Mapper = sub20Mapper
         
         self.maxRetry = maxRetry
         self.waitRetry = waitRetry
@@ -154,7 +154,7 @@ class _spi_thread_device(threading.Thread):
             return False
         
         with SUB20_LOCKS[self.sub20SN]:
-            num = self.mapper[self.sub20SN][1] - self.mapper[self.sub20SN][0] + 1
+            num = self.sub20Mapper[self.sub20SN][1] - self.sub20Mapper[self.sub20SN][0] + 1
             
             attempt = 0
             status = False
@@ -162,7 +162,7 @@ class _spi_thread_device(threading.Thread):
                 if attempt != 0:
                     time.sleep(self.waitRetry)
                     
-                p = subprocess.Popen('/usr/local/bin/sendARXDevice %04X %i %i 0x%04x' % (self.sub20SN, num, self.device, self.Data), shell=True,
+                p = subprocess.Popen('/usr/local/bin/sendARXDevice %04X %i %i 0x%04x' % (self.sub20SN, num, self.device, self.data), shell=True,
                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 output, output2 = p.communicate()
                 try:
@@ -188,18 +188,18 @@ class _spi_thread_all(_spi_thread_device):
     SUB-20.
     """
     
-    def __init__(self, sub20SN, Data, mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
-        super(_spi_thread_all, self).__init__(sub20SN, 0, Data, mapper, maxRetry=maxRetry, waitRetry=waitRetry)
+    def __init__(self, sub20SN, data, sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+        super(_spi_thread_all, self).__init__(sub20SN, 0, data, sub20Mapper, maxRetry=maxRetry, waitRetry=waitRetry)
 
 
-def spiCountBoards(mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
     """
     Count the number of ARX stands on all known SUB-20s.
     """
     
     taskList = []
-    for sub20SN in sorted(mapper):
-        task = _spi_thread_count(sub20SN, mapper, maxRetry=maxRetry, waitRetry=waitRetry)
+    for sub20SN in sorted(sub20Mapper):
+        task = _spi_thread_count(sub20SN, sub20Mapper, maxRetry=maxRetry, waitRetry=waitRetry)
         task.start()
         taskList.append(task)
         
@@ -217,7 +217,7 @@ def spiCountBoards(mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
     return nBoards
 
 
-def spiSend(device, Data, mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+def spiSend(device, data, sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
     """
     Send a command via SPI bus to the specified device.
     
@@ -226,15 +226,15 @@ def spiSend(device, Data, mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RET
     
     taskList = []
     if device == 0:
-        for sub20SN in sorted(mapper):
-            task = _spi_thread_all(sub20SN, Data, mapper, maxRetry=maxRetry, waitRetry=waitRetry)
+        for sub20SN in sorted(sub20Mapper):
+            task = _spi_thread_all(sub20SN, data, sub20Mapper, maxRetry=maxRetry, waitRetry=waitRetry)
             task.start()
             taskList.append(task)
         
     else:
         found = False
-        for sub20SN in mapper:
-            if device >= mapper[sub20SN][0] and device <= mapper[sub20SN][1]:
+        for sub20SN in sub20Mapper:
+            if device >= sub20Mapper[sub20SN][0] and device <= sub20Mapper[sub20SN][1]:
                 found = True
                 break
                 
@@ -242,8 +242,8 @@ def spiSend(device, Data, mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RET
             aspSUB20Logger.warning("Unable to relate stand %i to a SUB-20", device)
             return False
             
-        redDevice = device - mapper[sub20SN][0] + 1
-        task = _spi_thread_device(sub20SN, redDevice, Data, mapper, maxRetry=maxRetry, waitRetry=waitRetry)
+        redDevice = device - sub20Mapper[sub20SN][0] + 1
+        task = _spi_thread_device(sub20SN, redDevice, data, sub20Mapper, maxRetry=maxRetry, waitRetry=waitRetry)
         task.start()
         taskList.append(task)
         
