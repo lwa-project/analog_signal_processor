@@ -512,7 +512,7 @@ class ChassisStatus(object):
         self.updateConfig(config)
         
         # Total number of devices on the chassis
-        dStart, dStop = config['sub20_antenna_mapping'][self.sub20SN]
+        dStart, dStop = config['sub20_antenna_mapping'][str(self.sub20SN)]
         self.totalDevs = dStop - dStart + 1
         self.configured = False
         
