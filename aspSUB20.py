@@ -154,7 +154,7 @@ class _spi_thread_device(threading.Thread):
             return False
         
         with SUB20_LOCKS[self.sub20SN]:
-            num = self.sub20Mapper[str(self.sub20SN)][1] - self.sub20Mapper[str(self.sub20SN][0] + 1
+            num = self.sub20Mapper[str(self.sub20SN)][1] - self.sub20Mapper[str(self.sub20SN)][0] + 1
             
             attempt = 0
             status = False
