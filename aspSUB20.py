@@ -8,7 +8,7 @@ import logging
 import threading
 import subprocess
 
-from aspCommon import MAX_SPI_RETRY, WAIT_SPI_RETRY, SUB20_ANTENNA_MAPPING, SUB20_LOCKS
+from aspThreads import SUB20_LOCKS
 
 __version__ = '0.2'
 __all__ = ['spiCountBoards', 'spiSend', 'lcdSend', 'psuSend', 
@@ -22,6 +22,10 @@ __all__ = ['spiCountBoards', 'spiSend', 'lcdSend', 'psuSend',
 
 
 aspSUB20Logger = logging.getLogger('__main__')
+
+# SPI control
+MAX_SPI_RETRY = 0
+WAIT_SPI_RETRY = 0.2
 
 
 # SPI constants
@@ -82,10 +86,11 @@ class _spi_thread_count(threading.Thread):
     Class to count the boards attached to a single SUB-20.
     """
     
-    def __init__(self, sub20SN, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+    def __init__(self, sub20SN, mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
         super(_spi_thread_count, self).__init__(name="%04X-count" % sub20SN)
         
         self.sub20SN = int(sub20SN)
+        self.mapper = mapper
         
         self.maxRetry = maxRetry
         self.waitRetry = waitRetry
@@ -131,12 +136,13 @@ class _spi_thread_device(threading.Thread):
     single SUB-20.
     """
     
-    def __init__(self, sub20SN, device, Data, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+    def __init__(self, sub20SN, device, Data, mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
         super(_spi_thread_device, self).__init__(name="%04X-%i-0x%04x" % (sub20SN, device, Data))
         
         self.sub20SN = int(sub20SN)
         self.device = device
         self.Data = Data
+        self.mapper = mapper
         
         self.maxRetry = maxRetry
         self.waitRetry = waitRetry
@@ -148,7 +154,7 @@ class _spi_thread_device(threading.Thread):
             return False
         
         with SUB20_LOCKS[self.sub20SN]:
-            num = SUB20_ANTENNA_MAPPING[self.sub20SN][1] - SUB20_ANTENNA_MAPPING[self.sub20SN][0] + 1
+            num = self.mapper[self.sub20SN][1] - self.mapper[self.sub20SN][0] + 1
             
             attempt = 0
             status = False
@@ -182,18 +188,18 @@ class _spi_thread_all(_spi_thread_device):
     SUB-20.
     """
     
-    def __init__(self, sub20SN, Data, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
-        super(_spi_thread_all, self).__init__(sub20SN, 0, Data, maxRetry=maxRetry, waitRetry=waitRetry)
+    def __init__(self, sub20SN, Data, mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+        super(_spi_thread_all, self).__init__(sub20SN, 0, Data, mapper, maxRetry=maxRetry, waitRetry=waitRetry)
 
 
-def spiCountBoards(maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+def spiCountBoards(mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
     """
     Count the number of ARX stands on all known SUB-20s.
     """
     
     taskList = []
-    for sub20SN in sorted(SUB20_ANTENNA_MAPPING):
-        task = _spi_thread_count(sub20SN, maxRetry=maxRetry, waitRetry=waitRetry)
+    for sub20SN in sorted(mapper):
+        task = _spi_thread_count(sub20SN, mapper, maxRetry=maxRetry, waitRetry=waitRetry)
         task.start()
         taskList.append(task)
         
@@ -211,7 +217,7 @@ def spiCountBoards(maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
     return nBoards
 
 
-def spiSend(device, Data, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+def spiSend(device, Data, mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
     """
     Send a command via SPI bus to the specified device.
     
@@ -220,15 +226,15 @@ def spiSend(device, Data, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
     
     taskList = []
     if device == 0:
-        for sub20SN in sorted(SUB20_ANTENNA_MAPPING):
-            task = _spi_thread_all(sub20SN, Data, maxRetry=maxRetry, waitRetry=waitRetry)
+        for sub20SN in sorted(mapper):
+            task = _spi_thread_all(sub20SN, Data, mapper, maxRetry=maxRetry, waitRetry=waitRetry)
             task.start()
             taskList.append(task)
         
     else:
         found = False
-        for sub20SN in SUB20_ANTENNA_MAPPING:
-            if device >= SUB20_ANTENNA_MAPPING[sub20SN][0] and device <= SUB20_ANTENNA_MAPPING[sub20SN][1]:
+        for sub20SN in mapper:
+            if device >= mapper[sub20SN][0] and device <= mapper[sub20SN][1]:
                 found = True
                 break
                 
@@ -236,8 +242,8 @@ def spiSend(device, Data, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
             aspSUB20Logger.warning("Unable to relate stand %i to a SUB-20", device)
             return False
             
-        redDevice = device - SUB20_ANTENNA_MAPPING[sub20SN][0] + 1
-        task = _spi_thread_device(sub20SN, redDevice, Data, maxRetry=maxRetry, waitRetry=waitRetry)
+        redDevice = device - mapper[sub20SN][0] + 1
+        task = _spi_thread_device(sub20SN, redDevice, Data, mapper, maxRetry=maxRetry, waitRetry=waitRetry)
         task.start()
         taskList.append(task)
         

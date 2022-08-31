@@ -180,7 +180,9 @@ class AnalogProcessor(object):
             time.sleep(1)
             
             # Board check - found vs. expected from INI
-            boardsFound = spiCountBoards()
+            boardsFound = spiCountBoards(self.config['sub20_antenna_mapping'],
+                                         maxRetry=self.config['max_spi_retry'],
+                                         waitRetry=self.config['wait_spi_retry'])
             if boardsFound == nBoards:
                 # Board and stand counts.  NOTE: Stand counts are capped at 260
                 self.num_boards = nBoards
@@ -222,13 +224,27 @@ class AnalogProcessor(object):
                     
                 # Do the SPI bus stuff
                 status  = True
-                status &= spiSend(0, SPI_cfg_shutdown)                   # Into sleep mode
-                status &= spiSend(0, SPI_cfg_normal)                     # Out of sleep mode
-                status &= spiSend(0, SPI_cfg_output_P12_13_14_15)        # Set outputs
-                status &= spiSend(0, SPI_cfg_output_P16_17_18_19)        # Set outputs
-                status &= spiSend(0, SPI_cfg_output_P20_21_22_23)        # Set outputs
-                status &= spiSend(0, SPI_cfg_output_P24_25_26_27)        # Set outputs
-                status &= spiSend(0, SPI_cfg_output_P28_29_30_31)        # Set outputs
+                status &= spiSend(0, SPI_cfg_shutdown, self.config['sub20_antenna_mapping'],
+                                  maxRetry=self.config['max_spi_retry'],
+                                  waitRetry=self.config['wait_spi_retry'])                   # Into sleep mode
+                status &= spiSend(0, SPI_cfg_normal, self.config['sub20_antenna_mapping'],
+                                 maxRetry=self.config['max_spi_retry'],
+                                 waitRetry=self.config['wait_spi_retry'])                     # Out of sleep mode
+                status &= spiSend(0, SPI_cfg_output_P12_13_14_15, self.config['sub20_antenna_mapping'],
+                                  maxRetry=self.config['max_spi_retry'],
+                                  waitRetry=self.config['wait_spi_retry'])        # Set outputs
+                status &= spiSend(0, SPI_cfg_output_P16_17_18_19, self.config['sub20_antenna_mapping'],
+                                  maxRetry=self.config['max_spi_retry'],
+                                  waitRetry=self.config['wait_spi_retry'])        # Set outputs
+                status &= spiSend(0, SPI_cfg_output_P20_21_22_23, self.config['sub20_antenna_mapping'],
+                                  maxRetry=self.config['max_spi_retry'],
+                                  waitRetry=self.config['wait_spi_retry'])        # Set outputs
+                status &= spiSend(0, SPI_cfg_output_P24_25_26_27, self.config['sub20_antenna_mapping'],
+                                  maxRetry=self.config['max_spi_retry'],
+                                  waitRetry=self.config['wait_spi_retry'])        # Set outputs
+                status &= spiSend(0, SPI_cfg_output_P28_29_30_31, self.config['sub20_antenna_mapping'],
+                                  maxRetry=self.config['max_spi_retry'],
+                                  waitRetry=self.config['wait_spi_retry'])        # Set outputs
                 
                 # Start the threads
                 for t in self.currentState['powerThreads']:
@@ -324,7 +340,9 @@ class AnalogProcessor(object):
                 
         # Do SPI bus stuff (only if the boards are on)
         if self.getARXPowerSupplyStatus()[1] == 'ON ':
-            status = spiSend(0, SPI_cfg_shutdown)        # Into sleep mode
+            status = spiSend(0, SPI_cfg_shutdown, self.config['sub20_antenna_mapping'],
+                             maxRetry=self.config['max_spi_retry'],
+                             waitRetry=self.config['wait_spi_retry'])        # Into sleep mode
             time.sleep(5)
         status = True
         
@@ -394,29 +412,53 @@ class AnalogProcessor(object):
         status = True
         if filterCode > 3:
             # Set 3 MHz mode
-            status &= spiSend(stand, SPI_P14_on )
-            status &= spiSend(stand, SPI_P15_off)
+            status &= spiSend(stand, SPI_P14_on, self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
+            status &= spiSend(stand, SPI_P15_off, self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
         else:
             # Set 10 MHz mode
-            status &= spiSend(stand, SPI_P14_off)
-            status &= spiSend(stand, SPI_P15_on )
+            status &= spiSend(stand, SPI_P14_off, self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
+            status &= spiSend(stand, SPI_P15_on, self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
             
         if filterCode == 0 or filterCode == 4:
             # Set Filter to Split Bandwidth
-            status &= spiSend(stand, SPI_P19_off)
-            status &= spiSend(stand, SPI_P18_off)
+            status &= spiSend(stand, SPI_P19_off, self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
+            status &= spiSend(stand, SPI_P18_off, self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
         elif filterCode == 1 or filterCode == 5:
             # Set Filter to Full Bandwidth
-            status &= spiSend(stand, SPI_P19_off)
-            status &= spiSend(stand, SPI_P18_on )
+            status &= spiSend(stand, SPI_P19_off, self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
+            status &= spiSend(stand, SPI_P18_on, self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
         elif filterCode == 2:
             # Set Filter to Reduced Bandwidth
-            status &= spiSend(stand, SPI_P19_on )
-            status &= spiSend(stand, SPI_P18_off)
+            status &= spiSend(stand, SPI_P19_on, self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
+            status &= spiSend(stand, SPI_P18_off, self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
         elif filterCode == 3:
             # Set Filters OFF
-            status &= spiSend(stand, SPI_P19_on )
-            status &= spiSend(stand, SPI_P18_on )
+            status &= spiSend(stand, SPI_P19_on, self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
+            status &= spiSend(stand, SPI_P18_on, self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
             
         if status:
             self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
@@ -493,28 +535,44 @@ class AnalogProcessor(object):
             
         status = True
         if setting >= 16:
-            status &= spiSend(stand, order[0][0])
+            status &= spiSend(stand, order[0][0], self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
             setting -= 16
         else:
-            status &= spiSend(stand, order[0][1])
+            status &= spiSend(stand, order[0][1], self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
             
         if setting >= 8:
-            status &= spiSend(stand, order[1][0])
+            status &= spiSend(stand, order[1][0], self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
             setting -= 8
         else:
-            status &= spiSend(stand, order[1][1])
+            status &= spiSend(stand, order[1][1], self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
             
         if setting >= 4:
-            status &= spiSend(stand, order[2][0])
+            status &= spiSend(stand, order[2][0], self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
             setting -= 4
         else:
-            status &= spiSend(stand, order[2][1])
+            status &= spiSend(stand, order[2][1], self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
             
         if setting >= 2:
-            status &= spiSend(stand, order[3][0])
+            status &= spiSend(stand, order[3][0], self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
             setting -= 2
         else:
-            status &= spiSend(stand, order[3][1])
+            status &= spiSend(stand, order[3][1], self.config['sub20_antenna_mapping'],
+                              maxRetry=self.config['max_spi_retry'],
+                              waitRetry=self.config['wait_spi_retry'])
             
         if status:
             self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
@@ -583,14 +641,22 @@ class AnalogProcessor(object):
         status = True
         if state == 11:
             if pol == 1:
-                status &= spiSend(stand, SPI_P17_on )
+                status &= spiSend(stand, SPI_P17_on, self.config['sub20_antenna_mapping'],
+                                  maxRetry=self.config['max_spi_retry'],
+                                  waitRetry=self.config['wait_spi_retry'])
             elif pol == 2:
-                status &= spiSend(stand, SPI_P16_on )
+                status &= spiSend(stand, SPI_P16_on, self.config['sub20_antenna_mapping'],
+                                  maxRetry=self.config['max_spi_retry'],
+                                  waitRetry=self.config['wait_spi_retry'])
         elif state == 0:
             if pol == 1:
-                status &= spiSend(stand, SPI_P17_off)
+                status &= spiSend(stand, SPI_P17_off, self.config['sub20_antenna_mapping'],
+                                  maxRetry=self.config['max_spi_retry'],
+                                  waitRetry=self.config['wait_spi_retry'])
             elif pol == 2:
-                status &= spiSend(stand, SPI_P16_off)
+                status &= spiSend(stand, SPI_P16_off, self.config['sub20_antenna_mapping'],
+                                  maxRetry=self.config['max_spi_retry'],
+                                  waitRetry=self.config['wait_spi_retry'])
                 
         if status:
             self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
