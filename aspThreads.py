@@ -330,7 +330,7 @@ class PowerStatus(object):
         if config is None:
             return True
             
-        self.monitorPeriod = config['POWERPERIOD']
+        self.monitorPeriod = config['power_period']
         
     def start(self):
         """
