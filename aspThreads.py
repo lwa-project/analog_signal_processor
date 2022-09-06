@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
 
 """
 Module implementing the various ASP monitoring threads.
 """
-
-from __future__ import division
 
 import os
 import sys

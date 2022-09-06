@@ -1,12 +1,9 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
 """
 asp_cmnd - Software for controlling ASP within the guidelines of the ASP and 
 MCS ICDs.
 """
-
-from __future__ import print_function
 
 import os
 import git
