@@ -1,9 +1,11 @@
 {
   "serial_number": "ASP01",
   
-  "message_host": "10.1.1.2",
-  "message_out_port": 1741,
-  "message_in_port": 1740,
+  "mcs": {
+    "message_host": "10.1.1.2",
+    "message_out_port": 1741,
+    "message_in_port": 1740
+  },
   
   "temp_min": 10.0,
   "temp_warn": 40.0,
