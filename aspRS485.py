@@ -22,10 +22,11 @@ aspRS485Logger = logging.getLogger('__main__')
 RS485_LOCK = threading.Semaphore(1)
 
 
-def _stand_to_board_chans(stand):
+def _stand_to_board_chans(stand, antennaMapping):
     board = None
     chan0, chan1 = 0, 1
     for board,stands in antennaMapping.items():
+        board = int(board)
         if stand >= stands[0] and stand <= stands[1]:
             chan = stand - stands[0]
             chan0 = 2*chan
@@ -38,6 +39,7 @@ def rs485CountBoards(antennaMapping, maxRetry=0, waitRetry=0.2):
     found = 0
     with RS485_LOCK:
         for board in antennaMapping.keys():
+            board = int(board)
             for attempt in range(maxRetry+1):
                 try:
                     _ARX.get_board_info(board & 0xFF)
@@ -53,6 +55,7 @@ def rs485Reset(antennaMapping, maxRetry=0, waitRetry=0.2):
     success = True
     with RS485_LOCK:
         for board in antennaMapping.keys():
+            board = int(board)
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
@@ -72,6 +75,7 @@ def rs485Check(antennaMapping, maxRetry=0, waitRetry=0.2):
     failed = []
     with RS485_LOCK:
         for board in antennaMapping.keys():
+            board = int(board)
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
@@ -85,7 +89,7 @@ def rs485Check(antennaMapping, maxRetry=0, waitRetry=0.2):
                     time.sleep(waitRetry)
             success &= board_success
             if not board_success:
-                failed.append(antennaMapping[board])
+                failed.append(antennaMapping[str(board)])
     return success, failed
 
 
@@ -94,6 +98,7 @@ def rs485Get(stand, antennaMapping, maxRetry=0, waitRetry=0.2):
     if stand == 0:
         with RS485_LOCK:
             for board in antennaMapping.keys():
+                board = int(board)
                 for attempt in range(maxRetry+1):
                     try:
                         board_config = _ARX.get_all_chan_cfg(board & 0xFF)
@@ -103,7 +108,7 @@ def rs485Get(stand, antennaMapping, maxRetry=0, waitRetry=0.2):
                         aspRS485Logger.warning("Could not get channel info. for board %s: %s", board, str(e))
                         time.sleep(waitRetry)
     else:
-        board, chan0, chan1 = _stand_to_board_chan(stand)
+        board, chan0, chan1 = _stand_to_board_chan(stand, antennaMapping)
         if board is None:
             aspRS485Logger.warning("Unable to relate stand %i to a RS485 board", stand)
             return False
@@ -128,6 +133,7 @@ def rs485Send(stand, config, antennaMapping, maxRetry=0, waitRetry=0.2):
     if stand == 0:
         with RS485_LOCK:
             for board in antennaMapping.keys():
+                board = int(board)
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
@@ -140,7 +146,7 @@ def rs485Send(stand, config, antennaMapping, maxRetry=0, waitRetry=0.2):
                 success &= board_success
                 
     else:
-        board, chan0, chan1 = _stand_to_board_chan(stand)
+        board, chan0, chan1 = _stand_to_board_chan(stand, antennaMapping)
         if board is None:
             aspRS485Logger.warning("Unable to relate stand %i to a RS485 board", stand)
             return False
@@ -167,6 +173,7 @@ def rs485Power(antennaMapping, maxRetry=0, waitRetry=0.2):
     fees = []
     with RS485_LOCK:
         for board in antennaMapping.keys():
+            board = int(board)
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
