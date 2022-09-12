@@ -479,6 +479,9 @@ class ChassisStatus(object):
         if config is None:
             return True
             
+        self.antennaMapping = config['antennaMapping']
+        self.maxRetry = config['max_rs485_retry']
+        self.waitRetry = config['wait_rs485_retry']
         self.monitorPeriod = config['chassis_period']
         
     def start(self):
@@ -517,12 +520,16 @@ class ChassisStatus(object):
             tStart = time.time()
             
             try:
-                self.configured, failed = rs485Check()
+                self.configured, failed = rs485Check(self.antennaMapping,
+                                                     maxRetry=self.maxRetry,
+                                                     waitRetry=self.waitRetry)
                 if self.ASPCallbackInstance is not None:
                     if not self.configured:
                         self.ASPCallbackInstance.processUnconfiguredChassis(failed)
                         
-                status, boards, fees = rs485Power()
+                status, boards, fees = rs485Power(self.antennaMapping,
+                                                  maxRetry=self.maxRetry,
+                                                  waitRetry=self.waitRetry)
                 if status:
                     self.board_currents = boards
                     self.fee_currents = fees
