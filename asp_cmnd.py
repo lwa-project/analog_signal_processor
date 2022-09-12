@@ -33,7 +33,6 @@ except ImportError:
 
 from MCS import *
 
-from aspCommon import *
 from aspFunctions import  AnalogProcessor
 
 

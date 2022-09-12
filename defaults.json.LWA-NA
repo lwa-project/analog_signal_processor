@@ -7,6 +7,31 @@
     "message_in_port": 1740
   }
   
+  "stands_per_board": 8,
+  "max_boards": 8,
+  "max_stands": 64,
+  "max_atten": 15,
+  
+  "antenna_mapping": {
+    "8251": [1,  8],
+    "8252": [9, 16],
+    "8244": [17, 24],
+    "8249": [25, 32],
+    "8250": [33, 40],
+    "8248": [41, 48],
+    "8247": [49, 56],
+    "8246": [57, 64]
+  },
+  
+  "max_rs485_retry": 0,
+  "wait_rs485_retry": 0.2,
+  
+  "arx_ps_port": "/dev/ttyUSB1",
+  "arx_ps_address": 31,
+  
+  "fee_ps_port": "/dev/ttyUSB1",
+  "fee_ps_address": 30,
+  
   "temp_min": 10.0,
   "temp_warn": 40.0,
   "temp_max": 45.0,
