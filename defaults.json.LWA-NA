@@ -1,0 +1,23 @@
+{
+  "serial_number: "ASP03",
+  
+  "mcs": {
+    "message_host": "10.1.3.2",
+    "message_out_port": 1741,
+    "message_in_port": 1740
+  }
+  
+  "temp_min": 10.0,
+  "temp_warn": 40.0,
+  "temp_max": 45.0,
+  
+  "temp_period": 60.0,
+  "power_period": 60.0,
+  "chassis_period": 120.0,
+  
+  "influx": {
+    "username": "lwana",
+    "password": "logging4Fun@NA",
+    "database": "lwana"
+  }
+}
