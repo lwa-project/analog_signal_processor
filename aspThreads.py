@@ -65,10 +65,10 @@ class TemperatureSensors(object):
         if config is None:
             return True
             
-        self.monitorPeriod = config['TEMPPERIOD']
-        self.minTemp  = config['TEMPMIN']
-        self.warnTemp = config['TEMPWARN']
-        self.maxTemp  = config['TEMPMAX']
+        self.monitorPeriod = config['temp_period']
+        self.minTemp  = config['temp_min']
+        self.warnTemp = config['temp_warn']
+        self.maxTemp  = config['temp_max']
         self.influxdb = LWAInfluxClient.from_config(config)
         
     def start(self):
@@ -297,7 +297,7 @@ class PowerStatus(object):
         if config is None:
             return True
             
-        self.monitorPeriod = config['POWERPERIOD']
+        self.monitorPeriod = config['power_period']
         self.influxdb = LWAInfluxClient.from_config(config)
         
     def start(self):
@@ -479,7 +479,7 @@ class ChassisStatus(object):
         if config is None:
             return True
             
-        self.monitorPeriod = config['CHASSISPERIOD']
+        self.monitorPeriod = config['chassis_period']
         
     def start(self):
         """

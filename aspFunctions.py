@@ -67,7 +67,7 @@ class AnalogProcessor(object):
         
         # ASP system information
         self.subSystem = 'ASP'
-        self.serialNumber = self.config['SERIALNUMBER']
+        self.serialNumber = self.config['serial_number']
         self.version = str(__version__)
         
         # ASP system state

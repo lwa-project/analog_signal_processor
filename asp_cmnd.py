@@ -11,6 +11,7 @@ from __future__ import print_function
 import os
 import git
 import sys
+import json
 import time
 import signal
 import socket
@@ -18,6 +19,7 @@ import string
 import struct
 import logging
 import argparse
+import json_minify
 try:
     from logging.handlers import WatchedFileHandler
 except ImportError:
@@ -35,94 +37,14 @@ from aspCommon import *
 from aspFunctions import  AnalogProcessor
 
 
-__version__ = '0.3'
-__all__ = ['DEFAULTS_FILENAME', 'parseConfigFile', 'MCSCommunicate']
+__version__ = '0.4'
+__all__ = ['DEFAULTS_FILENAME', 'MCSCommunicate']
 
 
 #
 # Default Configuration File
 #
-DEFAULTS_FILENAME = '/lwa/software/defaults.cfg'
-
-
-def parseConfigFile(filename):
-    """
-    Given a filename of a ASP configuation file, read in the various values
-    and return the requested configuation as a dictionary.
-    """
-    
-    # Deal with logging
-    logger = logging.getLogger(__name__)
-    logger.info("Parsing config file '%s'", filename)
-
-    # List of the required parameters and their coercion functions
-    coerceMap = {'SERIALNUMBER'   : str,
-                 'MESSAGEHOST'    : str,
-                 'MESSAGEOUTPORT' : int,
-                 'MESSAGEINPORT'  : int, 
-                 'TEMPMIN'        : float, 
-                 'TEMPWARN'       : float,
-                 'TEMPMAX'        : float, 
-                 'TEMPPERIOD'     : float, 
-                 'POWERPERIOD'    : float,
-                 'CHASSISPERIOD'  : float,
-                 'INFLUXUSER'     : str,
-                 'INFLUXPASSWORD' : str,
-                 'INFLUXDATABASE' : str}
-    config = {}
-
-    #
-    # read defaults config file
-    #
-    if not os.path.exists(filename):
-        logger.critical('Config file does not exist: %s', filename)
-        sys.exit(1)
-
-    cfile_error = False
-    fh = open(filename, 'r')
-    for line in fh:
-        line = line.strip()
-        if len(line) == 0 or line.startswith('#'):
-            continue    # ignore blank or comment line
-            
-        tokens = line.split()
-        if len(tokens) != 2:
-            logger.error('Invalid config line, needs parameter-name and value: %s', line)
-            cfile_error = True
-            continue
-        
-        paramName = tokens[0].upper()
-        if paramName in coerceMap.keys():
-            # Try to do the type conversion and, for int's and float's, make sure
-            # the values are greater than zero.
-            try:
-                val = coerceMap[paramName](tokens[1])
-                if coerceMap[paramName] == int or coerceMap[paramName] == float:
-                    if val <= 0:
-                        logger.error("Integer and float values must be > 0")
-                        cfile_error = True
-                    else:
-                        config[paramName] = val
-                else:
-                    config[paramName] = val
-                    
-            except Exception as e:
-                logger.error("Error parsing parameter %s: %s", paramName, str(e))
-                cfile_error = True
-                
-        else:
-            logger.warning("Unknown config parameter %s", paramName)
-            
-    # Verify that all required parameters were found
-    for paramName in coerceMap.keys():
-        if not paramName in config:
-            logger.error("Config parameter '%s' is missing", paramName)
-            cfile_error = True
-    if cfile_error:
-        logger.critical("Error parsing configuation file '%s'", filename)
-        sys.exit(1)
-
-    return config
+DEFAULTS_FILENAME = '/lwa/software/defaults.json'
 
 
 class MCSCommunicate(Communicate):
@@ -403,8 +325,9 @@ class MCSCommunicate(Communicate):
             # INI
             elif command == 'INI':
                 # Re-read in the configuration file
-                config = parseConfigFile(self.opts.config)
-        
+                with open(self.opts.config, 'r') as ch:
+                    config = json.loads(json_minify.json_minify(ch.read()))
+                    
                 # Refresh the configuration for the communicator and ASP
                 self.updateConfig(config)
                 self.SubSystemInstance.updateConfig(config)
@@ -562,8 +485,9 @@ def main(args):
     logger.info('All dates and times are in UTC except where noted')
     
     # Read in the configuration file
-    config = parseConfigFile(args.config)
-    
+    with open(args.config, 'r') as ch:
+        config = json.loads(json_minify.json_minify(ch.read()))
+        
     # Setup ASP control
     lwaASP = AnalogProcessor(config)
 
