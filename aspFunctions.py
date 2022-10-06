@@ -84,6 +84,7 @@ class AnalogProcessor(object):
         self.currentState['config']  = [{} for i in range(2*MAX_BOARDS*STANDS_PER_BOARD)]
         
         ## Monitoring and background threads
+        self.currentState['serviceThread'] = None
         self.currentState['tempThread'] = None
         self.currentState['chassisThreads'] = None
         
@@ -184,6 +185,19 @@ class AnalogProcessor(object):
                 aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
                     
                 # Stop all threads.  If the don't exist yet, create them.
+                if self.currentState['serviceThread'] is not None:
+                    self.currentState['serviceThread'].stop()
+                else:
+                    self.currentState['serviceThread'] = BackendService(ASPCallbackInstance=self)
+                if self.currentState['powerThreads'] is not None:
+                    for t in self.currentState['powerThreads']:
+                        t.stop()
+                        t.updateConfig(self.config)
+                else:
+                    self.currentState['powerThreads'] = []
+                    self.currentState['powerThreads'].append( PowerStatus(SUB20_I2C_MAPPING, ARX_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
+                    self.currentState['powerThreads'].append( PowerStatus(SUB20_I2C_MAPPING, FEE_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
+
                 if self.currentState['tempThread'] is not None:
                     self.currentState['tempThread'].stop()
                     self.currentState['tempThread'].updateConfig(self.config)
@@ -197,14 +211,19 @@ class AnalogProcessor(object):
                     self.currentState['chassisThreads'] = []
                     self.currentState['chassisThreads'].append( ChassisStatus(self.config, ASPCallbackInstance=self) )
                     
+                # Restart the service thread
+                self.currentState['serviceThread'].start()
+                
                 # Do the RS485 bus stuff
                 status = rs485Reset()
                 
                 # Update the analog signal chain state
                 self.currentState['config'] = rs485Get(0)
                 
-                # Start the threads
-                # self.currentState['tempThread'].start() # might bring back later
+                # Start the non-service threads
+                for t in self.currentState['powerThreads']:
+                    t.start()
+                self.currentState['tempThread'].start()
                 for t in self.currentState['chassisThreads']:
                     t.start()
                     
@@ -278,7 +297,10 @@ class AnalogProcessor(object):
         self.currentState['activeProcess'].append('SHT')
         self.currentState['ready'] = False
         
-        # Stop all threads.
+        # Stop all threads except for the service thread.
+        if self.currentState['powerThreads'] is not None:
+            for t in self.currentState['powerThreads']:
+                t.stop()
         if self.currentState['tempThread'] is not None:
             self.currentState['tempThread'].stop()
         if self.currentState['chassisThreads'] is not None:
@@ -303,6 +325,10 @@ class AnalogProcessor(object):
             
             aspFunctionsLogger.critical("SHT failed sending SPI bus commands after %i attempts", MAX_RS485_RETRY)
         
+        # Stop the service thread
+        if self.currentState['serviceThread'] is not None:
+            self.currentState['serviceThread'].stop()
+            
         # Update the current state
         aspFunctionsLogger.info("Finished the SHT process in %.3f s", time.time() - tStart)
         self.currentState['activeProcess'].remove('SHT')
@@ -949,6 +975,20 @@ class AnalogProcessor(object):
                 self.currentState['lastLog'] = 'SENSOR-NAME-%i: Invalid temperature sensor' % sensorNumb
                 return False, 0.0
                 
+    def processNoBackendService(self, running):
+        """
+        Function to set ASP to ERROR if the backend service is not running when
+        it should be.
+        """
+        
+        if not running:
+            self.currentState['status'] = 'ERROR'
+            self.currentState['info'] = 'SUMMARY! 0x%02X %s' % (0x07, subsystemErrorCodes[0x07])
+            self.currentState['lastLog'] = 'ASP backend service not running'
+            self.currentState['ready'] = False
+            
+        return True
+        
     def processWarningTemperature(self, clear=False):
         """
         Function to set ASP to WARNING if the temperature is creeping up.  This 
