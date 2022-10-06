@@ -82,6 +82,8 @@ class BackendService(object):
         watch_out.register(service.stdout)
         watch_err = select.poll()
         watch_err.register(service.stderr)
+
+        aspThreadsLogger.debug('I HAVE CALLED SERVICETHREAD AND WE MADE IT THIS FAR')
         
         while self.alive.isSet():
             try:
