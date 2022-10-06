@@ -39,6 +39,8 @@ def rs485CountBoards(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
         for board in RS485_ANTENNA_MAPPING.keys():
             for attempt in range(maxRetry+1):
                 try:
+                    test = _ARX._send(board&0xFF, 'arxn', '')
+                    aspRS485Logger.debug(f'test thing: {out}')
                     _ARX.get_board_info(board & 0xFF)
                     found += 1
                     break
@@ -57,14 +59,21 @@ def rs485Reset(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
                 try:
                     _ARX.reset(board & 0xFF)
                     board_success = True
+                    break
                 except Exception as e:
                     aspRS485Logger.warning("Could not reset board %s: %s", board, str(e))
                     time.sleep(waitRetry)
             success &= board_success
+
+    # Check for completion of reset
+    time.sleep(10) # Wait a little bit
+    reset_check, failed = rs485Check(verbose=False)
+    success &= reset_check
+
     return success
 
 
-def rs485Check(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
+def rs485Check(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY, verbose=True):
     data = "check_for_me"
     
     success = True
@@ -75,12 +84,11 @@ def rs485Check(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
             for attempt in range(maxRetry+1):
                 try:
                     echo_data = _ARX.echo(board & 0xFF,data)
-                    if echo_data == data:
-                        board_success = True
-                    else:
-                        raise ValueError()
+                    board_success = True
+                    break
                 except Exception as e:
-                    aspRS485Logger.warning("Could not echo '%s' to board %s: %s", data, board, str(e))
+                    if verbose:
+                        aspRS485Logger.warning("Could not echo '%s' to board %s: %s", data, board, str(e))
                     time.sleep(waitRetry)
             success &= board_success
             if not board_success:
@@ -95,14 +103,14 @@ def rs485Get(stand, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
             for board in RS485_ANTENNA_MAPPING.keys():
                 for attempt in range(maxRetry+1):
                     try:
-                        board_config = _ARX.get_all_chan_cfg(board & 0xFF)
+                        board_config = _ARX.get_all_chan_cfg(board & 0xFF, 30)
                         config.extend(board_config)
                         break
                     except Exception as e:
                         aspRS485Logger.warning("Could not get channel info. for board %s: %s", board, str(e))
                         time.sleep(waitRetry)
     else:
-        board, chan0, chan1 = _stand_to_board_chan(stand)
+        board, chan0, chan1 = _stand_to_board_chans(stand)
         if board is None:
             aspRS485Logger.warning("Unable to relate stand %i to a RS485 board", stand)
             return False
@@ -126,11 +134,21 @@ def rs485Send(stand, config, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
     success = True
     if stand == 0:
         with RS485_LOCK:
+
+            #for i, cfg in enumerate(zip(config[0::2], config[1::2])):
+            #    check = rs485Send(i+1, cfg, maxRetry=maxRetry, waitRetry=waitRetry)
+            #    success &= check
+
             for board in RS485_ANTENNA_MAPPING.keys():
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
-                        _ARX.set_all_different_chan_config(board & 0xFF, config)
+                        # THIS IS ALL DEBUG GARBAGE
+                        config_start = 2*(RS485_ANTENNA_MAPPING[board][0]-1)
+                        config_end = 2*(RS485_ANTENNA_MAPPING[board][1])
+                        subconfig = config[config_start:config_end]
+
+                        _ARX.set_all_different_chan_cfg(board & 0xFF, subconfig)
                         board_success = True
                         break
                     except Exception as e:
@@ -139,7 +157,7 @@ def rs485Send(stand, config, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                 success &= board_success
                 
     else:
-        board, chan0, chan1 = _stand_to_board_chan(stand)
+        board, chan0, chan1 = _stand_to_board_chans(stand)
         if board is None:
             aspRS485Logger.warning("Unable to relate stand %i to a RS485 board", stand)
             return False

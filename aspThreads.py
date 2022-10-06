@@ -649,7 +649,7 @@ class ChassisStatus(object):
                 
             # Stop time
             tStop = time.time()
-            aspThreadsLogger.debug('Finished updating chassis status for 0x%04X in %.3f seconds', self.sub20SN, tStop - tStart)
+            aspThreadsLogger.debug('Finished updating chassis status in %.3f seconds', tStop - tStart)
             
             # Sleep for a bit
             sleepCount = 0
