@@ -21,7 +21,7 @@ except ImportError:
     
 from lwainflux import LWAInfluxClient
 
-from aspRS485 import rs485Check, rs485Power
+from aspRS485 import rs485Check, rs485Get, rs485Power
 from aspI2C import psuRead
 
 
@@ -121,7 +121,7 @@ class BackendService(object):
                     except AttributeError:
                         # Python2 catch
                         pass
-                    aspThreadsLogger.error("%s: serviceThread %s", type(self).__name__, line.rstrip())
+                    aspThreadsLogger.debug("%s: serviceThread %s", type(self).__name__, line.rstrip())
                     while watch_err.poll(1) and self.alive.isSet():
                         line = service.stderr.readline()
                         try:
@@ -129,7 +129,7 @@ class BackendService(object):
                         except AttributeError:
                             # Python2 catch
                             pass
-                        aspThreadsLogger.error("%s: serviceThread %s", type(self).__name__, line.rstrip())
+                        aspThreadsLogger.debug("%s: serviceThread %s", type(self).__name__, line.rstrip())
                         
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -670,8 +670,8 @@ class ChassisStatus(object):
                         ### Configuration from the board itself
                         act_config = rs485Get(stand)
                         for pol in (0, 1):
-                            for key in req_config[pol].keys():
-                                if req_config[pol][key] != act_config[pol][key]:
+                            for key in act_config[pol].keys():
+                                if act_config[pol][key] != req_config[pol][key]:
                                     config_status = False
                                     break
                             if not config_status:
@@ -685,7 +685,7 @@ class ChassisStatus(object):
                     ## If we have had more than two consecutive polling failures,
                     ## it's a problem
                     if config_failures > 1:
-                        self.ASPCallbackInstance.processUnconfiguredChassis((1, 8))
+                        self.ASPCallbackInstance.processUnconfiguredChassis([[1, 8],])
                         
                 status, boards, fees = rs485Power()
                 if status:
