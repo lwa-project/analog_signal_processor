@@ -214,7 +214,7 @@ class AnalogProcessor(object):
                 self.currentState['config'] = rs485Get(0)
                 
                 # Start the non-service threads
-                self.currentState['tempThread'].start()
+                #self.currentState['tempThread'].start()
                 for t in self.currentState['chassisThreads']:
                     t.start()
                     
