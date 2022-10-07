@@ -96,16 +96,40 @@ class BackendService(object):
                 ## Is there anything to read on stdout?
                 if watch_out.poll(1):
                     ### Good, read in all that we can
-                    aspThreadsLogger.debug("%s: serviceThread %s", type(self).__name__, service.stdout.readline())
-                    while watch_out.poll(1):
-                        aspThreadsLogger.debug("%s: serviceThread %s", type(self).__name__, service.stdout.readline())
+                    line = service.stdout.readline()
+                    try:
+                        line = line.decode()
+                    except AttributeError:
+                        # Python2 catch
+                        pass
+                    aspThreadsLogger.debug("%s: serviceThread %s", type(self).__name__, line.rstrip())
+                    while watch_out.poll(1) and self.alive.isSet():
+                        line = service.stdout.readline()
+                        try:
+                            line = line.decode()
+                        except AttributeError:
+                            # Python2 catch
+                            pass
+                        aspThreadsLogger.debug("%s: serviceThread %s", type(self).__name__, line.rstrip())
                         
                 ## Is there anything to read on stderr?
                 if watch_err.poll(1):
                     ### Ugh, read in all that we can
-                    aspThreadsLogger.error("%s: serviceThread %s", type(self).__name__, service.stderr.readline())
-                    while watch_err.poll(1):
-                        aspThreadsLogger.error("%s: serviceThread %s", type(self).__name__, service.stderr.readline())
+                    line = service.stderr.readline()
+                    try:
+                        line = line.decode()
+                    except AttributeError:
+                        # Python2 catch
+                        pass
+                    aspThreadsLogger.error("%s: serviceThread %s", type(self).__name__, line.rstrip())
+                    while watch_err.poll(1) and self.alive.isSet():
+                        line = service.stderr.readline()
+                        try:
+                            line = line.decode()
+                        except AttributeError:
+                            # Python2 catch
+                            pass
+                        aspThreadsLogger.error("%s: serviceThread %s", type(self).__name__, line.rstrip())
                         
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -124,8 +148,14 @@ class BackendService(object):
             time.sleep(1)
             
         # Clean up and get ready to exit
-        watch_out.unregister(service.stdout)
-        watch_out.unregister(service.stderr)
+        try:
+            watch_out.unregister(service.stdout)
+        except KeyError:
+            pass
+        try:
+            watch_out.unregister(service.stderr)
+        except KeyError:
+            pass
         try:
             service.kill()
         except OSError:
