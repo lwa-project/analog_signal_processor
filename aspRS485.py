@@ -39,8 +39,7 @@ def rs485CountBoards(maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
         for board in RS485_ANTENNA_MAPPING.keys():
             for attempt in range(maxRetry+1):
                 try:
-                    test = _ARX._send(board&0xFF, 'arxn', '')
-                    aspRS485Logger.debug(f'test thing: {out}')
+                    _ARX._send(board&0xFF, 'arxn', '')
                     _ARX.get_board_info(board & 0xFF)
                     found += 1
                     break
@@ -103,7 +102,7 @@ def rs485Get(stand, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
             for board in RS485_ANTENNA_MAPPING.keys():
                 for attempt in range(maxRetry+1):
                     try:
-                        board_config = _ARX.get_all_chan_cfg(board & 0xFF, 30)
+                        board_config = _ARX.get_all_chan_cfg(board & 0xFF)
                         config.extend(board_config)
                         break
                     except Exception as e:
@@ -147,8 +146,9 @@ def rs485Send(stand, config, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                         config_start = 2*(RS485_ANTENNA_MAPPING[board][0]-1)
                         config_end = 2*(RS485_ANTENNA_MAPPING[board][1])
                         subconfig = config[config_start:config_end]
-
-                        _ARX.set_all_different_chan_cfg(board & 0xFF, subconfig)
+                        for i,c in enumerate(subconfig):
+                             _ARX.set_chan_cfg(board & 0xFF, i, c)
+                        #_ARX.set_all_different_chan_cfg(board & 0xFF, subconfig)
                         board_success = True
                         break
                     except Exception as e:
