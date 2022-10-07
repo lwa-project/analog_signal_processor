@@ -159,6 +159,15 @@ class AnalogProcessor(object):
         self.currentState['info'] = 'Running INI sequence'
         self.currentState['activeProcess'].append('INI')
         
+        # Stop the backend service thread.  If it doesn't exist create it
+        if self.currentState['serviceThread'] is not None:
+            self.currentState['serviceThread'].stop()
+        else:
+            self.currentState['serviceThread'] = BackendService(ASPCallbackInstance=self)
+            
+        # Start the backend service thread
+        self.currentState['serviceThread'].start()
+        
         # Make sure the RS485 is present
         if os.system('lsusb -d 10c4: >/dev/null') == 0:
             # Good, we can continue
@@ -184,11 +193,7 @@ class AnalogProcessor(object):
                 self.num_chpairs = nBoards * STANDS_PER_BOARD
                 aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
                     
-                # Stop all threads.  If the don't exist yet, create them.
-                if self.currentState['serviceThread'] is not None:
-                    self.currentState['serviceThread'].stop()
-                else:
-                    self.currentState['serviceThread'] = BackendService(ASPCallbackInstance=self)
+                # Stop the non-service threads.  If the don't exist yet, create them.
                 if self.currentState['powerThreads'] is not None:
                     for t in self.currentState['powerThreads']:
                         t.stop()
@@ -211,9 +216,6 @@ class AnalogProcessor(object):
                     self.currentState['chassisThreads'] = []
                     self.currentState['chassisThreads'].append( ChassisStatus(self.config, ASPCallbackInstance=self) )
                     
-                # Restart the service thread
-                self.currentState['serviceThread'].start()
-                
                 # Do the RS485 bus stuff
                 status = rs485Reset()
                 
