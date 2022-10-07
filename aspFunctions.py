@@ -194,15 +194,6 @@ class AnalogProcessor(object):
                 aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
                     
                 # Stop the non-service threads.  If the don't exist yet, create them.
-                if self.currentState['powerThreads'] is not None:
-                    for t in self.currentState['powerThreads']:
-                        t.stop()
-                        t.updateConfig(self.config)
-                else:
-                    self.currentState['powerThreads'] = []
-                    self.currentState['powerThreads'].append( PowerStatus(SUB20_I2C_MAPPING, ARX_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
-                    self.currentState['powerThreads'].append( PowerStatus(SUB20_I2C_MAPPING, FEE_PS_ADDRESS, self.config, ASPCallbackInstance=self) )
-
                 if self.currentState['tempThread'] is not None:
                     self.currentState['tempThread'].stop()
                     self.currentState['tempThread'].updateConfig(self.config)
@@ -223,8 +214,6 @@ class AnalogProcessor(object):
                 self.currentState['config'] = rs485Get(0)
                 
                 # Start the non-service threads
-                for t in self.currentState['powerThreads']:
-                    t.start()
                 self.currentState['tempThread'].start()
                 for t in self.currentState['chassisThreads']:
                     t.start()
@@ -300,9 +289,6 @@ class AnalogProcessor(object):
         self.currentState['ready'] = False
         
         # Stop all threads except for the service thread.
-        if self.currentState['powerThreads'] is not None:
-            for t in self.currentState['powerThreads']:
-                t.stop()
         if self.currentState['tempThread'] is not None:
             self.currentState['tempThread'].stop()
         if self.currentState['chassisThreads'] is not None:
