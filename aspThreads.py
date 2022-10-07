@@ -76,14 +76,12 @@ class BackendService(object):
         path = os.path.join(path, 'backend')
         
         # Start the service
-        service = subprocess.Popen([os.path.join(path, 'lwaARXSerial')], cwd=path, 
+        service = subprocess.Popen([os.path.join(path, 'lwaARXserial')], cwd=path, 
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         watch_out = select.poll()
         watch_out.register(service.stdout)
         watch_err = select.poll()
         watch_err.register(service.stderr)
-
-        aspThreadsLogger.debug('I HAVE CALLED SERVICETHREAD AND WE MADE IT THIS FAR')
         
         while self.alive.isSet():
             try:
