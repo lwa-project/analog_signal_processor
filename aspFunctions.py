@@ -97,6 +97,7 @@ class AnalogProcessor(object):
         self.currentState['ats']    = [30    for i in range(MAX_BOARDS*STANDS_PER_BOARD)]
         
         ## Monitoring and background threads
+        self.currentState['spiThread'] = None
         self.currentState['tempThread'] = None
         self.currentState['powerThreads'] = None
         self.currentState['chassisThreads'] = None
@@ -192,6 +193,10 @@ class AnalogProcessor(object):
                 aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
                     
                 # Stop all threads.  If the don't exist yet, create them.
+                if self.currentStat['spiThread'] is not None:
+                    self.currentState['spiThread'].stop()
+                else:
+                    self.currentState['spiThread']= SPIProcessingThread()
                 if self.currentState['powerThreads'] is not None:
                     for t in self.currentState['powerThreads']:
                         t.stop()
@@ -221,15 +226,18 @@ class AnalogProcessor(object):
                     self.currentState['at2'][i] = 30
                     self.currentState['ats'][i] = 30
                     
+                # Start the SPI command processor
+                self.currentState['spiThread'].start()
+                
                 # Do the SPI bus stuff
                 status  = True
-                status &= spiSend(0, SPI_cfg_shutdown)                   # Into sleep mode
-                status &= spiSend(0, SPI_cfg_normal)                     # Out of sleep mode
-                status &= spiSend(0, SPI_cfg_output_P12_13_14_15)        # Set outputs
-                status &= spiSend(0, SPI_cfg_output_P16_17_18_19)        # Set outputs
-                status &= spiSend(0, SPI_cfg_output_P20_21_22_23)        # Set outputs
-                status &= spiSend(0, SPI_cfg_output_P24_25_26_27)        # Set outputs
-                status &= spiSend(0, SPI_cfg_output_P28_29_30_31)        # Set outputs
+                status &= self.currentState['spiThread'].process_command(0, SPI_cfg_shutdown)                   # Into sleep mode
+                status &= self.currentState['spiThread'].process_command(0, SPI_cfg_normal)                     # Out of sleep mode
+                status &= self.currentState['spiThread'].process_command(0, SPI_cfg_output_P12_13_14_15)        # Set outputs
+                status &= self.currentState['spiThread'].process_command(0, SPI_cfg_output_P16_17_18_19)        # Set outputs
+                status &= self.currentState['spiThread'].process_command(0, SPI_cfg_output_P20_21_22_23)        # Set outputs
+                status &= self.currentState['spiThread'].process_command(0, SPI_cfg_output_P24_25_26_27)        # Set outputs
+                status &= self.currentState['spiThread'].process_command(0, SPI_cfg_output_P28_29_30_31)        # Set outputs
                 
                 # Start the threads
                 for t in self.currentState['powerThreads']:
@@ -308,7 +316,7 @@ class AnalogProcessor(object):
         self.currentState['activeProcess'].append('SHT')
         self.currentState['ready'] = False
         
-        # Stop all threads.
+        # Stop most threads.
         if self.currentState['powerThreads'] is not None:
             for t in self.currentState['powerThreads']:
                 t.stop()
@@ -320,7 +328,7 @@ class AnalogProcessor(object):
                 
         # Do SPI bus stuff (only if the boards are on)
         if self.getARXPowerSupplyStatus()[1] == 'ON ':
-            status = spiSend(0, SPI_cfg_shutdown)        # Into sleep mode
+            status = self.currentState['spiThread'].process_command(0, SPI_cfg_shutdown)        # Into sleep mode
             time.sleep(5)
         status = True
         
@@ -340,6 +348,9 @@ class AnalogProcessor(object):
             self.currentState['ready'] = False
             
             aspFunctionsLogger.critical("SHT failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
+            
+        # Stop the SPI command processor
+        self.currentState['spiThread'].stop()
         
         # Update the current state
         aspFunctionsLogger.info("Finished the SHT process in %.3f s", time.time() - tStart)
@@ -384,51 +395,36 @@ class AnalogProcessor(object):
         """
         
         # Do SPI bus stuff
-        status = True
         if filterCode > 3:
             # Set 3 MHz mode
-            status &= spiSend(stand, SPI_P14_on )
-            status &= spiSend(stand, SPI_P15_off)
+            self.currentState['spiThread'].queue_command(stand, SPI_P14_on)
+            self.currentState['spiThread'].queue_command(stand, SPI_P15_off)
         else:
             # Set 10 MHz mode
-            status &= spiSend(stand, SPI_P14_off)
-            status &= spiSend(stand, SPI_P15_on )
+            self.currentState['spiThread'].queue_command(stand, SPI_P14_off)
+            self.currentState['spiThread'].queue_command(stand, SPI_P15_on)
             
+        cb = SPICommandCallback(self.currentState['filter'].__setitem__, stand-1, filterCode)
         if filterCode == 0 or filterCode == 4:
             # Set Filter to Split Bandwidth
-            status &= spiSend(stand, SPI_P19_off)
-            status &= spiSend(stand, SPI_P18_off)
+            self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
+            self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
         elif filterCode == 1 or filterCode == 5:
             # Set Filter to Full Bandwidth
-            status &= spiSend(stand, SPI_P19_off)
-            status &= spiSend(stand, SPI_P18_on )
+            self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
+            self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
         elif filterCode == 2:
             # Set Filter to Reduced Bandwidth
-            status &= spiSend(stand, SPI_P19_on )
-            status &= spiSend(stand, SPI_P18_off)
+            self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
+            self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
         elif filterCode == 3:
             # Set Filters OFF
-            status &= spiSend(stand, SPI_P19_on )
-            status &= spiSend(stand, SPI_P18_on )
+            self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
+            self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
             
-        if status:
-            self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
-            aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
+        self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
+        aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
         
-            if stand != 0:
-                self.currentState['filter'][stand-1] = filterCode
-            else:
-                for i in range(self.num_stands):
-                    self.currentState['filter'][i] = filterCode
-        else:
-            # Something failed, report
-            self.currentState['lastLog'] = 'FIL: Failed to set filter to %02i for stand %i' % (filterCode, stand)
-            aspFunctionsLogger.error('FIL - Failed to set filter to %02i for stand %i', filterCode, stand)
-            
-            self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
-            self.currentState['ready'] = False
-            
         # Cleanup and save the state of FIL
         self.currentState['activeProcess'].remove('FIL')
         
@@ -483,49 +479,42 @@ class AnalogProcessor(object):
         else:
             order = ((SPI_P31_on, SPI_P31_off), (SPI_P28_on, SPI_P28_off), (SPI_P29_on, SPI_P29_off), (SPI_P30_on, SPI_P30_off))
             
-        status = True
+        cb = SPICommandCallback(self.currentState[modeDict[mode].lower()].__setitem__, stand-1, attenSetting)
         if setting >= 16:
-            status &= spiSend(stand, order[0][0])
+            self.currentState['spiThread'].queue_command(stand, order[0][0], cb)
             setting -= 16
+            cb = None
         else:
-            status &= spiSend(stand, order[0][1])
+            self.currentState['spiThread'].queue_command(stand, order[0][1], cb)
+            cb = None
             
         if setting >= 8:
-            status &= spiSend(stand, order[1][0])
+            self.currentState['spiThread'].queue_command(stand, order[1][0], cb)
             setting -= 8
+            cb = None
         else:
-            status &= spiSend(stand, order[1][1])
+            self.currentState['spiThread'].queue_command(stand, order[1][1], cb)
+            cb = None
             
         if setting >= 4:
-            status &= spiSend(stand, order[2][0])
+            self.currentState['spiThread'].queue_command(stand, order[2][0], cb)
             setting -= 4
+            cb = None
         else:
-            status &= spiSend(stand, order[2][1])
+            self.currentState['spiThread'].queue_command(stand, order[2][1], cb)
+            cb = None
             
         if setting >= 2:
-            status &= spiSend(stand, order[3][0])
+            self.currentState['spiThread'].queue_command(stand, order[3][0], cb)
             setting -= 2
+            cb = None
         else:
-            status &= spiSend(stand, order[3][1])
+            self.currentState['spiThread'].queue_command(stand, order[3][1], cb)
+            cb = None
             
-        if status:
-            self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
-            aspFunctionsLogger.debug('%s - Set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
-            
-            if stand != 0:
-                self.currentState[modeDict[mode].lower()][stand-1] = attenSetting
-            else:
-                for i in range(self.num_stands):
-                    self.currentState[modeDict[mode].lower()][i] = attenSetting
-        else:
-            # Something failed, report
-            self.currentState['lastLog'] = '%s: Failed to set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
-            aspFunctionsLogger.error('%s - Failed to set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
-            
-            self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
-            self.currentState['ready'] = False
-            
+        self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
+        aspFunctionsLogger.debug('%s - Set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
+        
         # Cleanup
         self.currentState['activeProcess'].remove('ATN')
         
@@ -571,36 +560,20 @@ class AnalogProcessor(object):
         """
         
         # Do SPI bus stuff
-        status = True
+        cb = SPICommandCallback(self.currentState['power'].__setitem__, stand, pol)
         if state == 11:
             if pol == 1:
-                status &= spiSend(stand, SPI_P17_on )
+                self.currentState['spiThread'].queue_command(stand, SPI_P17_on, cb)
             elif pol == 2:
-                status &= spiSend(stand, SPI_P16_on )
+                self.currentState['spiThread'].queue_command(stand, SPI_P16_on, cb)
         elif state == 0:
             if pol == 1:
-                status &= spiSend(stand, SPI_P17_off)
+                self.currentState['spiThread'].queue_command(stand, SPI_P17_off, cb)
             elif pol == 2:
-                status &= spiSend(stand, SPI_P16_off)
+                self.currentState['spiThread'].queue_command(stand, SPI_P16_off, cb)
                 
-        if status:
-            self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
-            aspFunctionsLogger.debug('FPW - Set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
+        self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
         
-            if stand != 0:
-                self.currentState['power'][stand-1][pol-1] = state
-            else:
-                for i in range(self.num_stands):
-                    self.currentState['power'][i][pol-1] = state
-        else:
-            # Something failed, report
-            self.currentState['lastLog'] = 'FPW: Failed to set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
-            aspFunctionsLogger.error('FPW - Failed to set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
-            
-            self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
-            self.currentState['ready'] = False
-            
         # Cleanup
         self.currentState['activeProcess'].remove('FPW')
         
