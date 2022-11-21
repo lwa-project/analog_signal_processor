@@ -244,15 +244,12 @@ class AnalogProcessor(object):
                     self.currentState['lastLog'] = 'INI: finished in %.3f s' % (time.time() - tStart,)
                     self.currentState['ready'] = True
                     
-                    lcdSend(SUB20_I2C_MAPPING, 'ASP\nReady')
-                    
                 else:
                     self.currentState['status'] = 'ERROR'
                     self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
                     self.currentState['lastLog'] = 'INI: finished with error'
                     self.currentState['ready'] = False
                     
-                    lcdSend(SUB20_I2C_MAPPING, 'ASP\nINI fail')
                     aspFunctionsLogger.critical("INI failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
             else:
                 self.currentState['status'] = 'ERROR'
@@ -260,7 +257,6 @@ class AnalogProcessor(object):
                 self.currentState['lastLog'] = 'INI: finished with error'
                 self.currentState['ready'] = False
                 
-                lcdSend(SUB20_I2C_MAPPING, 'ASP\nINI fail')
                 aspFunctionsLogger.critical("INI failed; found %i boards, expected %i", boardsFound, nBoards)
                 
         else:
@@ -270,7 +266,6 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'INI: finished with error'
             self.currentState['ready'] = False
             
-            lcdSend(SUB20_I2C_MAPPING, 'ASP\nINI fail')
             aspFunctionsLogger.critical("INI failed due to missing SUB-20 device(s)")
         
         # Update the current state
@@ -334,8 +329,6 @@ class AnalogProcessor(object):
             self.__rxpProcess(00, internal=True)
             self.__fepProcess(00, internal=True)
 
-            lcdSend(SUB20_I2C_MAPPING, 'ASP\nshutdown')
-            
             self.currentState['status'] = 'SHUTDWN'
             self.currentState['info'] = 'System has been shut down'
             self.currentState['lastLog'] = 'System has been shut down'
@@ -346,7 +339,6 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'SHT: failed in %.3f s' % (time.time() - tStart,)
             self.currentState['ready'] = False
             
-            lcdSend(SUB20_I2C_MAPPING, 'ASP\nSHT fail')
             aspFunctionsLogger.critical("SHT failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
         
         # Update the current state
@@ -423,7 +415,6 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
             aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
         
-            #lcdSend(SUB20_I2C_MAPPING, 'Stand%03i\nFIL=%02i' % (stand, filterCode))
             if stand != 0:
                 self.currentState['filter'][stand-1] = filterCode
             else:
@@ -521,7 +512,6 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
             aspFunctionsLogger.debug('%s - Set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
             
-            #lcdSend(SUB20_I2C_MAPPING, 'Stand%03i\n%3s=%02i' % (stand, modeDict[mode], attenSetting))
             if stand != 0:
                 self.currentState[modeDict[mode].lower()][stand-1] = attenSetting
             else:
@@ -597,7 +587,6 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
             aspFunctionsLogger.debug('FPW - Set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
         
-            #lcdSend(SUB20_I2C_MAPPING, 'Stand%03i\npol%1i=%3s'% (stand, pol, 'on ' if state else 'off'))
             if stand != 0:
                 self.currentState['power'][stand-1][pol-1] = state
             else:
@@ -656,8 +645,6 @@ class AnalogProcessor(object):
         if status:
             aspFunctionsLogger.debug('RXP - Set ARX power supplies to state %02i', state)
             
-            lcdSend(SUB20_I2C_MAPPING, 'ARX PS\n%s' % ('OFF' if state == 0 else 'ON',))
-            
             if state == 0 and not internal:
                 # Now that the ARX power supply is off, we need to be in error
                 self.currentState['status'] = 'ERROR'
@@ -715,8 +702,6 @@ class AnalogProcessor(object):
         
         if status:
             aspFunctionsLogger.debug('FEP - Set FEE power supplies to state %02i', state)
-            
-            lcdSend(SUB20_I2C_MAPPING, 'FEE PS\n%s' % ('OFF' if state == 0 else 'ON',))
             
             if state == 0 and not internal:
                 # Now that the FEE power supply is off, we need to be in error

@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # Main Targets
 #------------------------------------------------------------------------------
-all: LIBSUB sendARXDevice writeARXLCD \
+all: LIBSUB sendARXDevice \
      countBoards countPSUs countThermometers \
      readPSU readThermometers \
      onoffPSU configPSU \
@@ -54,9 +54,6 @@ LIBSUB:
 sendARXDevice: sendARXDevice.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
-writeARXLCD: writeARXLCD.o
-	$(CC) -o $@ $^ $(LDFLAGS)
-
 countBoards: countBoards.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
@@ -107,4 +104,3 @@ clean:
 	rm -f *.o *.out *.err *.exe *.a *.so
 	rm -f sendARXDevice writeARXLCD countBoards countPSUs countThermometers readPSU readThermometers onoffPSU configPSU readARXDevice
 	make -C libsub clean
-
