@@ -16,8 +16,9 @@ OS = $(shell uname)
 # Compiler
 #------------------------------------------------------------------------------
 
-# C Compiler and Linker Executable
+# C/C++ Compiler and Linker Executable
 CC      := $(CROSS)gcc
+CXX     := $(CROSS)g++
 
 
 #------------------------------------------------------------------------------
@@ -42,6 +43,8 @@ LDFLAGS += -L/usr/local/lib -lusb-1.0 -lm
 #------------------------------------------------------------------------------
 %.o:	%.c  
 	$(CC) -c $(CFLAGS) -o $@ $<
+%.o:	%.cpp 
+	$(CXX) -c $(CFLAGS) -o $@ $<
 
 
 #------------------------------------------------------------------------------
@@ -52,7 +55,7 @@ LIBSUB:
 	make -C libsub
 
 sendARXDevice: sendARXDevice.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 countBoards: countBoards.o
 	$(CC) -o $@ $^ $(LDFLAGS)
