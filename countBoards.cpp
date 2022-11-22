@@ -20,8 +20,6 @@ Options:
 #include "libsub.h"
 #include "aspCommon.h"
 
-sub_handle* fh = NULL;
-
 
 int main(int argc, char** argv) {
   /*************************
@@ -33,7 +31,6 @@ int main(int argc, char** argv) {
 		exit(1);
 	}
   
-  char *endptr;
   std::string requestedSN = std::string(argv[1]);
   
   /************************************
