@@ -193,7 +193,7 @@ class AnalogProcessor(object):
                 aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
                     
                 # Stop all threads.  If the don't exist yet, create them.
-                if self.currentStat['spiThread'] is not None:
+                if self.currentState['spiThread'] is not None:
                     self.currentState['spiThread'].stop()
                 else:
                     self.currentState['spiThread']= SPIProcessingThread()
