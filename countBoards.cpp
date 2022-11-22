@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
 	*************************/
   // Make sure we have the right number of arguments to continue
 	if( argc < 1+1 ) {
-		std::cout << "countBoards - Need 1 argument, %i provided, " << argc-1 << " provided" << std::endl;
+		std::cout << "countBoards - Need 1 argument, " << argc-1 << " provided" << std::endl;
 		exit(1);
 	}
   
