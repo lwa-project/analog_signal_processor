@@ -23,17 +23,6 @@ Options:
 #include <chrono>
 #include <thread>
 
-#if defined(__linux__)
-/* Linux */
-#include <byteswap.h>
-#elif defined(__APPLE__) && defined(__MACH__)
-/* OSX */
-#include <libkern/OSByteOrder.h>
-#define __bswap_16 OSSwapInt16
-#define __bswap_32 OSSwapInt32
-#define __bswap_64 OSSwapInt64
-#endif
-
 #include "libsub.h"
 #include "aspCommon.h"
 
@@ -71,11 +60,11 @@ public:
   }
   inline uint16_t* get_commands() {
     uint16_t *commands = (uint16_t*) calloc(sizeof(uint16_t), _size+1);
-    *(commands + 0) = __bswap_16(SPI_COMMAND_MARKER);
+    *(commands + 0) = SPI_COMMAND_MARKER;
     
     for(uint32_t i=0; i<_size; i++) {
       if( _buffer[i].size() > 0 ) {
-        *(commands + _size - i) = __bswap_16(_buffer[i].front());
+        *(commands + _size - i) = _buffer[i].front();
         _buffer[i].pop();
       }
     }
@@ -185,7 +174,7 @@ int main(int argc, char** argv) {
   		exit(2);
   	}
     
-    if( responses[device_count] != __bswap_16(0x0120) ) {
+    if( responses[device_count] != SPI_COMMAND_MARKER ) {
       std::cout << "sendARXDevice - SPI write returned a marker of "
                 << std::hex << responses[device_count] << std::dec << " instead of "
                 << std::hex << SPI_COMMAND_MARKER << std::dec << std::endl;
