@@ -70,7 +70,7 @@ readPSU: readPSU.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 readThermometers: readThermometers.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 onoffPSU: onoffPSU.o
 	$(CC) -o $@ $^ $(LDFLAGS)
