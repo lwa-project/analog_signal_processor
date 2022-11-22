@@ -223,7 +223,7 @@ class SPIProcessingThread(object):
                     
         return status
             
-    def process_command(device, command, callback=None):
+    def process_command(self, device, command, callback=None):
         status = True
         
         with self._lock:
