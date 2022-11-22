@@ -20,8 +20,8 @@ Options:
 #include <stdexcept>
 #include <string>
 #include <cstring>
-
-#include <unistd.h>
+#include <chrono>
+#include <thread>
 
 #if defined(__linux__)
 /* Linux */
@@ -71,7 +71,7 @@ public:
   }
   inline uint16_t* get_commands() {
     uint16_t *commands = (uint16_t*) calloc(sizeof(uint16_t), _size+1);
-    *(commands + 0) = __bswap_16(0x0120);
+    *(commands + 0) = __bswap_16(SPI_COMMAND_MARKER);
     
     for(uint32_t i=0; i<_size; i++) {
       if( _buffer[i].size() > 0 ) {
@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
 		fh = sub_open(dev);
 		while( (fh == NULL) && (openTries < SUB20_OPEN_MAX_ATTEMPTS) ) {
 			openTries++;
-			usleep(SUB20_OPEN_WAIT_US);
+			std::this_thread::sleep_for(std::chrono::milliseconds(SUB20_OPEN_WAIT_US/1000));
 			
 			fh = sub_open(dev);
 		}
@@ -187,7 +187,7 @@ int main(int argc, char** argv) {
     if( responses[device_count] != __bswap_16(0x0120) ) {
       std::cout << "sendARXDevice - SPI write returned a marker of "
                 << std::hex << responses[device_count] << std::dec << " instead of "
-                << std::hex << 0x2001 << std::dec << std::endl;
+                << std::hex << SPI_COMMAND_MARKER << std::dec << std::endl;
       ::free(commands);
       ::free(responses);
   		exit(3);

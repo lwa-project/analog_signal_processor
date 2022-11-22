@@ -47,7 +47,7 @@ int main(int argc, char* argv[]) {
 	device = strtod(argv[3], &endptr);
 	hex_to_array(argv[4], simpleData);
 	hex_to_array("0x0000", simpleNoOp);
-	ushort_to_array(marker, simpleMarker);
+	ushort_to_array(SPI_COMMAND_MARKER, simpleMarker);
 	
 	// Make this a "read" operation to setting the high bit on the command 
 	// address to 1.  Also, zero out the data value.
@@ -174,8 +174,8 @@ int main(int argc, char* argv[]) {
 	}
 	
 	temp = array_to_ushort(simpleResponse);
-	if( temp != marker ) {
-		fprintf(stderr, "readARXDevice - SPI write returned a marker of 0x%04X instead of 0x%04X\n", temp, marker);
+	if( temp != SPI_COMMAND_MARKER ) {
+		fprintf(stderr, "readARXDevice - SPI write returned a marker of 0x%04X instead of 0x%04X\n", temp, SPI_COMMAND_MARKER);
 		exit(3);
 	}
 	
@@ -237,8 +237,8 @@ int main(int argc, char* argv[]) {
 	}
 	
 	temp = array_to_ushort(simpleResponse);
-	if( temp != marker ) {
-		fprintf(stderr, "readARXDevice - SPI write returned a marker of 0x%04X instead of 0x%04X\n", temp, marker);
+	if( temp != SPI_COMMAND_MARKER ) {
+		fprintf(stderr, "readARXDevice - SPI write returned a marker of 0x%04X instead of 0x%04X\n", temp, SPI_COMMAND_MARKER);
 		exit(3);
 	}
 	

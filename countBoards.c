@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
 	
 	// Convert the strings into integer values
 	hex_to_array("0x0000", simpleNoOp);
-	ushort_to_array(marker, simpleMarker);
+	ushort_to_array(SPI_COMMAND_MARKER, simpleMarker);
 	
 	
 	/************************************
@@ -108,7 +108,7 @@ int main(int argc, char* argv[]) {
 
 	num = 0;
 	temp = array_to_ushort(simpleResponse);
-	while( temp != marker && num < (STANDS_PER_BOARD*(17+1)) ) {
+	while( temp != SPI_COMMAND_MARKER && num < (STANDS_PER_BOARD*(17+1)) ) {
 		num += STANDS_PER_BOARD;
 		
 		// Fill the data array with the commands to send

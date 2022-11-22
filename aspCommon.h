@@ -30,7 +30,7 @@
 
 
 // Command verification marker
-unsigned short marker = 0x0120;
+#define SPI_COMMAND_MARKER 0x0120
 
 
 // Pack and Unpack functions
