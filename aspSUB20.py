@@ -236,7 +236,7 @@ class SPIProcessingThread(object):
                     for dev in range(SUB20_ANTENNA_MAPPING[sub20SN][0], SUB20_ANTENNA_MAPPING[sub20SN][0]+1):
                         devices.append(dev)
                         commands.append(command)
-                        status &= _run_command(sub20SN, device_count, devices, commands, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY)
+                        status &= self._run_command(sub20SN, device_count, devices, commands, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY)
                         
             else:
                 for sub20SN in SUB20_ANTENNA_MAPPING:
@@ -245,7 +245,7 @@ class SPIProcessingThread(object):
                     if device >= SUB20_ANTENNA_MAPPING[sub20SN][0] and device <= SUB20_ANTENNA_MAPPING[sub20SN][1]:
                         devices = [device - SUB20_ANTENNA_MAPPING[sub20SN][0] + 1,]
                         commands = [command,]
-                        status &= _run_command(sub20SN, device_count, devices, commands, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY)
+                        status &= self._run_command(sub20SN, device_count, devices, commands, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY)
                         
         return status
         
