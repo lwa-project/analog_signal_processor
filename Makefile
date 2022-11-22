@@ -79,7 +79,7 @@ configPSU: configPSU.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 readARXDevice: readARXDevice.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 install:
 	cp sendARXDevice /usr/local/bin
