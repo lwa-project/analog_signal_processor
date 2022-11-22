@@ -87,13 +87,15 @@ int main(int argc, char** argv) {
 		exit(1);
 	}
   
-  uint16_t data, modules, page;
+  uint16_t data;
 	for(int i=0; i<nPSU; i++) {
 		if( psuAddresses[i] > 0x1F ) {
 			continue;
 		}
 
 		#ifdef __INCLUDE_MODULE_TEMPS__
+      uint16_t modules, page;
+      
 			// Get a list of smart modules for polling
 			success = sub_i2c_read(fh, psuAddresses[i], 0xD3, 1, (char *) &data, 2);
 			if( success ) {
