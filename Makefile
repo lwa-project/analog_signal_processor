@@ -64,7 +64,7 @@ countPSUs: countPSUs.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 countThermometers: countThermometers.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 readPSU: readPSU.o
 	$(CC) -o $@ $^ $(LDFLAGS)
