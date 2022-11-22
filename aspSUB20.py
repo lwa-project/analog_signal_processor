@@ -202,7 +202,7 @@ class SPIProcessingThread(object):
             
     @staticmethod
     def _run_command(sub20SN, device_count, devices, spi_commands, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
-        with SUB20_LOCKS[self.sub20SN]:
+        with SUB20_LOCKS[sub20SN]:
             command = ["/usr/local/bin/sendARXDevice", "%04X" % sub20SN, str(device_count)]
             for dev,cmd in zip(devices,spi_commands):
                 command.append(str(dev))
@@ -231,7 +231,7 @@ class SPIProcessingThread(object):
                 devices, commands, callbacks = [], [], []
                 
                 for sub20SN in sorted(SUB20_ANTENNA_MAPPING):
-                    device_count = SUB20_ANTENNA_MAPPING[self.sub20SN][1] - SUB20_ANTENNA_MAPPING[self.sub20SN][0] + 1
+                    device_count = SUB20_ANTENNA_MAPPING[sub20SN][1] - SUB20_ANTENNA_MAPPING[sub20SN][0] + 1
                     
                     for dev in range(SUB20_ANTENNA_MAPPING[sub20SN][0], SUB20_ANTENNA_MAPPING[sub20SN][0]+1):
                         devices.append(dev)
@@ -240,7 +240,7 @@ class SPIProcessingThread(object):
                         
             else:
                 for sub20SN in SUB20_ANTENNA_MAPPING:
-                    device_count = SUB20_ANTENNA_MAPPING[self.sub20SN][1] - SUB20_ANTENNA_MAPPING[self.sub20SN][0] + 1
+                    device_count = SUB20_ANTENNA_MAPPING[sub20SN][1] - SUB20_ANTENNA_MAPPING[sub20SN][0] + 1
                     
                     if device >= SUB20_ANTENNA_MAPPING[sub20SN][0] and device <= SUB20_ANTENNA_MAPPING[sub20SN][1]:
                         devices = [device - SUB20_ANTENNA_MAPPING[sub20SN][0] + 1,]
@@ -272,7 +272,7 @@ class SPIProcessingThread(object):
                         self._queue[sub20SN] = deque()
                         
                 if to_execute is not None:
-                    device_count = SUB20_ANTENNA_MAPPING[self.sub20SN][1] - SUB20_ANTENNA_MAPPING[self.sub20SN][0] + 1
+                    device_count = SUB20_ANTENNA_MAPPING[sub20SN][1] - SUB20_ANTENNA_MAPPING[sub20SN][0] + 1
                     status = self._run_command(sub20SN, device_count,
                                                [entry[0] for entry in to_execute],
                                                [entry[1] for entry in to_execute],
@@ -287,7 +287,7 @@ class SPIProcessingThread(object):
                             except Exception as e:
                                 aspSUB20Logger.warning("Failed to process callback for device %i, comamnd %04X: %s", device, command, str(e))
                                 
-            time.sleep(self._poll_interval)
+            time.sleep(self._pollInterval)
 
 
 def psuSend(sub20SN, psuAddress, state):
