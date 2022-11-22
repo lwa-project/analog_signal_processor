@@ -206,7 +206,7 @@ class SPIProcessingThread(object):
             command = ["/usr/local/bin/sendARXDevice", "%04X" % sub20SN, str(device_count)]
             for dev,cmd in zip(devices,spi_commands):
                 command.append(str(dev))
-                command.append("%04X" % cmd)
+                command.append("0x%04X" % cmd)
                 
             attempt = 0
             status = False
