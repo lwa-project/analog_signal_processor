@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
   /********************
 	* Read from the I2C *
 	********************/
-  int num, nPSU;
+  int nPSU;
   char psuAddresses[128];
   success = sub_i2c_scan(fh, &nPSU, psuAddresses);
 	if( success ) {
