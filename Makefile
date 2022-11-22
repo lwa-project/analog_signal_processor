@@ -58,7 +58,7 @@ sendARXDevice: sendARXDevice.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 countBoards: countBoards.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 countPSUs: countPSUs.o
 	$(CC) -o $@ $^ $(LDFLAGS)
