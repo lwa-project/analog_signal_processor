@@ -1,6 +1,10 @@
 #ifndef __ASPCOMMON_H
 #define __ASPCOMMON_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
   aspCommon.h - Header library to carry out a few simple hexadecimal to array 
   operations needed for using the SUB-20 device with the SPI and I2C buses.
@@ -85,4 +89,8 @@ int array_to_ushort(char* in) {
 	return value;
 }
 
+#ifdef __cplusplus
+}
 #endif
+
+#endif // __ASPCOMMON_H
