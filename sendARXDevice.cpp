@@ -185,12 +185,12 @@ int main(int argc, char** argv) {
     
     ::free(commands);
   }
-  
-  ::free(responses);
 	
 	/*******************
 	* Cleanup and exit *
 	*******************/
+	::free(responses);
+  
 	sub_close(fh);
 	
 	return 0;
