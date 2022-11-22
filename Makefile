@@ -61,7 +61,7 @@ countBoards: countBoards.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 countPSUs: countPSUs.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 countThermometers: countThermometers.o
 	$(CC) -o $@ $^ $(LDFLAGS)
