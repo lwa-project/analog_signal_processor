@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
   // Find the right SUB-20
   bool found = false;
   char foundSN[20];
-  int success, openTries = 0;
+  int success;
   while( (!found) && (dev = sub_find_devices(dev)) ) {
     // Open the USB device (or die trying)
 		fh = sub_open(dev);
