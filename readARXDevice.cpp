@@ -4,7 +4,7 @@ device.  An exit code of zero indicates that no errors
 were encountered.
  
 Usage:
-  readARXDevice <SUB-20 S/N> <total stand count> <device> <command>
+  readARXDevice <SUB-20 S/N> <total stand count> <device> <register> ...
 
   * Command is a four digit hexadecimal values (i.e., 
   0x1234)
@@ -42,11 +42,11 @@ public:
       _buffer.push_back(device_buffer);
     }
   }
-  inline void add_read(uint32_t device, uint16_t register) {
+  inline void add_read(uint32_t device, uint16_t dev_register) {
     if( (device < 1) || (device > _size) ) {
       throw(std::runtime_error("Invalid device number"));
     }
-    _buffer[device-1].push(register | 0x0080);
+    _buffer[device-1].push(dev_register | 0x0080);
   }
   inline bool is_empty() {
     bool empty = true;
@@ -90,11 +90,11 @@ int main(int argc, char* argv[]) {
   ReadQueue *queue = new ReadQueue(device_count);
   for(int i=3; i<argc; i+=2) {
     uint32_t device = std::strtod(argv[i], &endptr);
-    uint16_t register = std::strtod(argv[i+1], &endptr);
+    uint16_t dev_register = std::strtod(argv[i+1], &endptr);
     try {
-      queue->add_read(device, register);
+      queue->add_read(device, dev_register);
     } catch(const std::exception& e) {
-      std::cout << "Invalid register " << device << " @ " << std::hex << register << std::dec << ": " << e.what() << std::endl;
+      std::cout << "Invalid register " << device << " @ " << std::hex << dev_register << std::dec << ": " << e.what() << std::endl;
       exit(1);
     }
   }
