@@ -7,6 +7,7 @@ import time
 import logging
 import threading
 import subprocess
+from collections import deque
 
 from aspCommon import MAX_SPI_RETRY, WAIT_SPI_RETRY, SUB20_ANTENNA_MAPPING, SUB20_LOCKS
 
