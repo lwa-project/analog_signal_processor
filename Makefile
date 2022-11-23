@@ -67,13 +67,13 @@ countThermometers: countThermometers.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 readPSU: readPSU.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 readThermometers: readThermometers.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 onoffPSU: onoffPSU.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 configPSU: configPSU.o
 	$(CC) -o $@ $^ $(LDFLAGS)
