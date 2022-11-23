@@ -152,6 +152,9 @@ int main(int argc, char** argv) {
 			std::cout << "onoffPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
+    
+    // Mark that we have sone something
+		found = true;
   }
   
 	/*******************
@@ -159,5 +162,9 @@ int main(int argc, char** argv) {
 	*******************/
 	sub_close(fh);
 	
+  if( !found ) {
+		std::cout << "onoffPSU - Cannot find device at address " << std::hex << "0x%" << i2c_device << std::endl;
+		exit(1);
+	}
 	return 0;
 }
