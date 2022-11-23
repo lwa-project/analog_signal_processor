@@ -397,9 +397,6 @@ class AnalogProcessor(object):
         if self.currentState['status'] == 'SHUTDWN' or not self.currentState['ready']:
             self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x0A]
             return False, 0x0A
-        if 'FIL' in self.currentState['activeProcess']:
-            self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x08]
-            return False, 0x08
             
         # Validate inputs
         if stand < 0 or stand > self.num_stands:
@@ -409,9 +406,6 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x04]
             return False, 0x04
             
-        # Block other FIL requests
-        self.currentState['activeProcess'].append('FIL')
-        
         # Process in the background
         thread = threading.Thread(target=self.__filProcess, args=(stand, filterCode))
         thread.setDaemon(1)
@@ -455,9 +449,6 @@ class AnalogProcessor(object):
         self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
         aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
         
-        # Cleanup and save the state of FIL
-        self.currentState['activeProcess'].remove('FIL')
-        
         return True, 0
         
     def setAttenuator(self, mode, stand, attenSetting):
@@ -472,9 +463,6 @@ class AnalogProcessor(object):
         if self.currentState['status'] == 'SHUTDWN'or not self.currentState['ready']:
             self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x0A])
             return False, 0x0A
-        if 'ATN' in self.currentState['activeProcess']:
-            self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x08])
-            return False, 0x08
             
         # Validate inputs
         if stand < 0 or stand > self.num_stands:
@@ -484,9 +472,6 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x05])
             return False, 0x05
             
-        # Block other FIL requests
-        self.currentState['activeProcess'].append('ATN')
-        
         # Process in the background
         thread = threading.Thread(target=self.__atnProcess, args=(mode, stand, attenSetting))
         thread.setDaemon(1)
@@ -545,9 +530,6 @@ class AnalogProcessor(object):
         self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
         aspFunctionsLogger.debug('%s - Set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
         
-        # Cleanup
-        self.currentState['activeProcess'].remove('ATN')
-        
         return True, 0
         
     def setFEEPowerState(self, stand, pol, state):
@@ -559,9 +541,6 @@ class AnalogProcessor(object):
         if self.currentState['status'] == 'SHUTDWN'or not self.currentState['ready']:
             self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x0A]
             return False, 0x0A
-        if 'FPW' in self.currentState['activeProcess']:
-            self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x08]
-            return False, 0x08
             
         # Validate inputs
         if stand < 0 or stand > self.num_stands:
@@ -574,9 +553,6 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x06]
             return False, 0x06
             
-        # Block other FIL requests
-        self.currentState['activeProcess'].append('FPW')
-        
         # Process in the background
         thread = threading.Thread(target=self.__fpwProcess, args=(stand, pol, state))
         thread.setDaemon(1)
@@ -603,9 +579,7 @@ class AnalogProcessor(object):
                 self.currentState['spiThread'].queue_command(stand, SPI_P16_off, cb)
                 
         self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
-        
-        # Cleanup
-        self.currentState['activeProcess'].remove('FPW')
+        aspFunctionsLogger.debug('FPW - Set state to %02i for stand %i, pol. %i', state, stand, pol)
         
         return True, 0
         
