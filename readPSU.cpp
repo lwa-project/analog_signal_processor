@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
 		fh = sub_open(dev);
     while( (fh == NULL) && (openTries < SUB20_OPEN_MAX_ATTEMPTS) ) {
 			openTries++;
-			std::this_thread::sleep_for(std::chrono::milliseconds(SUB20_OPEN_WAIT_US/1000));
+			std::this_thread::sleep_for(std::chrono::milliseconds(SUB20_OPEN_WAIT_MS));
 			
 			fh = sub_open(dev);
 		}
