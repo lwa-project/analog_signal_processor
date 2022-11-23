@@ -76,7 +76,7 @@ onoffPSU: onoffPSU.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 configPSU: configPSU.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 readARXDevice: readARXDevice.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
