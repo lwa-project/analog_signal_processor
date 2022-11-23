@@ -53,6 +53,34 @@ subsystemErrorCodes = {0x00: 'Subsystem operating normally',
                        0x0D: 'Temperature warning'}
 
 
+class ASPSettingsList(object):
+    def __init__(self, list=None):
+        if list is None:
+            list = []
+        self._list = list
+        
+    def __len__(self):
+        return len(self._list)
+        
+    def __getitem__(self, idx):
+        if idx == 0:
+            raise IndexError("stand index out of range")
+        try:
+            return self._list[idx-1]
+        except IndexError:
+            raise IndexError("stand index out of range")
+            
+    def __setitem__(self, idx, val):
+        if idx == 0:
+            for i in range(len(self._list)):
+                self._list[i] = val
+        else:
+            try:
+                self._list[idx] = val
+            except IndexError:
+                raise IndexError("stand assignment index out of range")
+
+
 class AnalogProcessor(object):
     """
     Class for interacting with the Analog Signal Processor subsystem.
@@ -90,11 +118,12 @@ class AnalogProcessor(object):
         self.currentState['activeProcess'] = []
         
         ## Operational state - ASP
-        self.currentState['power']  = [[0,0] for i in range(MAX_BOARDS*STANDS_PER_BOARD)]
-        self.currentState['filter'] = [0     for i in range(MAX_BOARDS*STANDS_PER_BOARD)]
-        self.currentState['at1']    = [30    for i in range(MAX_BOARDS*STANDS_PER_BOARD)]
-        self.currentState['at2']    = [30    for i in range(MAX_BOARDS*STANDS_PER_BOARD)]
-        self.currentState['ats']    = [30    for i in range(MAX_BOARDS*STANDS_PER_BOARD)]
+        self.currentState['power1'] = ASPSettingsList([0  for i in range(MAX_BOARDS*STANDS_PER_BOARD)])
+        self.currentState['power2'] = ASPSettingsList([0  for i in range(MAX_BOARDS*STANDS_PER_BOARD)])
+        self.currentState['filter'] = ASPSettingsList([0  for i in range(MAX_BOARDS*STANDS_PER_BOARD)])
+        self.currentState['at1']    = ASPSettingsList([30 for i in range(MAX_BOARDS*STANDS_PER_BOARD)])
+        self.currentState['at2']    = ASPSettingsList([30 for i in range(MAX_BOARDS*STANDS_PER_BOARD)])
+        self.currentState['ats']    = ASPSettingsList([30 for i in range(MAX_BOARDS*STANDS_PER_BOARD)])
         
         ## Monitoring and background threads
         self.currentState['spiThread'] = None
@@ -219,8 +248,9 @@ class AnalogProcessor(object):
                     self.currentState['chassisThreads'].append( ChassisStatus(SUB20_I2C_MAPPING, self.config, ASPCallbackInstance=self) )
                     
                 # Update the analog signal chain state
-                for i in range(self.num_stands):
-                    self.currentState['power'][i] = [0,0]
+                for i in range(1, self.num_stands+1):
+                    self.currentState['power1'][i] = 0
+                    self.currentState['power2'][i] = 0
                     self.currentState['filter'][i] = 0
                     self.currentState['at1'][i] = 30
                     self.currentState['at2'][i] = 30
@@ -404,7 +434,7 @@ class AnalogProcessor(object):
             self.currentState['spiThread'].queue_command(stand, SPI_P14_off)
             self.currentState['spiThread'].queue_command(stand, SPI_P15_on)
             
-        cb = SPICommandCallback(self.currentState['filter'].__setitem__, stand-1, filterCode)
+        cb = SPICommandCallback(self.currentState['filter'].__setitem__, stand, filterCode)
         if filterCode == 0 or filterCode == 4:
             # Set Filter to Split Bandwidth
             self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
@@ -479,7 +509,7 @@ class AnalogProcessor(object):
         else:
             order = ((SPI_P31_on, SPI_P31_off), (SPI_P28_on, SPI_P28_off), (SPI_P29_on, SPI_P29_off), (SPI_P30_on, SPI_P30_off))
             
-        cb = SPICommandCallback(self.currentState[modeDict[mode].lower()].__setitem__, stand-1, attenSetting)
+        cb = SPICommandCallback(self.currentState[modeDict[mode].lower()].__setitem__, stand, attenSetting)
         if setting >= 16:
             self.currentState['spiThread'].queue_command(stand, order[0][0], cb)
             setting -= 16
@@ -560,7 +590,7 @@ class AnalogProcessor(object):
         """
         
         # Do SPI bus stuff
-        cb = SPICommandCallback(self.currentState['power'].__setitem__, stand, pol)
+        cb = SPICommandCallback(self.currentState['power%i' % pol].__setitem__, stand, state)
         if state == 11:
             if pol == 1:
                 self.currentState['spiThread'].queue_command(stand, SPI_P17_on, cb)
@@ -704,7 +734,7 @@ class AnalogProcessor(object):
         """
         
         if stand > 0 and stand <= self.num_stands:
-            return True, self.currentState['filter'][stand-1]
+            return True, self.currentState['filter'][stand]
             
         else:
             self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
@@ -719,9 +749,9 @@ class AnalogProcessor(object):
         """
         
         if  stand > 0 and stand <= self.num_stands:
-            at1 = self.currentState['at1'][stand-1]
-            at2 = self.currentState['at2'][stand-1]
-            ats = self.currentState['ats'][stand-1]
+            at1 = self.currentState['at1'][stand]
+            at2 = self.currentState['at2'][stand]
+            ats = self.currentState['ats'][stand]
             return True, (at1, at2, ats)
             
         else:
@@ -737,7 +767,8 @@ class AnalogProcessor(object):
         """
         
         if stand > 0 and stand <= self.num_stands:
-            return True, tuple(self.currentState['power'][stand-1])
+            return True, (self.currentState['power1'][stand],
+                          self.currentState['power2'][stand])
             
         else:
             self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
