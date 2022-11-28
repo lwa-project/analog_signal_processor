@@ -68,8 +68,9 @@ int main(int argc, char** argv) {
 			}
 		}
 	
-		std::cout << "-> " << num << " PSU modules" << std::endl;
 		if( num > 0 ) {
+      std::cout << "-> " << num << " PSU modules" << std::endl;
+      
 			i2cSN = sn;
 		}
 
