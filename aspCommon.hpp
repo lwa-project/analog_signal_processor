@@ -11,6 +11,7 @@
 #include <queue>
 #include <list>
 #include <cstring>
+#include <stdexcept>
 
 #include "libsub.h"
 
