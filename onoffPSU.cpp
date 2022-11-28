@@ -20,7 +20,7 @@ Options:
 #include <thread>
 
 #include "libsub.h"
-#include "aspCommon.h"
+#include "aspCommon.hpp"
 
 
 int main(int argc, char** argv) {
@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
   // Make sure we have the right number of arguments to continue
   if( argc < 3+1 ) {
     std::cout << "onoffPSU - Need 3 arguments, " << argc-1 << " provided" << std::endl;
-    exit(1);
+    std::exit(EXIT_FAILURE);
   }
   
   char *endptr;
@@ -39,81 +39,45 @@ int main(int argc, char** argv) {
   uint32_t pwr_state = std::strtod(argv[3], &endptr);
 	if( pwr_state != 0 && pwr_state != 11 ) {
 		std::cout << "onoffPSU - Unknown state " << pwr_state << " (valid values are 00 and 11)" << std::endl;
-		exit(1);
+		std::exit(EXIT_FAILURE);
 	}
   
   /************************************
   * SUB-20 device selection and ready *
   ************************************/
-  sub_device dev = NULL;
-  sub_handle fh = NULL;
-        
-  // Find the right SUB-20
-  bool found = false;
-  char foundSN[20];
-  int success, openTries = 0;
-  while( (!found) && (dev = sub_find_devices(dev)) ) {
-    // Open the USB device (or die trying)
-		fh = sub_open(dev);
-    while( (fh == NULL) && (openTries < SUB20_OPEN_MAX_ATTEMPTS) ) {
-			openTries++;
-			std::this_thread::sleep_for(std::chrono::milliseconds(SUB20_OPEN_WAIT_MS));
-			
-			fh = sub_open(dev);
-		}
-		if( fh == NULL ) {
-			continue;
-		}
-		
-		success = sub_get_serial_number(fh, foundSN, sizeof(foundSN));
-		if( !success ) {
-			continue;
-		}
-    
-    if( !strcmp(foundSN, requestedSN.c_str()) ) {
-			std::cout << "Found SUB-20 device S/N: " << foundSN << std::endl;
-			found = true;
-		} else {
-			sub_close(fh);
-		}
-	}
-	
-	// Make sure we actually have a SUB-20 device
-	if( !found ) {
-		std::cout << "readPSU - Cannot find or open SUB-20 " << requestedSN << std::endl;
-		exit(1);
-	}
+  Sub20 *sub20 = new Sub20(requestedSN);
+  
+  bool success = sub20->open();
+  if( !success ) {
+    std::cout << "onoffPSU - failed to open " << requestedSN << std::endl;
+		std::exit(EXIT_FAILURE);
+  }
   
   /********************
 	* Read from the I2C *
 	********************/
-  int nPSU;
-  char psuAddresses[128];
-  success = sub_i2c_scan(fh, &nPSU, psuAddresses);
-	if( success ) {
-		std::cout << "readPSU - get PSUs - " << sub_strerror(sub_errno) << std::endl;
-		exit(1);
-	}
+  std::list<uint8_t> i2c_devices = sub20->list_i2c_devices();
   
   uint8_t data, status;
-	for(int i=0; i<nPSU; i++) {
-		if( psuAddresses[i] != i2c_device ) {
-			continue;
-		}
+  bool found = false;
+  for(auto addr=std::begin(i2c_devices); addr!=std::end(i2c_devices); addr++) {
+    if( *addr != i2c_device ) {
+      continue;
+    }
     
     // Get the current power supply state
-		success = sub_i2c_read(fh, psuAddresses[i], 0x01, 1, (char *) &data, 1);
-		if( success ) {
+		success = sub20->read_i2c(*addr, 0x01, (char *) &data, 1);
+		if( !success ) {
 			std::cout << "onoffPSU - page change - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
 		status = (data >> 7) & 1;
-		std::cout << std::hex << "0x" << (int) psuAddresses[i] << std::dec << " is in state " << (int) status << std::endl;
+		std::cout << std::hex << "0x" << (int) *addr << std::dec << " is in state " << (int) status << std::endl;
 		
 		// Enable writing to the OPERATION address (0x01) so we can change modules
 		data = 0;
-		success = sub_i2c_write(fh, psuAddresses[i], 0x10, 1, (char *) &data, 1);
-		if( success ) {
+		success = sub20->write_i2c(*addr, 0x10, (char *) &data, 1);
+		if( !success ) {
 			std::cout << "onoffPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
@@ -128,8 +92,8 @@ int main(int argc, char** argv) {
 		}
 		
 		// Toggle the power status and wait a bit for the changes to take affect
-		success = sub_i2c_write(fh, psuAddresses[i], 0x01, 1, (char *) &data, 1);
-		if( success ) {
+		success = sub20->write_i2c(*addr, 0x01, (char *) &data, 1);
+		if( !success ) {
 			std::cout << "onoffPSU - on/off toggle - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
@@ -137,18 +101,18 @@ int main(int argc, char** argv) {
 		
 		// Check the power supply status
 		data = 0;
-		success = sub_i2c_read(fh, psuAddresses[i], 0x01, 1, (char *) &data, 1);
-		if( success ) {
+		success = sub20->read_i2c(*addr, 0x01, (char *) &data, 1);
+		if( !success ) {
 			std::cout << "onoffPSU - page change - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
 		status = (data >> 7) & 1;
-		std::cout << std::hex << "0x" << (int) psuAddresses[i] << std::dec << " is now in state " << (int) status << std::endl;
+		std::cout << std::hex << "0x" << (int) *addr << std::dec << " is now in state " << (int) status << std::endl;
 		
 		// Write-protect all entries but WRITE_PROTECT (0x10)
 		data = (1 << 7) & 1;
-		success = sub_i2c_write(fh, psuAddresses[i], 0x10, 1, (char *) &data, 1);
-		if( success ) {
+		success = sub20->write_i2c(*addr, 0x10, (char *) &data, 1);
+		if( !success ) {
 			std::cout << "onoffPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
@@ -160,11 +124,12 @@ int main(int argc, char** argv) {
 	/*******************
 	* Cleanup and exit *
 	*******************/
-	sub_close(fh);
+	delete sub20;
 	
   if( !found ) {
 		std::cout << "onoffPSU - Cannot find device at address " << std::hex << "0x%" << i2c_device << std::endl;
-		exit(1);
+		std::exit(EXIT_FAILURE);
 	}
-	return 0;
+  
+	std::exit(EXIT_SUCCESS);
 }

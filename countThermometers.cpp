@@ -18,7 +18,7 @@ Options:
 #include <cstring>
 
 #include "libsub.h"
-#include "aspCommon.h"
+#include "aspCommon.hpp"
 
 int main(int argc, char** argv) {
   /*************************
@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
   // Make sure we have the right number of arguments to continue
   if( argc < 1+1 ) {
     std::cout << "countThermometers - Need 1 argument, %i provided, " << argc-1 << " provided" << std::endl;
-    exit(1);
+    return 0;
   }
   
   std::string requestedSN = std::string(argv[1]);
@@ -35,61 +35,30 @@ int main(int argc, char** argv) {
   /************************************
   * SUB-20 device selection and ready *
   ************************************/
-  sub_device dev = NULL;
-  sub_handle fh = NULL;
-        
-  // Find the right SUB-20
-  bool found = false;
-  char foundSN[20];
-  int success;
-  while( (!found) && (dev = sub_find_devices(dev)) ) {
-    // Open the USB device (or die trying)
-		fh = sub_open(dev);
-		if( fh == NULL ) {
-			continue;
-		}
-		
-		success = sub_get_serial_number(fh, foundSN, sizeof(foundSN));
-		if( !success ) {
-			continue;
-		}
-    
-    if( !strcmp(foundSN, requestedSN.c_str()) ) {
-			std::cout << "Found SUB-20 device S/N: " << foundSN << std::endl;
-			found = true;
-		} else {
-			sub_close(fh);
-		}
-	}
-	
-	// Make sure we actually have a SUB-20 device
-	if( !found ) {
-		std::cout << "countThermometers - Cannot find or open SUB-20 " << requestedSN << std::endl;
-		exit(1);
-	}
+  Sub20 *sub20 = new Sub20(requestedSN);
+  
+  bool success = sub20->open();
+  if( !success ) {
+    std::cout << "countThermometers - failed to open " << requestedSN << std::endl;
+	  return 0;
+  }
   
   /********************
 	* Read from the I2C *
 	********************/
-  int num, nPSU;
-  char psuAddresses[128];
-  success = sub_i2c_scan(fh, &nPSU, psuAddresses);
-	if( success ) {
-		std::cout << "countThermometers - get PSUs - " << sub_strerror(sub_errno) << std::endl;
-		exit(1);
-	}
-
-	num = 0;
-	for(int i=0; i<nPSU; i++) {
-		if( psuAddresses[i] > 0x1F ) {
-			continue;
-		}
+  std::list<uint8_t> i2c_devices = sub20->list_i2c_devices();
+  
+  int num = 0;
+  for(auto addr=std::begin(i2c_devices); addr!=std::end(i2c_devices); addr++) {
+    if( *addr > 0x1F ) {
+      continue;
+    }
 
 #ifdef __INCLUDE_MODULE_TEMPS__
 			// Get a list of smart modules for polling
       uint16_t data;
-			success = sub_i2c_read(fh, psuAddresses[i], 0xD3, 1, (char *) &data, 2);
-			if( success ) {
+      success = sub20->read_i2c(psuAddresses[i], 0xD3, (char *) &data, 2);
+			if( !success ) {
 				std::cout << "countThermometers - module status - " << sub_strerror(sub_errno) << std::endl;
 				continue;
 			}
@@ -109,7 +78,7 @@ int main(int argc, char** argv) {
 	/*******************
 	* Cleanup and exit *
 	*******************/
-	sub_close(fh);
+	delete sub20;
 
 	return num;
 }

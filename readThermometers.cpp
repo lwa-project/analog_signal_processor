@@ -20,7 +20,7 @@ Options:
 #include <thread>
 
 #include "libsub.h"
-#include "aspCommon.h"
+#include "aspCommon.hpp"
 
 int main(int argc, char** argv) {
   /*************************
@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
   // Make sure we have the right number of arguments to continue
   if( argc < 1+1 ) {
     std::cout << "readThermometers - Need 1 argument, " << argc-1 << " provided" << std::endl;
-    exit(1);
+    std::exit(EXIT_FAILURE);
   }
   
   std::string requestedSN = std::string(argv[1]);
@@ -37,68 +37,31 @@ int main(int argc, char** argv) {
   /************************************
   * SUB-20 device selection and ready *
   ************************************/
-  sub_device dev = NULL;
-  sub_handle fh = NULL;
-        
-  // Find the right SUB-20
-  bool found = false;
-  char foundSN[20];
-  int success, openTries = 0;
-  while( (!found) && (dev = sub_find_devices(dev)) ) {
-    // Open the USB device (or die trying)
-		fh = sub_open(dev);
-    while( (fh == NULL) && (openTries < SUB20_OPEN_MAX_ATTEMPTS) ) {
-			openTries++;
-			std::this_thread::sleep_for(std::chrono::milliseconds(SUB20_OPEN_WAIT_MS));
-			
-			fh = sub_open(dev);
-		}
-		if( fh == NULL ) {
-			continue;
-		}
-		
-		success = sub_get_serial_number(fh, foundSN, sizeof(foundSN));
-		if( !success ) {
-			continue;
-		}
-    
-    if( !strcmp(foundSN, requestedSN.c_str()) ) {
-			std::cout << "Found SUB-20 device S/N: " << foundSN << std::endl;
-			found = true;
-		} else {
-			sub_close(fh);
-		}
-	}
-	
-	// Make sure we actually have a SUB-20 device
-	if( !found ) {
-		std::cout << "readThermometers - Cannot find or open SUB-20 " << requestedSN << std::endl;
-		exit(1);
-	}
+  Sub20 *sub20 = new Sub20(requestedSN);
+  
+  bool success = sub20->open();
+  if( !success ) {
+    std::cout << "readThermometers - failed to open " << requestedSN << std::endl;
+		std::exit(EXIT_FAILURE);
+  }
   
   /********************
 	* Read from the I2C *
 	********************/
-  int nPSU;
-  char psuAddresses[128];
-  success = sub_i2c_scan(fh, &nPSU, psuAddresses);
-	if( success ) {
-		std::cout << "readThermometers - get PSUs - " << sub_strerror(sub_errno) << std::endl;
-		exit(1);
-	}
+  std::list<uint8_t> i2c_devices = sub20->list_i2c_devices();
   
   uint16_t data;
-	for(int i=0; i<nPSU; i++) {
-		if( psuAddresses[i] > 0x1F ) {
-			continue;
-		}
-
+  for(auto addr=std::begin(i2c_devices); addr!=std::end(i2c_devices); addr++) {
+    if( *addr > 0x1F ) {
+      continue;
+    }
+    
 		#ifdef __INCLUDE_MODULE_TEMPS__
       uint16_t modules, page;
       
 			// Get a list of smart modules for polling
-			success = sub_i2c_read(fh, psuAddresses[i], 0xD3, 1, (char *) &data, 2);
-			if( success ) {
+			success = sub20->read_i2c(*addr, 0xD3, (char *) &data, 2);
+			if( !success ) {
 				std::cout << "readThermometers - module status - " << sub_strerror(sub_errno) << std::endl;
 				continue;
 			}
@@ -106,8 +69,8 @@ int main(int argc, char** argv) {
 			
 			// Enable writing to the PAGE address (0x00) so we can change modules
       data = ((1 << 6) & 1) << 8;
-			success = sub_i2c_write(fh, psuAddresses[i], 0x10, 1, (char *) &data, 1);
-			if( success ) {
+			success = sub20->write_i2c(*addr, 0x10, (char *) &data, 1);
+			if( !success ) {
 				std::cout << "readThermometers - write settings - " << sub_strerror(sub_errno) << std::endl;
 				continue;
 			}
@@ -121,16 +84,16 @@ int main(int argc, char** argv) {
 				
 				// Jump to the correct page and give the PSU a second to get ready
 				data = j << 8;
-				success = sub_i2c_write(fh, psuAddresses[i], 0x00, 1, (char *) &data, 1);
-				if( success ) {
+				success = sub20->write_i2c(*addr, 0x00, (char *) &data, 1);
+				if( !success ) {
 					std::cout << "readThermometers - page change - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 				std::this_thread::sleep_for(std::chrono::milliseconds(20));
 				
 				// Verify the current page
-				success = sub_i2c_read(fh, psuAddresses[i], 0x00, 1, (char *) &data, 1);
-				if( success ) {
+				success = sub20->read_i2c(*addr, 0x00, (char *) &data, 1);
+				if( !success ) {
 					std::cout << "readThermometers - get page - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
@@ -140,26 +103,26 @@ int main(int argc, char** argv) {
 				* Get Temperature *
 				******************/
 				
-				success = sub_i2c_read(fh, psuAddresses[i], 0x8F, 1, (char *) &data, 2);
-				if( success ) {
+				success = sub20->read_i2c(*addr, 0x8F, (char *) &data, 2);
+				if( !success ) {
 					std::cout << "readThermometers - get temperature #3 - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
-				printf("0x%02X Module%02i %.2f\n", psuAddresses[i], page, 1.0*data);
+				printf("0x%02X Module%02i %.2f\n", *addr, page, 1.0*data);
 			}
 			
 			// Set the module number back to 0
 			data = 0;
-			success = sub_i2c_write(fh, psuAddresses[i], 0x00, 1, (char *) &data, 1);
-			if( success ) {
+			success = sub20->write_i2c(*addr, 0x00, (char *) &data, 1);
+			if( !success ) {
 				std::cout << "readThermometers - page change - " << sub_strerror(sub_errno) << std::endl;
 				continue;
 			}
 			
 			// Write-protect all entries but WRITE_PROTECT (0x10)
 			data = ((1 << 7) & 1) << 8;
-			success = sub_i2c_write(fh, psuAddresses[i], 0x10, 1, (char *) &data, 1);
-			if( success ) {
+			success = sub20->write_i2c(*addr, 0x10, (char *) &data, 1);
+			if( !success ) {
 				std::cout << "readThermometers - write settings - " << sub_strerror(sub_errno) << std::endl;
 				continue;
 			}
@@ -168,25 +131,25 @@ int main(int argc, char** argv) {
 		/**************************
 		* Get System Temperatures *
 		**************************/
-		success = sub_i2c_read(fh, psuAddresses[i], 0x8D, 1, (char *) &data, 2);
-		if( success ) {
+		success = sub20->read_i2c(*addr, 0x8D, (char *) &data, 2);
+		if( !success ) {
 			std::cout << "readThermometers - get temperature #1 - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
-		std::cout << "0x" << std::hex << (int) psuAddresses[i] << std::dec << " Case " << (data/4.0) << std::endl;
+		std::cout << "0x" << std::hex << (int) *addr << std::dec << " Case " << (data/4.0) << std::endl;
 		
-		success = sub_i2c_read(fh, psuAddresses[i], 0x8E, 1, (char *) &data, 2);
-		if( success ) {
+		success = sub20->read_i2c(*addr, 0x8E, (char *) &data, 2);
+		if( !success ) {
 			std::cout << "readThermometers - get temperature #2 - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
-		std::cout << "0x" << std::hex << (int) psuAddresses[i] << std::dec << " PrimarySide " << (data/4.0) << std::endl;
+		std::cout << "0x" << std::hex << (int) *addr << std::dec << " PrimarySide " << (data/4.0) << std::endl;
 	}
 	
 	/*******************
 	* Cleanup and exit *
 	*******************/
-	sub_close(fh);
+	delete sub20;
 
-	return 0;
+  std::exit(EXIT_SUCCESS);
 }

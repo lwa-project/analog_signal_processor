@@ -21,7 +21,7 @@ Options:
 #include <thread>
 
 #include "libsub.h"
-#include "aspCommon.h"
+#include "aspCommon.hpp"
 
 std::string getModuleName(uint16_t page, uint8_t moduleCode) {
 	// Decode the power rating of the current module
@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
   // Make sure we have the right number of arguments to continue
   if( argc < 2+1 ) {
     std::cout << "readPSU - Need 2 arguments, " << argc-1 << " provided" << std::endl;
-    exit(1);
+    std::exit(EXIT_FAILURE);
   }
   
   char *endptr;
@@ -138,65 +138,29 @@ int main(int argc, char** argv) {
   /************************************
   * SUB-20 device selection and ready *
   ************************************/
-  sub_device dev = NULL;
-  sub_handle fh = NULL;
-        
-  // Find the right SUB-20
-  bool found = false;
-  char foundSN[20];
-  int success, openTries = 0;
-  while( (!found) && (dev = sub_find_devices(dev)) ) {
-    // Open the USB device (or die trying)
-		fh = sub_open(dev);
-    while( (fh == NULL) && (openTries < SUB20_OPEN_MAX_ATTEMPTS) ) {
-			openTries++;
-			std::this_thread::sleep_for(std::chrono::milliseconds(SUB20_OPEN_WAIT_MS));
-			
-			fh = sub_open(dev);
-		}
-		if( fh == NULL ) {
-			continue;
-		}
-		
-		success = sub_get_serial_number(fh, foundSN, sizeof(foundSN));
-		if( !success ) {
-			continue;
-		}
-    
-    if( !strcmp(foundSN, requestedSN.c_str()) ) {
-			std::cout << "Found SUB-20 device S/N: " << foundSN << std::endl;
-			found = true;
-		} else {
-			sub_close(fh);
-		}
-	}
-	
-	// Make sure we actually have a SUB-20 device
-	if( !found ) {
-		std::cout << "readPSU - Cannot find or open SUB-20 " << requestedSN << std::endl;
-		exit(1);
-	}
+  Sub20 *sub20 = new Sub20(requestedSN);
+  
+  bool success = sub20->open();
+  if( !success ) {
+    std::cout << "readPSU - failed to open " << requestedSN << std::endl;
+		std::exit(EXIT_FAILURE);
+  }
   
   /********************
 	* Read from the I2C *
 	********************/
-  int nPSU;
-  char psuAddresses[128];
-  success = sub_i2c_scan(fh, &nPSU, psuAddresses);
-	if( success ) {
-		std::cout << "readPSU - get PSUs - " << sub_strerror(sub_errno) << std::endl;
-		exit(1);
-	}
+  std::list<uint8_t> i2c_devices = list_i2c_devices()
   
-  uint16_t data, modules, page;
-	for(int i=0; i<nPSU; i++) {
-		if( psuAddresses[i] != i2c_device ) {
-			continue;
-		}
+  uint16_t data, page, modules;
+  bool found = false;
+  for(auto addr=std::begin(i2c_devices)); addr!=std::end(i2c_devices); addr++) {
+    if( *addr > 0x1F ) {
+      continue;
+    }
     
 		// Get a list of smart modules for polling
-		success = sub_i2c_read(fh, psuAddresses[i], 0xD3, 1, (char *) &data, 2);
-		if( success ) {
+		success = sub20->read_i2c(*addr, 0xD3, (char *) &data, 2);
+		if( !success ) {
 			std::cout << "readPSU - module status - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
@@ -205,8 +169,8 @@ int main(int argc, char** argv) {
 		// Enable writing to all of the supported command so we can change 
 		// modules/poll module type
 		data = 0;
-		success = sub_i2c_write(fh, psuAddresses[i], 0x10, 1, (char *) &data, 1);
-		if( success ) {
+		success = sub20->write_i2c(*addr, 0x10, (char *) &data, 1);
+		if( !success ) {
 			std::cout << "readPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
@@ -230,17 +194,18 @@ int main(int argc, char** argv) {
 			while( page != j ) {
 				// Jump to the correct page and give the PSU a second to get ready
 				data = j;
-				success = sub_i2c_write(fh, psuAddresses[i], 0x00, 1, (char *) &data, 1);
-				if( success ) {
+				success = sub20->write_i2c(*addr, 0x00, (char *) &data, 1);
+				if( !success ) {
 					std::cout << "readPSU - page change - " << sub_strerror(sub_errno) << std::endl;
-					exit(1);
+				  delete sub20;
+          std::exit(EXIT_FAILURE);
 				}
 				
 				std::this_thread::sleep_for(std::chrono::milliseconds(10));
 				
 				// Verify the current page
-				success = sub_i2c_read(fh, psuAddresses[i], 0x00, 1, (char *) &data, 1);
-				if( success ) {
+				success = sub20->read_i2c(*addr, 0x00, (char *) &data, 1);
+				if( !success ) {
 					std::cout << "readPSU - get page - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
@@ -255,16 +220,17 @@ int main(int argc, char** argv) {
         uint32_t wide_data;
         uint8_t code;
 				data = 0;
-				success = sub_i2c_write(fh, psuAddresses[i], 0xDE, 1, (char *) &data, 1);
-				if( success ) {
+				success = sub20->write_i2c(*addr, 0xDE, (char *) &data, 1);
+				if( !success ) {
 					std::cout << "readPSU - get type - " << sub_strerror(sub_errno) << std::endl;
-					exit(1);
+					delete sub20;
+          std::exit(EXIT_FAILURE);
 				}
 				
 				std::this_thread::sleep_for(std::chrono::milliseconds(10));
 				
-				success = sub_i2c_read(fh, psuAddresses[i], 0xDF, 1, (char *) &wide_data, 4);
-				if( success ) {
+				success = sub20->read_i2c(*addr, 0xDF, (char *) &wide_data, 4);
+				if( !success ) {
 					std::cout << "readPSU - get type - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
@@ -285,8 +251,8 @@ int main(int argc, char** argv) {
 			*************************/
 			
       data = 0;
-			success = sub_i2c_read(fh, psuAddresses[i], 0xDB, 1, (char *) &data, 1);
-			if( success ) {
+			success = sub20->read_i2c(*addr, 0xDB, (char *) &data, 1);
+			if( !success ) {
 				std::cout << "readPSU - get status - " << sub_strerror(sub_errno) << std::endl;
 				continue;
 			}
@@ -301,8 +267,8 @@ int main(int argc, char** argv) {
 			* Output Voltage *
 			*****************/
 			
-			success = sub_i2c_read(fh, psuAddresses[i], 0x8B, 1, (char *) &data, 2);
-			if( success ) {
+			success = sub20->read_i2c(*addr, 0x8B, (char *) &data, 2);
+			if( !success ) {
 				std::cout << "readPSU - get output voltage - " << sub_strerror(sub_errno) << std::endl;
 				continue;
 			}
@@ -313,15 +279,15 @@ int main(int argc, char** argv) {
 			*****************/
 			
 			#ifdef __USE_INPUT_CURRENT__
-				success = sub_i2c_read(fh, psuAddresses[i], 0x89, 1, (char *) &data, 2);
-				if( success ) {
+				success = sub20->read_i2c(*addr, 0x89, (char *) &data, 2);
+				if( !success ) {
 					std::cout << "readPSU - get input current - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 				current = (float) data /100.0 * 0.95;		// Removes the ~5% power conversion loss
 			#else
-				success = sub_i2c_read(fh, psuAddresses[i], 0x8C, 1, (char *) &data, 2);
-				if( success ) {
+				success = sub20->read_i2c(*addr, 0x8C, (char *) &data, 2);
+				if( !success ) {
 					std::cout << "readPSU - get output current - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
@@ -333,22 +299,22 @@ int main(int argc, char** argv) {
 		if( nMod != 0 ) {
 			voltage /= (float) nMod;
 		}
-    std::cout << std::hex << "0x" << (int) psuAddresses[i] << std::dec 
+    std::cout << std::hex << "0x" << (int) *addr << std::dec 
               << " " << moduleName << " " << modulePower << " " << moduleStatus
               << " " << voltage << " " << current << std::endl;
 		
 		// Set the module number back to 0
 		data = 0;
-		success = sub_i2c_write(fh, psuAddresses[i], 0x00, 1, (char *) &data, 1);
-		if( success ) {
+		success = sub20->write_i2c(*addr, 0x00, (char *) &data, 1);
+		if( !success ) {
 			std::cout << "readPSU - page change - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
 
 		// Write-protect all entries but WRITE_PROTECT (0x10)
 		data = (1 << 7) & 1;
-		success = sub_i2c_write(fh, psuAddresses[i], 0x10, 1, (char *) &data, 1);
-		if( success ) {
+		success = sub20->write_i2c(*addr, 0x10, (char *) &data, 1);
+		if( !success ) {
 			std::cout << "readPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
@@ -360,11 +326,12 @@ int main(int argc, char** argv) {
 	/*******************
 	* Cleanup and exit *
 	*******************/
-	sub_close(fh);
+	delete sub20;
 	
   if( !found ) {
 		std::cout << "readPSU - Cannot find device at address " << std::hex << "0x%" << i2c_device << std::endl;
-		exit(1);
+		std::exit(EXIT_FAILURE);
 	}
-	return 0;
+  
+	std::exit(EXIT_SUCCESS);
 }

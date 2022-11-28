@@ -5,7 +5,8 @@ all: LIBSUB sendARXDevice \
      countBoards countPSUs countThermometers \
      readPSU readThermometers \
      onoffPSU configPSU \
-     readARXDevice
+     readARXDevice \
+		 sub20Config
 
 #------------------------------------------------------------------------------
 # Config
@@ -44,7 +45,7 @@ LDFLAGS += -L/usr/local/lib -lusb-1.0 -lm
 %.o:	%.c  
 	$(CC) -c $(CFLAGS) -o $@ $<
 %.o:	%.cpp 
-	$(CXX) -c $(CFLAGS) -o $@ $<
+	$(CXX) -c $(CFLAGS) -std=c++11 -o $@ $<
 
 
 #------------------------------------------------------------------------------
@@ -54,32 +55,35 @@ LDFLAGS += -L/usr/local/lib -lusb-1.0 -lm
 LIBSUB: 
 	make -C libsub
 
-sendARXDevice: sendARXDevice.o
+sendARXDevice: sendARXDevice.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-countBoards: countBoards.o
+countBoards: countBoards.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-countPSUs: countPSUs.o
+countPSUs: countPSUs.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-countThermometers: countThermometers.o
+countThermometers: countThermometers.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-readPSU: readPSU.o
+readPSU: readPSU.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-readThermometers: readThermometers.o
+readThermometers: readThermometers.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-onoffPSU: onoffPSU.o
+onoffPSU: onoffPSU.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-configPSU: configPSU.o
+configPSU: configPSU.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-readARXDevice: readARXDevice.o
+readARXDevice: readARXDevice.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
+	
+sub20Config: sub20Config.cpp
+	python3 setup.py build_ext --inplace
 
 install:
 	cp sendARXDevice /usr/local/bin
