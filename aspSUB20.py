@@ -75,35 +75,20 @@ SPI_P31_off = 0x003F
 SPI_NoOp = 0x0000
 
 
-_threadWaitInterval = 0.05
-
-
-class _spi_thread_count(threading.Thread):
+def spiCountBoards(maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
     """
-    Class to count the boards attached to a single SUB-20.
+    Count the number of ARX stands on all known SUB-20s.
     """
     
-    def __init__(self, sub20SN, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
-        super(_spi_thread_count, self).__init__(name="%04X-count" % sub20SN)
-        
-        self.sub20SN = int(sub20SN)
-        
-        self.maxRetry = maxRetry
-        self.waitRetry = waitRetry
-        
-        self.boards = 0
-        self.status = False
-        
-    def run(self):
-        if self.sub20SN not in SUB20_LOCKS:
-            return False
-        
-        with SUB20_LOCKS[self.sub20SN]:
-            attempt = 0
+    nBoards = 0
+    overallStatus = True
+    for sub20SN in sorted(SUB20_ANTENNA_MAPPING):
+        with SUB20_LOCKS[sub20SN]:
+            attemp = 0
             status = False
-            while ((not status) and (attempt <= self.maxRetry)):
+            while ((not status) and (attempt <= maxRetry)):
                 if attempt != 0:
-                    time.sleep(self.waitRetry)
+                    time.sleep(waitRetry)
                     
                 p = subprocess.Popen('/usr/local/bin/countBoards %04X' % self.sub20SN, shell=True,
                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -118,32 +103,11 @@ class _spi_thread_count(threading.Thread):
                     aspSUB20Logger.warning("%s: SUB-20 S/N %04X command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
                     status = False
                 else:
-                    self.boards = p.returncode
+                    nBoards += p.returncode
                     status = True
-                
                 attempt += 1
                 
-        self.status = status
-
-
-def spiCountBoards(maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
-    """
-    Count the number of ARX stands on all known SUB-20s.
-    """
-    
-    taskList = []
-    for sub20SN in sorted(SUB20_ANTENNA_MAPPING):
-        task = _spi_thread_count(sub20SN, maxRetry=maxRetry, waitRetry=waitRetry)
-        task.start()
-        taskList.append(task)
-        
-    nBoards = 0
-    overallStatus = True
-    for task in taskList:
-        while task.isAlive():
-            time.sleep(_threadWaitInterval)
-        nBoards += task.boards
-        overallStatus &= task.status
+        overallStatus &= status
         
     if not overallStatus:
         nBoards = 0
@@ -220,7 +184,8 @@ class SPIProcessingThread(object):
                     
                 except subprocess.CalledProcessError:
                     pass
-                    
+                attempt += 1
+                
         return status
             
     def process_command(self, device, command, callback=None):
