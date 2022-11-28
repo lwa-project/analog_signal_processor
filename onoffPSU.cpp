@@ -60,23 +60,23 @@ int main(int argc, char** argv) {
   
   uint8_t data, status;
   bool found = false;
-  for(auto addr=std::begin(i2c_devices); addr!=std::end(i2c_devices); addr++) {
-    if( *addr != i2c_device ) {
+  for(uint8_t& addr: i2c_devices) {
+    if( addr != i2c_device ) {
       continue;
     }
     
     // Get the current power supply state
-		success = sub20->read_i2c(*addr, 0x01, (char *) &data, 1);
+		success = sub20->read_i2c(addr, 0x01, (char *) &data, 1);
 		if( !success ) {
 			std::cout << "onoffPSU - page change - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
 		status = (data >> 7) & 1;
-		std::cout << std::hex << "0x" << (int) *addr << std::dec << " is in state " << (int) status << std::endl;
+		std::cout << std::hex << "0x" << (int) addr << std::dec << " is in state " << (int) status << std::endl;
 		
 		// Enable writing to the OPERATION address (0x01) so we can change modules
 		data = 0;
-		success = sub20->write_i2c(*addr, 0x10, (char *) &data, 1);
+		success = sub20->write_i2c(addr, 0x10, (char *) &data, 1);
 		if( !success ) {
 			std::cout << "onoffPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 			continue;
@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
 		}
 		
 		// Toggle the power status and wait a bit for the changes to take affect
-		success = sub20->write_i2c(*addr, 0x01, (char *) &data, 1);
+		success = sub20->write_i2c(addr, 0x01, (char *) &data, 1);
 		if( !success ) {
 			std::cout << "onoffPSU - on/off toggle - " << sub_strerror(sub_errno) << std::endl;
 			continue;
@@ -101,17 +101,17 @@ int main(int argc, char** argv) {
 		
 		// Check the power supply status
 		data = 0;
-		success = sub20->read_i2c(*addr, 0x01, (char *) &data, 1);
+		success = sub20->read_i2c(addr, 0x01, (char *) &data, 1);
 		if( !success ) {
 			std::cout << "onoffPSU - page change - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
 		status = (data >> 7) & 1;
-		std::cout << std::hex << "0x" << (int) *addr << std::dec << " is now in state " << (int) status << std::endl;
+		std::cout << std::hex << "0x" << (int) addr << std::dec << " is now in state " << (int) status << std::endl;
 		
 		// Write-protect all entries but WRITE_PROTECT (0x10)
 		data = (1 << 7) & 1;
-		success = sub20->write_i2c(*addr, 0x10, (char *) &data, 1);
+		success = sub20->write_i2c(addr, 0x10, (char *) &data, 1);
 		if( !success ) {
 			std::cout << "onoffPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 			continue;

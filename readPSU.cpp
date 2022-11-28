@@ -153,13 +153,13 @@ int main(int argc, char** argv) {
   
   uint16_t data, page, modules;
   bool found = false;
-  for(auto addr=std::begin(i2c_devices); addr!=std::end(i2c_devices); addr++) {
-    if( *addr > 0x1F ) {
+  for(uint8_t& addr: i2c_devices) {
+    if( addr > 0x1F ) {
       continue;
     }
     
 		// Get a list of smart modules for polling
-		success = sub20->read_i2c(*addr, 0xD3, (char *) &data, 2);
+		success = sub20->read_i2c(addr, 0xD3, (char *) &data, 2);
 		if( !success ) {
 			std::cout << "readPSU - module status - " << sub_strerror(sub_errno) << std::endl;
 			continue;
@@ -169,7 +169,7 @@ int main(int argc, char** argv) {
 		// Enable writing to all of the supported command so we can change 
 		// modules/poll module type
 		data = 0;
-		success = sub20->write_i2c(*addr, 0x10, (char *) &data, 1);
+		success = sub20->write_i2c(addr, 0x10, (char *) &data, 1);
 		if( !success ) {
 			std::cout << "readPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 			continue;
@@ -194,7 +194,7 @@ int main(int argc, char** argv) {
 			while( page != j ) {
 				// Jump to the correct page and give the PSU a second to get ready
 				data = j;
-				success = sub20->write_i2c(*addr, 0x00, (char *) &data, 1);
+				success = sub20->write_i2c(addr, 0x00, (char *) &data, 1);
 				if( !success ) {
 					std::cout << "readPSU - page change - " << sub_strerror(sub_errno) << std::endl;
 				  delete sub20;
@@ -204,7 +204,7 @@ int main(int argc, char** argv) {
 				std::this_thread::sleep_for(std::chrono::milliseconds(10));
 				
 				// Verify the current page
-				success = sub20->read_i2c(*addr, 0x00, (char *) &data, 1);
+				success = sub20->read_i2c(addr, 0x00, (char *) &data, 1);
 				if( !success ) {
 					std::cout << "readPSU - get page - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -220,7 +220,7 @@ int main(int argc, char** argv) {
         uint32_t wide_data;
         uint8_t code;
 				data = 0;
-				success = sub20->write_i2c(*addr, 0xDE, (char *) &data, 1);
+				success = sub20->write_i2c(addr, 0xDE, (char *) &data, 1);
 				if( !success ) {
 					std::cout << "readPSU - get type - " << sub_strerror(sub_errno) << std::endl;
 					delete sub20;
@@ -229,7 +229,7 @@ int main(int argc, char** argv) {
 				
 				std::this_thread::sleep_for(std::chrono::milliseconds(10));
 				
-				success = sub20->read_i2c(*addr, 0xDF, (char *) &wide_data, 4);
+				success = sub20->read_i2c(addr, 0xDF, (char *) &wide_data, 4);
 				if( !success ) {
 					std::cout << "readPSU - get type - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -251,7 +251,7 @@ int main(int argc, char** argv) {
 			*************************/
 			
       data = 0;
-			success = sub20->read_i2c(*addr, 0xDB, (char *) &data, 1);
+			success = sub20->read_i2c(addr, 0xDB, (char *) &data, 1);
 			if( !success ) {
 				std::cout << "readPSU - get status - " << sub_strerror(sub_errno) << std::endl;
 				continue;
@@ -267,7 +267,7 @@ int main(int argc, char** argv) {
 			* Output Voltage *
 			*****************/
 			
-			success = sub20->read_i2c(*addr, 0x8B, (char *) &data, 2);
+			success = sub20->read_i2c(addr, 0x8B, (char *) &data, 2);
 			if( !success ) {
 				std::cout << "readPSU - get output voltage - " << sub_strerror(sub_errno) << std::endl;
 				continue;
@@ -279,14 +279,14 @@ int main(int argc, char** argv) {
 			*****************/
 			
 			#ifdef __USE_INPUT_CURRENT__
-				success = sub20->read_i2c(*addr, 0x89, (char *) &data, 2);
+				success = sub20->read_i2c(addr, 0x89, (char *) &data, 2);
 				if( !success ) {
 					std::cout << "readPSU - get input current - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 				current = (float) data /100.0 * 0.95;		// Removes the ~5% power conversion loss
 			#else
-				success = sub20->read_i2c(*addr, 0x8C, (char *) &data, 2);
+				success = sub20->read_i2c(addr, 0x8C, (char *) &data, 2);
 				if( !success ) {
 					std::cout << "readPSU - get output current - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -299,13 +299,13 @@ int main(int argc, char** argv) {
 		if( nMod != 0 ) {
 			voltage /= (float) nMod;
 		}
-    std::cout << std::hex << "0x" << (int) *addr << std::dec 
+    std::cout << std::hex << "0x" << (int) addr << std::dec 
               << " " << moduleName << " " << modulePower << " " << moduleStatus
               << " " << voltage << " " << current << std::endl;
 		
 		// Set the module number back to 0
 		data = 0;
-		success = sub20->write_i2c(*addr, 0x00, (char *) &data, 1);
+		success = sub20->write_i2c(addr, 0x00, (char *) &data, 1);
 		if( !success ) {
 			std::cout << "readPSU - page change - " << sub_strerror(sub_errno) << std::endl;
 			continue;
@@ -313,7 +313,7 @@ int main(int argc, char** argv) {
 
 		// Write-protect all entries but WRITE_PROTECT (0x10)
 		data = (1 << 7) & 1;
-		success = sub20->write_i2c(*addr, 0x10, (char *) &data, 1);
+		success = sub20->write_i2c(addr, 0x10, (char *) &data, 1);
 		if( !success ) {
 			std::cout << "readPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 			continue;

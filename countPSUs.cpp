@@ -29,16 +29,16 @@ int main(int argc, char** argv) {
   
   int total = 0;
   std::string i2cSN = std::string("UNK");
-  for(auto sn=std::begin(sub20s); sn!=std::end(sub20s); sn++) {
-    Sub20 *sub20 = new Sub20(*sn);
+  for(std::string& sn: sub20s) {
+    Sub20 *sub20 = new Sub20(sn);
     
     bool success = sub20->open();
     if( !success ) {
-      std::cout << "countPSUs - failed to open " << *sn << std::endl;
+      std::cout << "countPSUs - failed to open " << sn << std::endl;
   	  continue;
     }
     
-    std::cout << "Found SUB-20 device S/N: " << *sn << std::endl;
+    std::cout << "Found SUB-20 device S/N: " << sn << std::endl;
     std::list<uint8_t> i2c_devices = sub20->list_i2c_devices();
     
     if( i2c_devices.size() > 0 ) {
@@ -49,15 +49,15 @@ int main(int argc, char** argv) {
     
     int num = 0;
     uint16_t data;
-    for(auto addr=std::begin(i2c_devices); addr!=std::end(i2c_devices); addr++) {
-      if( *addr > 0x1F ) {
+    for(uint8_t& addr: i2c_devices) {
+      if( addr > 0x1F ) {
         continue;
       }
       
-      std::cout << " -> " << std::hex << "0x" << (int) *addr << std::dec << std::endl;
+      std::cout << " -> " << std::hex << "0x" << (int) addr << std::dec << std::endl;
 		  
 			// Get a list of smart modules for polling
-			success = sub20->read_i2c(*addr, 0xD3, (char *) &data, 2);
+			success = sub20->read_i2c(addr, 0xD3, (char *) &data, 2);
 			if( !success ) {
 				std::cout <<  "countPSUs - module status - " << sub_strerror(sub_errno) << std::endl;
 				continue;
@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
 	
 		std::cout << "-> " << num << " PSU modules" << std::endl;
 		if( num > 0 ) {
-			i2cSN = *sn;
+			i2cSN = sn;
 		}
 
 		total += num;
