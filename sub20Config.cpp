@@ -31,7 +31,6 @@
 
 
 static PyMethodDef Sub20Methods[] = { {NULL, NULL,  0,  NULL} };
-};
 
 
 PyDoc_STRVAR(sub20config_doc, "Compile time configuration values used by the SUB-20 interface.");
