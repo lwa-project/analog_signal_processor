@@ -17,7 +17,7 @@ __all__ = ['STANDS_PER_BOARD', 'MAX_BOARDS', 'MAX_STANDS', 'MAX_ATTEN',
 
 # Read in the aspCommon.hpp file to make sure that the C and Python codes are on 
 # the same page.
-from sub20Config import max_arx_boards as MAX_BOARDS, stands_per_board as STANDS_PER_BOARD
+from sub20Config import MAX_BOARDS, STANDS_PER_BOARD
 
 # ASP-ARX stand limit
 MAX_STANDS = 264

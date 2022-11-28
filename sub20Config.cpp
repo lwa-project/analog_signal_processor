@@ -47,14 +47,14 @@ MOD_INIT(sub20Config) {
   
   // Constants
   value0 = PyInt_FromLong(MAX_BOARDS);
-  PyModule_AddObject(m, "max_arx_boards", value0);
+  PyModule_AddObject(m, "MAX_BOARDS", value0);
   value1 = PyInt_FromLong(STANDS_PER_BOARD);
-  PyModule_AddObject(m, "stands_per_board", value1);
+  PyModule_AddObject(m, "STANDS_PER_BOARD", value1);
   
   // Module listings
   all = PyList_New(0);
-  PyList_Append(all, PyString_FromString("max_arx_boards"));
-  PyList_Append(all, PyString_FromString("stands_per_board"));
+  PyList_Append(all, PyString_FromString("MAX_BOARDS"));
+  PyList_Append(all, PyString_FromString("STANDS_PER_BOARD"));
   PyModule_AddObject(m, "__all__", all);
   
   return MOD_SUCCESS_VAL(m);
