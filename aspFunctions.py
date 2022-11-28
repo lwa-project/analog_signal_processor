@@ -54,6 +54,11 @@ subsystemErrorCodes = {0x00: 'Subsystem operating normally',
 
 
 class ASPSettingsList(object):
+    """
+    Class to store per-stand ASP settings with 1-based indexing.  Setting index
+    zero updates the values for all stands.
+    """
+    
     def __init__(self, list=None):
         if list is None:
             list = []
