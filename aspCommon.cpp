@@ -66,7 +66,6 @@ bool Sub20::open() {
     }
     
     if( !strcmp(found_sn, _sn.c_str()) ) {
-      std::cout << "Found SUB-20 device S/N: " << found_sn << std::endl;
       found = true;
     } else {
       sub_close(_fh);
