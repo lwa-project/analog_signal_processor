@@ -1,7 +1,5 @@
 #include <Python.h>
 
-#include <mutex>
-
 #include "aspCommon.hpp"
 
 /*
@@ -30,31 +28,7 @@
 #endif
 
 
-std::mutex g_sub20_lock;
-
-
-static PyObject *ListSub20s(PyObject *self) {
-  PyObject *output;
-  
-  std::list<std::string> sub20s = list_sub20s();
-  
-  output = PyList_New(0);
-  for(std::string& sn: sub20s) {
-    PyObject *value = PyString_FromString(sn.c_str());
-    PyList_Append(output, value);
-    Py_XDECREF(value);
-  }
-  
-  return output;
-}
-
-PyDoc_STRVAR(ListSub20s_doc, \
-"Return a list of SUB-20 serial numbers attached to the system");
-
-
-static PyMethodDef Sub20Methods[] = {
-  {"list_sub20s", (PyCFunction) ListSub20s, METH_VARARGS, ListSub20s_doc}
-};
+static PyMethodDef Sub20Methods[] = { {NULL, NULL, 0, NULL} };
 
 
 PyDoc_STRVAR(sub20config_doc, "Compile time configuration values used by the SUB-20 interface.");
@@ -89,7 +63,6 @@ MOD_INIT(sub20Config) {
   
   // Module listings
   all = PyList_New(0);
-  PyList_Append(all, PyString_FromString("list_sub20s"));
   PyList_Append(all, PyString_FromString("MAX_BOARDS"));
   PyList_Append(all, PyString_FromString("STANDS_PER_BOARD"));
   PyList_Append(all, PyString_FromString("USE_INPUT_CURRENT"));
