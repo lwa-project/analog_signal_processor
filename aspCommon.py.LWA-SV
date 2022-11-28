@@ -19,11 +19,7 @@ __all__ = ['STANDS_PER_BOARD', 'MAX_BOARDS', 'MAX_STANDS', 'MAX_ATTEN',
 # the same page.
 from sub20Config import max_arx_boards as MAX_BOARDS, stands_per_board as STANDS_PER_BOARD
 
-# ASP-ARX number of stands per board
-STANDS_PER_BOARD = int(cDefines['STANDS_PER_BOARD'])
-
-# ASP-ARX board and stand limits
-MAX_BOARDS = int(cDefines['MAX_BOARDS'])
+# ASP-ARX stand limit
 MAX_STANDS = 256
 
 # Attenuator limits
