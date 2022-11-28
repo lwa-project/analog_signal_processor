@@ -13,7 +13,7 @@ class dummy_install(install):
         raise RuntimeError("This is a dummy package that cannot be installed")
 
 
-ExtensionModules = [Extension('sub20Config', ['sub20Config.cpp', 'aspCommon.cpp'], include_dirs=['libsub'], libraries=['m', 'usb-1.0'], extra_compile_args=['-std=c++11'])]
+ExtensionModules = [Extension('sub20Config', ['sub20Config.cpp', 'aspCommon.cpp'], include_dirs=['libsub'], libraries=['m', 'usb-1.0', 'sub'], extra_compile_args=['-std=c++11'])]
 
 
 setup(
