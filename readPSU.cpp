@@ -149,7 +149,7 @@ int main(int argc, char** argv) {
   /********************
 	* Read from the I2C *
 	********************/
-  std::list<uint8_t> i2c_devices = list_i2c_devices()
+  std::list<uint8_t> i2c_devices = sub20->list_i2c_devices()
   
   uint16_t data, page, modules;
   bool found = false;
