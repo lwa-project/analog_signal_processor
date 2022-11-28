@@ -30,14 +30,38 @@
 #endif
 
 
-static PyMethodDef Sub20Methods[] = { {NULL, NULL,  0,  NULL} };
+std::mutex g_sub20_lock;
+
+
+static PyObject *ListSub20s(PyObject *self) {
+  PyObject *output;
+  
+  std::list<std::string> sub20s = list_sub20s();
+  
+  output = PyList_New(0);
+  for(std::string& sn: sub20s) {
+    PyObject *value = PyString_FromString(sn.c_str());
+    PyList_Append(output, value);
+    Py_XDECREF(value);
+  }
+  
+  return output;
+}
+
+PyDoc_STRVAR(ListSub20s_doc, \
+"Return a list of SUB-20 serial numbers attached to the system");
+
+
+static PyMethodDef Sub20Methods[] = {
+  {"list_sub20s", (PyCFunction) ListSub20s, METH_VARARGS, ListSub20s_doc}
+};
 
 
 PyDoc_STRVAR(sub20config_doc, "Compile time configuration values used by the SUB-20 interface.");
 
 
 MOD_INIT(sub20Config) {
-  PyObject *m, *all, *value0, *value1;
+  PyObject *m, *all, *value0, *value1, *value2, *value3;
   
   // Module definitions and functions
   MOD_DEF(m, "sub20Config", Sub20Methods, sub20config_doc);
@@ -50,11 +74,26 @@ MOD_INIT(sub20Config) {
   PyModule_AddObject(m, "MAX_BOARDS", value0);
   value1 = PyInt_FromLong(STANDS_PER_BOARD);
   PyModule_AddObject(m, "STANDS_PER_BOARD", value1);
+  #ifdef __USE_INPUT_CURRENT__
+    value2 = Py_True;
+  #else
+    value2 = Py_False;
+  #endif
+  PyModule_AddObject(m, "USE_INPUT_CURRENT", value2);
+  #ifdef __INCLUDE_MODULE_TEMPS__
+    value3 = Py_True;
+  #else
+    value3 = Py_False;
+  #endif
+  PyModule_AddObject(m, "INCLUDE_MODULE_TEMPS", value3);
   
   // Module listings
   all = PyList_New(0);
+  PyList_Append(all, PyString_FromString("list_sub20s"));
   PyList_Append(all, PyString_FromString("MAX_BOARDS"));
   PyList_Append(all, PyString_FromString("STANDS_PER_BOARD"));
+  PyList_Append(all, PyString_FromString("USE_INPUT_CURRENT"));
+  PyList_Append(all, PyString_FromString("INCLUDE_MODULE_TEMPS"));
   PyModule_AddObject(m, "__all__", all);
   
   return MOD_SUCCESS_VAL(m);
