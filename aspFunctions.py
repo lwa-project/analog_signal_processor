@@ -5,7 +5,6 @@ Module for storing the miscellaneous functions used by asp_cmnd for running ASP.
 
 import os
 import time
-import ctypes
 import logging
 import threading
 
@@ -93,16 +92,6 @@ class AnalogProcessor(object):
     A note about exit codes from control commands (FIL, AT1, etc.):
       * See commandExitCodes
     """
-    
-    class StandMapping(ctypes.LittleEndianStructure):
-        """
-        Class for helping store the mapping information needed for the new
-        multi-SUB-20 architecture.
-        """
-        
-        _fields_ = [("SUB20", ctypes.c_char*5), 
-                    ("stand", ctypes.c_ushort),
-                    ("redStand", ctypes.c_ushort)]
                   
     def __init__(self, config):
         self.config = config
