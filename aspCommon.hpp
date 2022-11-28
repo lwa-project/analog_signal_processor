@@ -10,6 +10,7 @@
 #include <vector>
 #include <queue>
 #include <list>
+#include <cstring>
 
 #include "libsub.h"
 
