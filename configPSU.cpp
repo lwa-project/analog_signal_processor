@@ -307,5 +307,5 @@ int main(int argc, char** argv) {
 		std::exit(EXIT_FAILURE);
 	}
   
-	return std::exit(EXIT_SUCCESS);
+	std::exit(EXIT_SUCCESS);
 }
