@@ -90,7 +90,7 @@ def spiCountBoards(maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
                 if attempt != 0:
                     time.sleep(waitRetry)
                     
-                p = subprocess.Popen('/usr/local/bin/countBoards %04X' % self.sub20SN, shell=True,
+                p = subprocess.Popen('/usr/local/bin/countBoards %04X' % sub20SN, shell=True,
                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 output, output2 = p.communicate()
                 try:
