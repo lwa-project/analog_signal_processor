@@ -116,7 +116,7 @@ int main(int argc, char* argv[]) {
   		std::exit(EXIT_FAILURE);
   	}
     
-    for(int j=0; j<device_count; j++) {
+    for(uint32_t j=0; j<device_count; j++) {
       if( values[device_count-1-j] != 0 ) {
         std::cout << j+1 << ": " << std::hex << "0x" << (values[device_count-1-j]^0x0080) << std::dec << std::endl;
       }
