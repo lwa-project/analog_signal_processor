@@ -30,6 +30,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - uses: actions/checkout@v3
+      - name: "Software Install - Python" 
+        run: |
+          python -m pip install \
+            setuptools \
+            numpy
       - name: "Build"
         run: |
           make all
