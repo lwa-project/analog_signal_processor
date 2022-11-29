@@ -84,7 +84,7 @@ def spiCountBoards(maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
     overallStatus = True
     for sub20SN in sorted(SUB20_ANTENNA_MAPPING):
         with SUB20_LOCKS[sub20SN]:
-            attemp = 0
+            attempt = 0
             status = False
             while ((not status) and (attempt <= maxRetry)):
                 if attempt != 0:
