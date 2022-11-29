@@ -154,7 +154,7 @@ int main(int argc, char** argv) {
   uint16_t data, page, modules;
   bool found = false;
   for(uint8_t& addr: i2c_devices) {
-    if( addr > 0x1F ) {
+    if( addr != i2c_device ) {
       continue;
     }
     
