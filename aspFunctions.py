@@ -1221,7 +1221,7 @@ class AnalogProcessor(object):
         be unconfigured.
         """
         
-        dStart, dStop = SUB20_ANTENNA_MAPPING[sub20SN]
+        dStart, dStop = self.config['sub20_antenna_mapping'][sub20SN]
         
         if self.currentState['status'] != 'ERROR':
             self.currentState['status'] = 'ERROR'
