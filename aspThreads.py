@@ -1,4 +1,4 @@
-
+SUB-20 S/N %s
 """
 Module implementing the various ASP monitoring threads.
 """
@@ -56,7 +56,7 @@ class TemperatureSensors(object):
     """
     
     def __init__(self, sub20SN, config, logfile='/data/temp.txt', ASPCallbackInstance=None):
-        self.sub20SN = int(sub20SN)
+        self.sub20SN = str(sub20SN)
         self.logfile = logfile
         self.updateConfig(config)
         
@@ -97,7 +97,7 @@ class TemperatureSensors(object):
         if self.thread is not None:
             self.stop()
             
-        self.nTemps = os.system("/usr/local/bin/countThermometers %04X" % self.sub20SN) // 256
+        self.nTemps = os.system("/usr/local/bin/countThermometers %s" % self.sub20SN) // 256
         self.description = ["UNK" for i in range(self.nTemps)]
         self.temp = [0.0 for i in range(self.nTemps)]
         self.coldCount = 0
@@ -136,7 +136,7 @@ class TemperatureSensors(object):
                 missingSUB20 = False
                 
                 with SUB20_LOCKS[self.sub20SN]:
-                    p = subprocess.Popen('/usr/local/bin/readThermometers %04X' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    p = subprocess.Popen('/usr/local/bin/readThermometers %s' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     output, output2 = p.communicate()
                     try:
                         output = output.decode('ascii')
@@ -298,7 +298,7 @@ class PowerStatus(object):
     """
     
     def __init__(self, sub20SN, deviceAddress, config, logfile='/data/psu.txt', ASPCallbackInstance=None):
-        self.sub20SN = int(sub20SN)
+        self.sub20SN = str(sub20SN)
         self.deviceAddress = int(deviceAddress)
         base, ext = logfile.rsplit('.', 1)
         self.logfile = '%s-0x%02X.%s' % (base, self.deviceAddress, ext)
@@ -374,7 +374,7 @@ class PowerStatus(object):
                 missingSUB20 = False
                 
                 with SUB20_LOCKS[self.sub20SN]:
-                    p = subprocess.Popen('/usr/local/bin/readPSU %04X 0x%02X' % (self.sub20SN, self.deviceAddress), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    p = subprocess.Popen('/usr/local/bin/readPSU %s 0x%02X' % (self.sub20SN, self.deviceAddress), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     output, output2 = p.communicate()
                     try:
                         output = output.decode('ascii')
@@ -504,12 +504,12 @@ class ChassisStatus(object):
     """
     
     def __init__(self, sub20SN, config, ASPCallbackInstance=None):
-        self.sub20SN = int(sub20SN)
+        self.sub20SN = str(sub20SN)
         self.register = 0x000C
         self.updateConfig(config)
         
         # Total number of devices on the chassis
-        dStart, dStop = config['sub20_antenna_mapping'][str(self.sub20SN)]
+        dStart, dStop = config['sub20_antenna_mapping'][self.sub20SN]
         self.totalDevs = dStop - dStart + 1
         self.configured = False
         
@@ -568,7 +568,7 @@ class ChassisStatus(object):
                 missingSUB20 = False
                 
                 with SUB20_LOCKS[self.sub20SN]:
-                    p = subprocess.Popen('/usr/local/bin/readARXDevice %04X %i 1 0x%04X' % (self.sub20SN, self.totalDevs, self.register), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    p = subprocess.Popen('/usr/local/bin/readARXDevice %s %i 1 0x%04X' % (self.sub20SN, self.totalDevs, self.register), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     output, output2 = p.communicate()
                     try:
                         output = output.decode('ascii')
@@ -593,7 +593,7 @@ class ChassisStatus(object):
                     else:
                         self.configured = False
                         
-                        aspThreadsLogger.error("%s: 0x%04X lost SPI port configuation", type(self).__name__, self.sub20SN)
+                        aspThreadsLogger.error("%s: SUB-20 S/N %s lost SPI port configuation", type(self).__name__, self.sub20SN)
                         
                 if self.ASPCallbackInstance is not None:
                     if missingSUB20:
@@ -604,7 +604,7 @@ class ChassisStatus(object):
                         
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                aspThreadsLogger.error("%s: monitorThread 0x%04X failed with: %s at line %i", type(self).__name__, self.sub20SN, str(e), exc_traceback.tb_lineno)
+                aspThreadsLogger.error("%s: monitorThread SUB-20 S/N %s failed with: %s at line %i", type(self).__name__, self.sub20SN, str(e), exc_traceback.tb_lineno)
                 
                 ## Grab the full traceback and save it to a string via StringIO
                 fileObject = StringIO()
@@ -619,7 +619,7 @@ class ChassisStatus(object):
                 
             # Stop time
             tStop = time.time()
-            aspThreadsLogger.debug('Finished updating chassis status for 0x%04X in %.3f seconds', self.sub20SN, tStop - tStart)
+            aspThreadsLogger.debug('Finished updating chassis status for SUB-20 S/N %s in %.3f seconds', self.sub20SN, tStop - tStart)
             
             # Sleep for a bit
             sleepCount = 0
