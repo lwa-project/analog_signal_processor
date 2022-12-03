@@ -1,5 +1,4 @@
 import os
-import numpy
 import tempfile
 import subprocess
 from setuptools import setup, Extension, find_packages
