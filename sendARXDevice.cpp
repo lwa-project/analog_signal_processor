@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
 	*************************/
   // Make sure we have the right number of arguments to continue
 	if( argc < 4+1 ) {
-		std::cout << "sendARXDevice - Need at least 4 arguments, " << argc-1 << " provided" << std::endl;
+		std::cerr << "sendARXDevice - Need at least 4 arguments, " << argc-1 << " provided" << std::endl;
 		std::exit(EXIT_FAILURE);
 	}
   
@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
     try {
       queue->add_command(device, command);
     } catch(const std::exception& e) {
-      std::cout << "sendARXDevice - invalid command " << device << " @ " << std::hex << command << std::dec << ": " << e.what() << std::endl;
+      std::cerr << "sendARXDevice - invalid command " << device << " @ " << std::hex << command << std::dec << ": " << e.what() << std::endl;
       delete queue;
       std::exit(EXIT_FAILURE);
     }
@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
   
   bool success = sub20->open();
   if( !success ) {
-    std::cout << "sendARXDevice - failed to open " << requestedSN << std::endl;
+    std::cerr << "sendARXDevice - failed to open " << requestedSN << std::endl;
 	  std::exit(EXIT_FAILURE);
   }
   
@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
     
     success = sub20->transfer_spi((char*) commands, (char*) responses, 2*device_count+2);
   	if( !success ) {
-  		std::cout << "sendARXDevice - SPI write failed - " << sub_strerror(sub_errno) << std::endl;
+  		std::cerr << "sendARXDevice - SPI write failed - " << sub_strerror(sub_errno) << std::endl;
       ::free(commands);
       ::free(responses);
       delete sub20;
@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
   	}
     
     if( responses[device_count] != SPI_COMMAND_MARKER ) {
-      std::cout << "sendARXDevice - SPI write returned a marker of "
+      std::err << "sendARXDevice - SPI write returned a marker of "
                 << std::hex << responses[device_count] << std::dec << " instead of "
                 << std::hex << SPI_COMMAND_MARKER << std::dec << std::endl;
       ::free(commands);

@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
   *************************/
   // Make sure we have the right number of arguments to continue
   if( argc < 1+1 ) {
-    std::cout << "countThermometers - Need 1 argument, %i provided, " << argc-1 << " provided" << std::endl;
+    std::cerr << "countThermometers - Need 1 argument, %i provided, " << argc-1 << " provided" << std::endl;
     return 0;
   }
   
@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
   
   bool success = sub20->open();
   if( !success ) {
-    std::cout << "countThermometers - failed to open " << requestedSN << std::endl;
+    std::cerr << "countThermometers - failed to open " << requestedSN << std::endl;
 	  return 0;
   }
   
@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
       uint16_t data;
       success = sub20->read_i2c(addr, 0xD3, (char *) &data, 2);
 			if( !success ) {
-				std::cout << "countThermometers - module status - " << sub_strerror(sub_errno) << std::endl;
+				std::cerr << "countThermometers - module status - " << sub_strerror(sub_errno) << std::endl;
 				continue;
 			}
 			

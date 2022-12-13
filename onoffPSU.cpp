@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
   *************************/
   // Make sure we have the right number of arguments to continue
   if( argc < 3+1 ) {
-    std::cout << "onoffPSU - Need 3 arguments, " << argc-1 << " provided" << std::endl;
+    std::cerr << "onoffPSU - Need 3 arguments, " << argc-1 << " provided" << std::endl;
     std::exit(EXIT_FAILURE);
   }
   
@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
   uint32_t i2c_device = std::strtod(argv[2], &endptr);
   uint32_t pwr_state = std::strtod(argv[3], &endptr);
 	if( pwr_state != 0 && pwr_state != 11 ) {
-		std::cout << "onoffPSU - Unknown state " << pwr_state << " (valid values are 00 and 11)" << std::endl;
+		std::cerr << "onoffPSU - Unknown state " << pwr_state << " (valid values are 00 and 11)" << std::endl;
 		std::exit(EXIT_FAILURE);
 	}
   
@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
   
   bool success = sub20->open();
   if( !success ) {
-    std::cout << "onoffPSU - failed to open " << requestedSN << std::endl;
+    std::cerr << "onoffPSU - failed to open " << requestedSN << std::endl;
 		std::exit(EXIT_FAILURE);
   }
   
@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
     // Get the current power supply state
 		success = sub20->read_i2c(addr, 0x01, (char *) &data, 1);
 		if( !success ) {
-			std::cout << "onoffPSU - page change - " << sub_strerror(sub_errno) << std::endl;
+			std::cerr << "onoffPSU - page change - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
 		status = (data >> 7) & 1;
@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
 		data = 0;
 		success = sub20->write_i2c(addr, 0x10, (char *) &data, 1);
 		if( !success ) {
-			std::cout << "onoffPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
+			std::cerr << "onoffPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
 
@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
 		// Toggle the power status and wait a bit for the changes to take affect
 		success = sub20->write_i2c(addr, 0x01, (char *) &data, 1);
 		if( !success ) {
-			std::cout << "onoffPSU - on/off toggle - " << sub_strerror(sub_errno) << std::endl;
+			std::cerr << "onoffPSU - on/off toggle - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
 		data = 0;
 		success = sub20->read_i2c(addr, 0x01, (char *) &data, 1);
 		if( !success ) {
-			std::cout << "onoffPSU - page change - " << sub_strerror(sub_errno) << std::endl;
+			std::cerr << "onoffPSU - page change - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
 		status = (data >> 7) & 1;
@@ -113,7 +113,7 @@ int main(int argc, char** argv) {
 		data = (1 << 7) & 1;
 		success = sub20->write_i2c(addr, 0x10, (char *) &data, 1);
 		if( !success ) {
-			std::cout << "onoffPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
+			std::cerr << "onoffPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
     
@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
 	delete sub20;
 	
   if( !found ) {
-		std::cout << "onoffPSU - Cannot find device at address " << std::hex << "0x%" << i2c_device << std::endl;
+		std::cerr << "onoffPSU - Cannot find device at address " << std::hex << "0x%" << i2c_device << std::endl;
 		std::exit(EXIT_FAILURE);
 	}
   

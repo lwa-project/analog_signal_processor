@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
 	*************************/
   // Make sure we have the right number of arguments to continue
 	if( argc < 1+1 ) {
-		std::cout << "countBoards - Need 1 argument, " << argc-1 << " provided" << std::endl;
+		std::cerr << "countBoards - Need 1 argument, " << argc-1 << " provided" << std::endl;
 		std::exit(EXIT_FAILURE);
 	}
   
@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
     
     success = sub20->transfer_spi((char*) commands, (char*) responses, 2*num+2);
   	if( !success ) {
-  		std::cout << "coundBoards - SPI write failed - " << sub_strerror(sub_errno) << std::endl;
+  		std::cerr << "coundBoards - SPI write failed - " << sub_strerror(sub_errno) << std::endl;
   	}
   }
   if( num > STANDS_PER_BOARD*17 ) {
@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
 	delete sub20;
 	
 	// Report
-	printf("Found %i ARX boards (%i stands)\n", num, num*STANDS_PER_BOARD);
-
+	std::cout << "Found " << num << " boards (" << (num*STANDS_PER_BOARD) << " stands)" << std::endl;
+  
 	return num;
 }

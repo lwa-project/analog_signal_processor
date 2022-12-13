@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
   *************************/
   // Make sure we have the right number of arguments to continue
   if( argc < 3+1 ) {
-    std::cout << "configPSU - Need at least 3 arguments, " << argc-1 << " provided" << std::endl;
+    std::cerr << "configPSU - Need at least 3 arguments, " << argc-1 << " provided" << std::endl;
     std::exit(EXIT_FAILURE);
   }
   
@@ -67,19 +67,19 @@ int main(int argc, char** argv) {
 	} else if( command == "tempWarn" ) {
 		mode = MODE_TEMPWARN;
     if( argc < 4+1 ) {
-      std::cout << "configPSU - Setting 'tempWarn' requires an additional argument" << std::endl;
+      std::cerr << "configPSU - Setting 'tempWarn' requires an additional argument" << std::endl;
       std::exit(EXIT_FAILURE);
     }
     arg_value = std::strtod(argv[4], &endptr);
   } else if( command == "tempFault" ) {
 		mode = MODE_TEMPFAULT;
     if( argc < 4+1 ) {
-      std::cout << "configPSU - Setting 'tempFault' requires an additional argument" << std::endl;
+      std::cerr << "configPSU - Setting 'tempFault' requires an additional argument" << std::endl;
       std::exit(EXIT_FAILURE);
     }
     arg_value = std::strtod(argv[4], &endptr);
 	} else {
-    std::cout << "configPSU - Invalid command '" << command << "'" << std::endl;
+    std::cerr << "configPSU - Invalid command '" << command << "'" << std::endl;
 		std::exit(EXIT_FAILURE);
 	}
   
@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
   
   bool success = sub20->open();
   if( !success ) {
-    std::cout << "configPSU - failed to open " << requestedSN << std::endl;
+    std::cerr << "configPSU - failed to open " << requestedSN << std::endl;
 		std::exit(EXIT_FAILURE);
   }
   
@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
 			data = 0;
 			success = sub20->write_i2c(addr, 0x10, (char *) &data, 1);
 			if( !success ) {
-				std::cout << "configPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
+				std::cerr << "configPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 				continue;
 			}
 		}
@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
 				data = 0;
 				success = sub20->read_i2c(addr, 0xD6, (char *) &data, 1);
 				if( !success ) {
-					std::cout << "configPSU - get setup - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - get setup - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
         
@@ -148,7 +148,7 @@ int main(int argc, char** argv) {
 				data = 0;
 				success = sub20->read_i2c(addr, 0xD5, (char *) &data, 1);
 				if( !success ) {
-					std::cout << "configPSU - get configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - get configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
         data &= 0xFF;
@@ -160,14 +160,14 @@ int main(int argc, char** argv) {
 				// Query temperature limits
 				success = sub20->read_i2c(addr, 0x51, (char *) &data, 2);
 				if( !success ) {
-					std::cout << "configPSU - get temperature warning - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - get temperature warning - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 			  std::cout << "Temperature Warning Limit: " << (float) data/4.0 << " C" << std::endl;
 				
 				success = sub20->read_i2c(addr, 0x4F, (char *) &data, 2);
 				if( !success ) {
-					std::cout << "configPSU - get temperature fault - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - get temperature fault - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 				std::cout << "Temperature Fault Limit:   " << (float) data/4.0 << " C" << std::endl;
@@ -177,7 +177,7 @@ int main(int argc, char** argv) {
         wide_data = 0;
 				success = sub20->read_i2c(addr, 0xEB, (char *) &wide_data, 5);
 				if( !success ) {
-					std::cout << "configPSU - get power limits - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - get power limits - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 				std::cout << "Low Power Limit:           " << (int) ((wide_data >> 8) & 0xFFFF) << " W" << std::endl;
@@ -189,7 +189,7 @@ int main(int argc, char** argv) {
 				data = 0;
 				success = sub20->read_i2c(addr, 0xD5, (char *) &data, 1);
 				if( !success ) {
-					std::cout << "configPSU - get configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - get configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 				
@@ -199,7 +199,7 @@ int main(int argc, char** argv) {
 				// Write the PSU configuation
 				success = sub20->write_i2c(addr, 0xD5, (char *) &data, 1);
 				if( !success ) {
-					std::cout << "configPSU - set configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - set configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 				
@@ -207,7 +207,7 @@ int main(int argc, char** argv) {
 			  data = 0x21;
 				success = sub20->write_i2c(addr, 0x15, (char *) &data, 1);
 				if( !success ) {
-					std::cout << "configPSU - save configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - save configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 				break;
@@ -217,7 +217,7 @@ int main(int argc, char** argv) {
 				data = 0;
 				success = sub20->read_i2c(addr, 0xD5, (char *) &data, 1);
 				if( !success ) {
-					std::cout << "configPSU - get configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - get configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 				
@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
 				// Write the PSU configuation
 				success = sub20->write_i2c(addr, 0xD5, (char *) &data, 1);
 				if( !success ) {
-					std::cout << "configPSU - set configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - set configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 				
@@ -235,7 +235,7 @@ int main(int argc, char** argv) {
 				data = 0x21;
 				success = sub20->write_i2c(addr, 0x15, (char *) &data, 1);
 				if( !success ) {
-					std::cout << "configPSU - save configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - save configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 				break;
@@ -247,7 +247,7 @@ int main(int argc, char** argv) {
 				// Write to memory
 				success = sub20->write_i2c(addr, 0x51, (char *) &data, 2);
 				if( !success ) {
-					std::cout << "configPSU - set temperature warning - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - set temperature warning - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 				
@@ -255,7 +255,7 @@ int main(int argc, char** argv) {
 				data = 0x21;
 				success = sub20->write_i2c(addr, 0x15, (char *) &data, 1);
 				if( !success ) {
-					std::cout << "configPSU - save configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - save configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 				break;
@@ -267,7 +267,7 @@ int main(int argc, char** argv) {
 				// Write to memory
 				success = sub20->write_i2c(addr, 0x4F, (char *) &data, 2);
 				if( !success ) {
-					std::cout << "configPSU - set temperature warning - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - set temperature warning - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 				
@@ -275,7 +275,7 @@ int main(int argc, char** argv) {
 				data = 0x21;
 				success = sub20->write_i2c(addr, 0x15, (char *) &data, 1);
 				if( !success ) {
-					std::cout << "configPSU - save configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - save configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 				break;
@@ -288,7 +288,7 @@ int main(int argc, char** argv) {
 			data = ((1 << 7) & 1);
 			success = sub20->write_i2c(addr, 0x10, (char *) &data, 1);
 			if( !success ) {
-				std::cout << "configPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
+				std::cerr << "configPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 				continue;
 			}
 		}
@@ -303,7 +303,7 @@ int main(int argc, char** argv) {
 	delete sub20;
 	
   if( !found ) {
-		std::cout << "configPSU - Cannot find device at address " << std::hex << "0x%" << i2c_device << std::endl;
+		std::cerr << "configPSU - Cannot find device at address " << std::hex << "0x%" << i2c_device << std::endl;
 		std::exit(EXIT_FAILURE);
 	}
   

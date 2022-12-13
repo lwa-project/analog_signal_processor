@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
     
     bool success = sub20->open();
     if( !success ) {
-      std::cout << "countPSUs - failed to open " << sn << std::endl;
+      std::cerr << "countPSUs - failed to open " << sn << std::endl;
   	  continue;
     }
     
@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
 			// Get a list of smart modules for polling
 			success = sub20->read_i2c(addr, 0xD3, (char *) &data, 2);
 			if( !success ) {
-				std::cout <<  "countPSUs - module status - " << sub_strerror(sub_errno) << std::endl;
+				std::cerr <<  "countPSUs - module status - " << sub_strerror(sub_errno) << std::endl;
 				continue;
 			}
 		  

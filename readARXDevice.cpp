@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
 	*************************/
   // Make sure we have the right number of arguments to continue
 	if( argc < 4+1 ) {
-		std::cout << "readARXDevice - Need at least 4 arguments, " << argc-1 << " provided" << std::endl;
+		std::cerr << "readARXDevice - Need at least 4 arguments, " << argc-1 << " provided" << std::endl;
 		std::exit(EXIT_FAILURE);
 	}
   
@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
     try {
       queue->add_command(device, dev_register, true);
     } catch(const std::exception& e) {
-      std::cout << "readARXDevice - invalid register " << device << " @ " << std::hex << dev_register << std::dec << ": " << e.what() << std::endl;
+      std::cerr << "readARXDevice - invalid register " << device << " @ " << std::hex << dev_register << std::dec << ": " << e.what() << std::endl;
       delete queue;
       std::exit(EXIT_FAILURE);
     }
@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
   
   bool success = sub20->open();
   if( !success ) {
-    std::cout << "readARXDevice - failed to open " << requestedSN << std::endl;
+    std::cerr << "readARXDevice - failed to open " << requestedSN << std::endl;
 		std::exit(EXIT_FAILURE);
   }
   
@@ -74,7 +74,7 @@ int main(int argc, char* argv[]) {
     
     success = sub20->transfer_spi((char*) reads, (char*) values, 2*device_count+2);
   	if( !success ) {
-  		std::cout << "readARXDevice - SPI write #1 failed - " << sub_strerror(sub_errno) << std::endl;
+  		std::cerr << "readARXDevice - SPI write #1 failed - " << sub_strerror(sub_errno) << std::endl;
       ::free(reads);
       ::free(values);
       delete sub20;
@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
   	}
     
     if( values[device_count] != SPI_COMMAND_MARKER ) {
-      std::cout << "readARXDevice - SPI write returned a marker of "
+      std::cerr << "readARXDevice - SPI write returned a marker of "
                 << std::hex << values[device_count] << std::dec << " instead of "
                 << std::hex << SPI_COMMAND_MARKER << std::dec << std::endl;
       ::free(reads);
@@ -97,7 +97,7 @@ int main(int argc, char* argv[]) {
     
     success = sub20->transfer_spi((char*) reads, (char*) values, 2*device_count+2);
   	if( !success ) {
-  		std::cout << "readARXDevice - SPI write #2 failed - " << sub_strerror(sub_errno) << std::endl;
+  		std::cerr << "readARXDevice - SPI write #2 failed - " << sub_strerror(sub_errno) << std::endl;
       ::free(reads);
       ::free(values);
       delete sub20;
@@ -106,7 +106,7 @@ int main(int argc, char* argv[]) {
   	}
     
     if( values[device_count] != SPI_COMMAND_MARKER ) {
-      std::cout << "readARXDevice - SPI write returned a marker of "
+      std::cerr << "readARXDevice - SPI write returned a marker of "
                 << std::hex << values[device_count] << std::dec << " instead of "
                 << std::hex << SPI_COMMAND_MARKER << std::dec << std::endl;
       ::free(reads);
