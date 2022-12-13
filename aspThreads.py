@@ -1,4 +1,4 @@
-SUB-20 S/N %s
+
 """
 Module implementing the various ASP monitoring threads.
 """
