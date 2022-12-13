@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
   	}
     
     if( responses[device_count] != SPI_COMMAND_MARKER ) {
-      std::err << "sendARXDevice - SPI write returned a marker of "
+      std::cerr << "sendARXDevice - SPI write returned a marker of "
                 << std::hex << responses[device_count] << std::dec << " instead of "
                 << std::hex << SPI_COMMAND_MARKER << std::dec << std::endl;
       ::free(commands);
