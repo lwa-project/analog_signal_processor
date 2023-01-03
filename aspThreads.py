@@ -90,7 +90,7 @@ class TemperatureSensors(object):
         self.minTemp  = config['temp_min']
         self.warnTemp = config['temp_warn']
         self.maxTemp  = config['temp_max']
-        self.influxdb = LWAInfluxClient.from_config(config['influx'])
+        self.influxdb = LWAInfluxClient.from_config(config)
         
     def start(self):
         """
@@ -340,7 +340,7 @@ class PowerStatus(object):
             return True
             
         self.monitorPeriod = config['power_period']
-        self.influxdb = LWAInfluxClient.from_config(config['influx'])
+        self.influxdb = LWAInfluxClient.from_config(config)
         
     def start(self):
         """
