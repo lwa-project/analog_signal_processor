@@ -141,7 +141,7 @@ class SPIProcessingThread(object):
     _lock = threading.Lock()
     
     def __init__(self, sub20Mapper, pollInterval=2.0, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
-        self._sub20Mapper
+        self._sub20Mapper = sub20Mapper
         self._pollInterval = pollInterval
         self._maxRetry = maxRetry
         self._waitRetry = waitRetry
