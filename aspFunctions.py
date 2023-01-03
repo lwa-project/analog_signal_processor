@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 """
 Module for storing the miscellaneous functions used by asp_cmnd for running ASP.
 """

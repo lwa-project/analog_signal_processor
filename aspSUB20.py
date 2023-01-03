@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 """
 Module for storing the various SUB-20 function calls
 """
