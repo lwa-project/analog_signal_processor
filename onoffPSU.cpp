@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
 			continue;
 		}
 		status = (data >> 7) & 1;
-		std::cout << std::hex << "0x" << (int) addr << std::dec << " is in state " << (int) status << std::endl;
+		std::cout << std::uppercase << std::hex << "0x" << (int) addr << std::nouppercase << std::dec << " is in state " << (int) status << std::endl;
 		
 		// Enable writing to the OPERATION address (0x01) so we can change modules
 		data = 0;
@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
 			continue;
 		}
 		status = (data >> 7) & 1;
-		std::cout << std::hex << "0x" << (int) addr << std::dec << " is now in state " << (int) status << std::endl;
+		std::cout << std::uppercase << std::hex << "0x" << (int) addr << std::nouppercase << std::dec << " is now in state " << (int) status << std::endl;
 		
 		// Write-protect all entries but WRITE_PROTECT (0x10)
 		data = (1 << 7) & 1;
@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
 	delete sub20;
 	
   if( !found ) {
-		std::cerr << "onoffPSU - Cannot find device at address " << std::hex << "0x%" << i2c_device << std::endl;
+		std::cerr << "onoffPSU - Cannot find device at address " << std::uppercase << std::hex << "0x%" << i2c_device << std::endl;
 		std::exit(EXIT_FAILURE);
 	}
   
