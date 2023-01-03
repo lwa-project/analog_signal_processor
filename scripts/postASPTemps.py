@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
 import time
 import requests
@@ -13,12 +12,8 @@ SITE = gethostname().split("-",1)[0]
 SUBSYSTEM = "ASP"
 
 # Get the last line of the log file
-t = subprocess.Popen(["tail", "-n1", '/data/temp.txt'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-test, junk = t.communicate()
-try:
-    test = test.decode('ascii')
-except AttributeError:
-    pass
+test = subprocess.check_output(["tail", "-n1", '/data/temp.txt'], stderr=subprocess.PIPE)
+test = test.decode('ascii')
 test = test.replace('\n', '')
 
 # Check to see if the log is actually getting updated.  If not, send NaNs
@@ -35,4 +30,3 @@ if time.time() > lastUpdated + 300:
 f = requests.post(URL,
                   data={'key': KEY, 'site': SITE, 'subsystem': SUBSYSTEM, 'data': test})
 f.close()
-
