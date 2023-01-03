@@ -94,7 +94,7 @@ def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY
                 if attempt != 0:
                     time.sleep(waitRetry)
                     
-                p = subprocess.Popen('/usr/local/bin/countBoards %04X' % sub20SN, shell=True,
+                p = subprocess.Popen('/usr/local/bin/countBoards %s' % sub20SN, shell=True,
                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 output, output2 = p.communicate()
                 try:
@@ -172,7 +172,7 @@ class SPIProcessingThread(object):
     @staticmethod
     def _run_command(sub20SN, device_count, devices, spi_commands, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
         with SUB20_LOCKS[sub20SN]:
-            command = ["/usr/local/bin/sendARXDevice", "%04X" % sub20SN, str(device_count)]
+            command = ["/usr/local/bin/sendARXDevice", sub20SN, str(device_count)]
             for dev,cmd in zip(devices,spi_commands):
                 command.append(str(dev))
                 command.append("0x%04X" % cmd)
