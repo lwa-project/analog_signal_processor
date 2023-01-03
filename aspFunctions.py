@@ -359,12 +359,12 @@ class AnalogProcessor(object):
             status = self.currentState['spiThread'].process_command(0, SPI_cfg_shutdown)        # Into sleep mode
             time.sleep(5)
             
+        # Stop the SPI command processor
+        self.currentState['spiThread'].stop()
+        
         # Power off the power supplies
         self.__rxpProcess(00, internal=True)
         self.__fepProcess(00, internal=True)
-        
-        # Stop the SPI command processor
-        self.currentState['spiThread'].stop()
         
         self.currentState['status'] = 'SHUTDWN'
         self.currentState['info'] = 'System has been shut down'
