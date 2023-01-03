@@ -1,11 +1,12 @@
 #------------------------------------------------------------------------------
 # Main Targets
 #------------------------------------------------------------------------------
-all: LIBSUB sendARXDevice writeARXLCD \
+all: LIBSUB sendARXDevice \
      countBoards countPSUs countThermometers \
      readPSU readThermometers \
      onoffPSU configPSU \
-     readARXDevice
+     readARXDevice \
+		 sub20Config
 
 #------------------------------------------------------------------------------
 # Config
@@ -16,8 +17,9 @@ OS = $(shell uname)
 # Compiler
 #------------------------------------------------------------------------------
 
-# C Compiler and Linker Executable
+# C/C++ Compiler and Linker Executable
 CC      := $(CROSS)gcc
+CXX     := $(CROSS)g++
 
 
 #------------------------------------------------------------------------------
@@ -42,6 +44,8 @@ LDFLAGS += -L/usr/local/lib -lusb-1.0 -lm
 #------------------------------------------------------------------------------
 %.o:	%.c  
 	$(CC) -c $(CFLAGS) -o $@ $<
+%.o:	%.cpp 
+	$(CXX) -c $(CFLAGS) -std=c++11 -o $@ $<
 
 
 #------------------------------------------------------------------------------
@@ -51,39 +55,38 @@ LDFLAGS += -L/usr/local/lib -lusb-1.0 -lm
 LIBSUB: 
 	make -C libsub
 
-sendARXDevice: sendARXDevice.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+sendARXDevice: sendARXDevice.o aspCommon.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
-writeARXLCD: writeARXLCD.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+countBoards: countBoards.o aspCommon.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
-countBoards: countBoards.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+countPSUs: countPSUs.o aspCommon.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
-countPSUs: countPSUs.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+countThermometers: countThermometers.o aspCommon.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
-countThermometers: countThermometers.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+readPSU: readPSU.o aspCommon.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
-readPSU: readPSU.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+readThermometers: readThermometers.o aspCommon.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
-readThermometers: readThermometers.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+onoffPSU: onoffPSU.o aspCommon.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
-onoffPSU: onoffPSU.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+configPSU: configPSU.o aspCommon.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
-configPSU: configPSU.o
-	$(CC) -o $@ $^ $(LDFLAGS)
-
-readARXDevice: readARXDevice.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+readARXDevice: readARXDevice.o aspCommon.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
+	
+sub20Config: sub20Config.cpp
+	python setup.py build_ext --inplace
 
 install:
 	cp sendARXDevice /usr/local/bin
-	cp writeARXLCD /usr/local/bin
 	cp countBoards /usr/local/bin
 	cp countPSUs /usr/local/bin
 	cp countThermometers /usr/local/bin
@@ -92,12 +95,12 @@ install:
 	cp onoffPSU /usr/local/bin
 	cp configPSU /usr/local/bin
 	cp readARXDevice /usr/local/bin
-	chown root:root /usr/local/bin/sendARXDevice /usr/local/bin/writeARXLCD \
+	chown root:root /usr/local/bin/sendARXDevice \
                         /usr/local/bin/countBoards /usr/local/bin/countPSUs /usr/local/bin/countThermometers \
                         /usr/local/bin/readPSU /usr/local/bin/readThermometers \
                         /usr/local/bin/onoffPSU /usr/local/bin/configPSU \
                         /usr/local/bin/readARXDevice
-	chmod +s /usr/local/bin/sendARXDevice /usr/local/bin/writeARXLCD \
+	chmod +s /usr/local/bin/sendARXDevice \
                  /usr/local/bin/countBoards /usr/local/bin/countPSUs /usr/local/bin/countThermometers \
                  /usr/local/bin/readPSU /usr/local/bin/readThermometers \
                  /usr/local/bin/onoffPSU /usr/local/bin/configPSU \
@@ -105,6 +108,5 @@ install:
 
 clean:
 	rm -f *.o *.out *.err *.exe *.a *.so
-	rm -f sendARXDevice writeARXLCD countBoards countPSUs countThermometers readPSU readThermometers onoffPSU configPSU readARXDevice
+	rm -f sendARXDevice countBoards countPSUs countThermometers readPSU readThermometers onoffPSU configPSU readARXDevice
 	make -C libsub clean
-
