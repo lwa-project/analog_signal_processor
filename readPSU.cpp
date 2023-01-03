@@ -299,7 +299,7 @@ int main(int argc, char** argv) {
 		if( nMod != 0 ) {
 			voltage /= (float) nMod;
 		}
-    std::cout << std::hex << "0x" << (int) addr << std::dec 
+    std::cout << std::uppercase << std::hex << "0x" << (int) addr << std::nouppercase << std::dec 
               << " " << moduleName << " " << modulePower << " " << moduleStatus
               << " " << voltage << " " << current << std::endl;
 		
@@ -329,7 +329,7 @@ int main(int argc, char** argv) {
 	delete sub20;
 	
   if( !found ) {
-		std::cout << "readPSU - Cannot find device at address " << std::hex << "0x%" << i2c_device << std::endl;
+		std::cout << "readPSU - Cannot find device at address " << std::uppercase << std::hex << "0x%" << i2c_device << std::endl;
 		std::exit(EXIT_FAILURE);
 	}
   
