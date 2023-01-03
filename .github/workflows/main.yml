@@ -1,0 +1,39 @@
+name: "Build"
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ['3.6', '3.8', '3.10']
+      fail-fast: false
+    steps:
+      - name: "Software Install - Ubuntu"
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: |
+          sudo apt-get install -y \
+            build-essential \
+            ca-certificates \
+            coreutils \
+            curl \
+            git \
+            gpg \
+            gpgv \
+            gzip \
+            libfftw3-dev \
+            libgdbm-dev \
+            libusb-1.0-0-dev \
+            pkg-config \
+            software-properties-common
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: actions/checkout@v3
+      - name: "Software Install - Python" 
+        run: |
+          python -m pip install \
+            setuptools
+      - name: "Build"
+        run: |
+          make all

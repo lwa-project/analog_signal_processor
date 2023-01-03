@@ -219,7 +219,7 @@ class TemperatureSensors(object):
                 for line in tbString.split('\n'):
                     aspThreadsLogger.debug("%s", line)
                 
-                self.temp = None
+                self.temp = [None for temp in self.temp]
                 self.lastError = str(e)
                 
             # Stop time

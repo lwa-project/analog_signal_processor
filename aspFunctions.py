@@ -5,7 +5,6 @@ Module for storing the miscellaneous functions used by asp_cmnd for running ASP.
 
 import os
 import time
-import ctypes
 import logging
 import threading
 
@@ -52,6 +51,39 @@ subsystemErrorCodes = {0x00: 'Subsystem operating normally',
                        0x0D: 'Temperature warning'}
 
 
+class ASPSettingsList(object):
+    """
+    Class to store per-stand ASP settings with 1-based indexing.  Setting index
+    zero updates the values for all stands.
+    """
+    
+    def __init__(self, list=None):
+        if list is None:
+            list = []
+        self._list = list
+        
+    def __len__(self):
+        return len(self._list)
+        
+    def __getitem__(self, idx):
+        if idx == 0:
+            raise IndexError("stand index out of range")
+        try:
+            return self._list[idx-1]
+        except IndexError:
+            raise IndexError("stand index out of range")
+            
+    def __setitem__(self, idx, val):
+        if idx == 0:
+            for i in range(len(self._list)):
+                self._list[i] = val
+        else:
+            try:
+                self._list[idx] = val
+            except IndexError:
+                raise IndexError("stand assignment index out of range")
+
+
 class AnalogProcessor(object):
     """
     Class for interacting with the Analog Signal Processor subsystem.
@@ -59,16 +91,6 @@ class AnalogProcessor(object):
     A note about exit codes from control commands (FIL, AT1, etc.):
       * See commandExitCodes
     """
-    
-    class StandMapping(ctypes.LittleEndianStructure):
-        """
-        Class for helping store the mapping information needed for the new
-        multi-SUB-20 architecture.
-        """
-        
-        _fields_ = [("SUB20", ctypes.c_char*5), 
-                    ("stand", ctypes.c_ushort),
-                    ("redStand", ctypes.c_ushort)]
                   
     def __init__(self, config):
         self.config = config
@@ -89,13 +111,16 @@ class AnalogProcessor(object):
         self.currentState['activeProcess'] = []
         
         ## Operational state - ASP
-        self.currentState['power']  = [[0,0] for i in range(self.config['max_boards']*self.config['stands_per_board'])]
-        self.currentState['filter'] = [0     for i in range(self.config['max_boards']*self.config['stands_per_board'])]
-        self.currentState['at1']    = [30    for i in range(self.config['max_boards']*self.config['stands_per_board'])]
-        self.currentState['at2']    = [30    for i in range(self.config['max_boards']*self.config['stands_per_board'])]
-        self.currentState['ats']    = [30    for i in range(self.config['max_boards']*self.config['stands_per_board'])]
+        max_nstand = self.config['max_boards']*self.config['stands_per_board']
+        self.currentState['power1'] = ASPSettingsList([0  for i in range(max_nstand)])
+        self.currentState['power2'] = ASPSettingsList([0  for i in range(max_nstand)])
+        self.currentState['filter'] = ASPSettingsList([0  for i in range(max_nstand)])
+        self.currentState['at1']    = ASPSettingsList([30 for i in range(max_nstand)])
+        self.currentState['at2']    = ASPSettingsList([30 for i in range(max_nstand)])
+        self.currentState['ats']    = ASPSettingsList([30 for i in range(max_nstand)])
         
         ## Monitoring and background threads
+        self.currentState['spiThread'] = None
         self.currentState['tempThread'] = None
         self.currentState['powerThreads'] = None
         self.currentState['chassisThreads'] = None
@@ -193,6 +218,12 @@ class AnalogProcessor(object):
                 aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
                     
                 # Stop all threads.  If the don't exist yet, create them.
+                if self.currentState['spiThread'] is not None:
+                    self.currentState['spiThread'].stop()
+                else:
+                    self.currentState['spiThread']= SPIProcessingThread(self.config['sub20_antenna_mapping'],
+                                                                        maxRetry=self.config['max_spi_retry'],
+                                                                        waitRetry=self.config['wait_spi_retry'])
                 if self.currentState['powerThreads'] is not None:
                     for t in self.currentState['powerThreads']:
                         t.stop()
@@ -215,36 +246,26 @@ class AnalogProcessor(object):
                     self.currentState['chassisThreads'].append( ChassisStatus(self.config['sub20_i2c_mapping'], self.config, ASPCallbackInstance=self) )
                     
                 # Update the analog signal chain state
-                for i in range(self.num_stands):
-                    self.currentState['power'][i] = [0,0]
+                for i in range(1, self.num_stands+1):
+                    self.currentState['power1'][i] = 0
+                    self.currentState['power2'][i] = 0
                     self.currentState['filter'][i] = 0
                     self.currentState['at1'][i] = 30
                     self.currentState['at2'][i] = 30
                     self.currentState['ats'][i] = 30
                     
+                # Start the SPI command processor
+                self.currentState['spiThread'].start()
+                
                 # Do the SPI bus stuff
                 status  = True
-                status &= spiSend(0, SPI_cfg_shutdown, self.config['sub20_antenna_mapping'],
-                                  maxRetry=self.config['max_spi_retry'],
-                                  waitRetry=self.config['wait_spi_retry'])                   # Into sleep mode
-                status &= spiSend(0, SPI_cfg_normal, self.config['sub20_antenna_mapping'],
-                                 maxRetry=self.config['max_spi_retry'],
-                                 waitRetry=self.config['wait_spi_retry'])                     # Out of sleep mode
-                status &= spiSend(0, SPI_cfg_output_P12_13_14_15, self.config['sub20_antenna_mapping'],
-                                  maxRetry=self.config['max_spi_retry'],
-                                  waitRetry=self.config['wait_spi_retry'])        # Set outputs
-                status &= spiSend(0, SPI_cfg_output_P16_17_18_19, self.config['sub20_antenna_mapping'],
-                                  maxRetry=self.config['max_spi_retry'],
-                                  waitRetry=self.config['wait_spi_retry'])        # Set outputs
-                status &= spiSend(0, SPI_cfg_output_P20_21_22_23, self.config['sub20_antenna_mapping'],
-                                  maxRetry=self.config['max_spi_retry'],
-                                  waitRetry=self.config['wait_spi_retry'])        # Set outputs
-                status &= spiSend(0, SPI_cfg_output_P24_25_26_27, self.config['sub20_antenna_mapping'],
-                                  maxRetry=self.config['max_spi_retry'],
-                                  waitRetry=self.config['wait_spi_retry'])        # Set outputs
-                status &= spiSend(0, SPI_cfg_output_P28_29_30_31, self.config['sub20_antenna_mapping'],
-                                  maxRetry=self.config['max_spi_retry'],
-                                  waitRetry=self.config['wait_spi_retry'])        # Set outputs
+                status &= self.currentState['spiThread'].process_command(0, SPI_cfg_shutdown)                   # Into sleep mode
+                status &= self.currentState['spiThread'].process_command(0, SPI_cfg_normal)                     # Out of sleep mode
+                status &= self.currentState['spiThread'].process_command(0, SPI_cfg_output_P12_13_14_15)        # Set outputs
+                status &= self.currentState['spiThread'].process_command(0, SPI_cfg_output_P16_17_18_19)        # Set outputs
+                status &= self.currentState['spiThread'].process_command(0, SPI_cfg_output_P20_21_22_23)        # Set outputs
+                status &= self.currentState['spiThread'].process_command(0, SPI_cfg_output_P24_25_26_27)        # Set outputs
+                status &= self.currentState['spiThread'].process_command(0, SPI_cfg_output_P28_29_30_31)        # Set outputs
                 
                 # Start the threads
                 for t in self.currentState['powerThreads']:
@@ -259,15 +280,12 @@ class AnalogProcessor(object):
                     self.currentState['lastLog'] = 'INI: finished in %.3f s' % (time.time() - tStart,)
                     self.currentState['ready'] = True
                     
-                    lcdSend(self.config['sub20_i2c_mapping'], 'ASP\nReady')
-                    
                 else:
                     self.currentState['status'] = 'ERROR'
                     self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
                     self.currentState['lastLog'] = 'INI: finished with error'
                     self.currentState['ready'] = False
                     
-                    lcdSend(self.config['sub20_i2c_mapping'], 'ASP\nINI fail')
                     aspFunctionsLogger.critical("INI failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
             else:
                 self.currentState['status'] = 'ERROR'
@@ -275,7 +293,6 @@ class AnalogProcessor(object):
                 self.currentState['lastLog'] = 'INI: finished with error'
                 self.currentState['ready'] = False
                 
-                lcdSend(self.config['sub20_i2c_mapping'], 'ASP\nINI fail')
                 aspFunctionsLogger.critical("INI failed; found %i boards, expected %i", boardsFound, nBoards)
                 
         else:
@@ -285,7 +302,6 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'INI: finished with error'
             self.currentState['ready'] = False
             
-            lcdSend(self.config['sub20_i2c_mapping'], 'ASP\nINI fail')
             aspFunctionsLogger.critical("INI failed due to missing SUB-20 device(s)")
         
         # Update the current state
@@ -328,7 +344,7 @@ class AnalogProcessor(object):
         self.currentState['activeProcess'].append('SHT')
         self.currentState['ready'] = False
         
-        # Stop all threads.
+        # Stop most threads.
         if self.currentState['powerThreads'] is not None:
             for t in self.currentState['powerThreads']:
                 t.stop()
@@ -340,9 +356,7 @@ class AnalogProcessor(object):
                 
         # Do SPI bus stuff (only if the boards are on)
         if self.getARXPowerSupplyStatus()[1] == 'ON ':
-            status = spiSend(0, SPI_cfg_shutdown, self.config['sub20_antenna_mapping'],
-                             maxRetry=self.config['max_spi_retry'],
-                             waitRetry=self.config['wait_spi_retry'])        # Into sleep mode
+            status = self.currentState['spiThread'].process_command(0, SPI_cfg_shutdown)        # Into sleep mode
             time.sleep(5)
         status = True
         
@@ -351,8 +365,6 @@ class AnalogProcessor(object):
             self.__rxpProcess(00, internal=True)
             self.__fepProcess(00, internal=True)
 
-            lcdSend(self.config['sub20_i2c_mapping'], 'ASP\nshutdown')
-            
             self.currentState['status'] = 'SHUTDWN'
             self.currentState['info'] = 'System has been shut down'
             self.currentState['lastLog'] = 'System has been shut down'
@@ -363,8 +375,10 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'SHT: failed in %.3f s' % (time.time() - tStart,)
             self.currentState['ready'] = False
             
-            lcdSend(self.config['sub20_i2c_mapping'], 'ASP\nSHT fail')
             aspFunctionsLogger.critical("SHT failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
+            
+        # Stop the SPI command processor
+        self.currentState['spiThread'].stop()
         
         # Update the current state
         aspFunctionsLogger.info("Finished the SHT process in %.3f s", time.time() - tStart)
@@ -381,9 +395,6 @@ class AnalogProcessor(object):
         if self.currentState['status'] == 'SHUTDWN' or not self.currentState['ready']:
             self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x0A]
             return False, 0x0A
-        if 'FIL' in self.currentState['activeProcess']:
-            self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x08]
-            return False, 0x08
             
         # Validate inputs
         if stand < 0 or stand > self.num_stands:
@@ -393,9 +404,6 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x04]
             return False, 0x04
             
-        # Block other FIL requests
-        self.currentState['activeProcess'].append('FIL')
-        
         # Process in the background
         thread = threading.Thread(target=self.__filProcess, args=(stand, filterCode))
         thread.setDaemon(1)
@@ -409,78 +417,35 @@ class AnalogProcessor(object):
         """
         
         # Do SPI bus stuff
-        status = True
         if filterCode > 3:
             # Set 3 MHz mode
-            status &= spiSend(stand, SPI_P14_on, self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
-            status &= spiSend(stand, SPI_P15_off, self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
+            self.currentState['spiThread'].queue_command(stand, SPI_P14_on)
+            self.currentState['spiThread'].queue_command(stand, SPI_P15_off)
         else:
             # Set 10 MHz mode
-            status &= spiSend(stand, SPI_P14_off, self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
-            status &= spiSend(stand, SPI_P15_on, self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
+            self.currentState['spiThread'].queue_command(stand, SPI_P14_off)
+            self.currentState['spiThread'].queue_command(stand, SPI_P15_on)
             
+        cb = SPICommandCallback(self.currentState['filter'].__setitem__, stand, filterCode)
         if filterCode == 0 or filterCode == 4:
             # Set Filter to Split Bandwidth
-            status &= spiSend(stand, SPI_P19_off, self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
-            status &= spiSend(stand, SPI_P18_off, self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
+            self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
+            self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
         elif filterCode == 1 or filterCode == 5:
             # Set Filter to Full Bandwidth
-            status &= spiSend(stand, SPI_P19_off, self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
-            status &= spiSend(stand, SPI_P18_on, self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
+            self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
+            self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
         elif filterCode == 2:
             # Set Filter to Reduced Bandwidth
-            status &= spiSend(stand, SPI_P19_on, self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
-            status &= spiSend(stand, SPI_P18_off, self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
+            self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
+            self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
         elif filterCode == 3:
             # Set Filters OFF
-            status &= spiSend(stand, SPI_P19_on, self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
-            status &= spiSend(stand, SPI_P18_on, self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
+            self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
+            self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
             
-        if status:
-            self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
-            aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
-        
-            #lcdSend(self.config['sub20_i2c_mapping'], 'Stand%03i\nFIL=%02i' % (stand, filterCode))
-            if stand != 0:
-                self.currentState['filter'][stand-1] = filterCode
-            else:
-                for i in range(self.num_stands):
-                    self.currentState['filter'][i] = filterCode
-        else:
-            # Something failed, report
-            self.currentState['lastLog'] = 'FIL: Failed to set filter to %02i for stand %i' % (filterCode, stand)
-            aspFunctionsLogger.error('FIL - Failed to set filter to %02i for stand %i', filterCode, stand)
-            
-            self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
-            self.currentState['ready'] = False
-            
-        # Cleanup and save the state of FIL
-        self.currentState['activeProcess'].remove('FIL')
+        self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
+        aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
         
         return True, 0
         
@@ -496,9 +461,6 @@ class AnalogProcessor(object):
         if self.currentState['status'] == 'SHUTDWN'or not self.currentState['ready']:
             self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x0A])
             return False, 0x0A
-        if 'ATN' in self.currentState['activeProcess']:
-            self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x08])
-            return False, 0x08
             
         # Validate inputs
         if stand < 0 or stand > self.num_stands:
@@ -508,9 +470,6 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x05])
             return False, 0x05
             
-        # Block other FIL requests
-        self.currentState['activeProcess'].append('ATN')
-        
         # Process in the background
         thread = threading.Thread(target=self.__atnProcess, args=(mode, stand, attenSetting))
         thread.setDaemon(1)
@@ -533,68 +492,41 @@ class AnalogProcessor(object):
         else:
             order = ((SPI_P31_on, SPI_P31_off), (SPI_P28_on, SPI_P28_off), (SPI_P29_on, SPI_P29_off), (SPI_P30_on, SPI_P30_off))
             
-        status = True
+        cb = SPICommandCallback(self.currentState[modeDict[mode].lower()].__setitem__, stand, attenSetting)
         if setting >= 16:
-            status &= spiSend(stand, order[0][0], self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
+            self.currentState['spiThread'].queue_command(stand, order[0][0], cb)
             setting -= 16
+            cb = None
         else:
-            status &= spiSend(stand, order[0][1], self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
+            self.currentState['spiThread'].queue_command(stand, order[0][1], cb)
+            cb = None
             
         if setting >= 8:
-            status &= spiSend(stand, order[1][0], self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
+            self.currentState['spiThread'].queue_command(stand, order[1][0], cb)
             setting -= 8
+            cb = None
         else:
-            status &= spiSend(stand, order[1][1], self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
+            self.currentState['spiThread'].queue_command(stand, order[1][1], cb)
+            cb = None
             
         if setting >= 4:
-            status &= spiSend(stand, order[2][0], self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
+            self.currentState['spiThread'].queue_command(stand, order[2][0], cb)
             setting -= 4
+            cb = None
         else:
-            status &= spiSend(stand, order[2][1], self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
+            self.currentState['spiThread'].queue_command(stand, order[2][1], cb)
+            cb = None
             
         if setting >= 2:
-            status &= spiSend(stand, order[3][0], self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
+            self.currentState['spiThread'].queue_command(stand, order[3][0], cb)
             setting -= 2
+            cb = None
         else:
-            status &= spiSend(stand, order[3][1], self.config['sub20_antenna_mapping'],
-                              maxRetry=self.config['max_spi_retry'],
-                              waitRetry=self.config['wait_spi_retry'])
+            self.currentState['spiThread'].queue_command(stand, order[3][1], cb)
+            cb = None
             
-        if status:
-            self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
-            aspFunctionsLogger.debug('%s - Set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
-            
-            #lcdSend(self.config['sub20_i2c_mapping'], 'Stand%03i\n%3s=%02i' % (stand, modeDict[mode], attenSetting))
-            if stand != 0:
-                self.currentState[modeDict[mode].lower()][stand-1] = attenSetting
-            else:
-                for i in range(self.num_stands):
-                    self.currentState[modeDict[mode].lower()][i] = attenSetting
-        else:
-            # Something failed, report
-            self.currentState['lastLog'] = '%s: Failed to set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
-            aspFunctionsLogger.error('%s - Failed to set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
-            
-            self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
-            self.currentState['ready'] = False
-            
-        # Cleanup
-        self.currentState['activeProcess'].remove('ATN')
+        self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
+        aspFunctionsLogger.debug('%s - Set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
         
         return True, 0
         
@@ -607,9 +539,6 @@ class AnalogProcessor(object):
         if self.currentState['status'] == 'SHUTDWN'or not self.currentState['ready']:
             self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x0A]
             return False, 0x0A
-        if 'FPW' in self.currentState['activeProcess']:
-            self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x08]
-            return False, 0x08
             
         # Validate inputs
         if stand < 0 or stand > self.num_stands:
@@ -622,9 +551,6 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x06]
             return False, 0x06
             
-        # Block other FIL requests
-        self.currentState['activeProcess'].append('FPW')
-        
         # Process in the background
         thread = threading.Thread(target=self.__fpwProcess, args=(stand, pol, state))
         thread.setDaemon(1)
@@ -638,47 +564,20 @@ class AnalogProcessor(object):
         """
         
         # Do SPI bus stuff
-        status = True
+        cb = SPICommandCallback(self.currentState['power%i' % pol].__setitem__, stand, state)
         if state == 11:
             if pol == 1:
-                status &= spiSend(stand, SPI_P17_on, self.config['sub20_antenna_mapping'],
-                                  maxRetry=self.config['max_spi_retry'],
-                                  waitRetry=self.config['wait_spi_retry'])
+                self.currentState['spiThread'].queue_command(stand, SPI_P17_on, cb)
             elif pol == 2:
-                status &= spiSend(stand, SPI_P16_on, self.config['sub20_antenna_mapping'],
-                                  maxRetry=self.config['max_spi_retry'],
-                                  waitRetry=self.config['wait_spi_retry'])
+                self.currentState['spiThread'].queue_command(stand, SPI_P16_on, cb)
         elif state == 0:
             if pol == 1:
-                status &= spiSend(stand, SPI_P17_off, self.config['sub20_antenna_mapping'],
-                                  maxRetry=self.config['max_spi_retry'],
-                                  waitRetry=self.config['wait_spi_retry'])
+                self.currentState['spiThread'].queue_command(stand, SPI_P17_off, cb)
             elif pol == 2:
-                status &= spiSend(stand, SPI_P16_off, self.config['sub20_antenna_mapping'],
-                                  maxRetry=self.config['max_spi_retry'],
-                                  waitRetry=self.config['wait_spi_retry'])
+                self.currentState['spiThread'].queue_command(stand, SPI_P16_off, cb)
                 
-        if status:
-            self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
-            aspFunctionsLogger.debug('FPW - Set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
-        
-            #lcdSend(self.config['sub20_i2c_mapping'], 'Stand%03i\npol%1i=%3s'% (stand, pol, 'on ' if state else 'off'))
-            if stand != 0:
-                self.currentState['power'][stand-1][pol-1] = state
-            else:
-                for i in range(self.num_stands):
-                    self.currentState['power'][i][pol-1] = state
-        else:
-            # Something failed, report
-            self.currentState['lastLog'] = 'FPW: Failed to set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
-            aspFunctionsLogger.error('FPW - Failed to set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
-            
-            self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
-            self.currentState['ready'] = False
-            
-        # Cleanup
-        self.currentState['activeProcess'].remove('FPW')
+        self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
+        aspFunctionsLogger.debug('FPW - Set state to %02i for stand %i, pol. %i', state, stand, pol)
         
         return True, 0
         
@@ -720,8 +619,6 @@ class AnalogProcessor(object):
         
         if status:
             aspFunctionsLogger.debug('RXP - Set ARX power supplies to state %02i', state)
-            
-            lcdSend(self.config['sub20_i2c_mapping'], 'ARX PS\n%s' % ('OFF' if state == 0 else 'ON',))
             
             if state == 0 and not internal:
                 # Now that the ARX power supply is off, we need to be in error
@@ -781,8 +678,6 @@ class AnalogProcessor(object):
         if status:
             aspFunctionsLogger.debug('FEP - Set FEE power supplies to state %02i', state)
             
-            lcdSend(self.config['sub20_i2c_mapping'], 'FEE PS\n%s' % ('OFF' if state == 0 else 'ON',))
-            
             if state == 0 and not internal:
                 # Now that the FEE power supply is off, we need to be in error
                 self.currentState['status'] = 'ERROR'
@@ -811,7 +706,7 @@ class AnalogProcessor(object):
         """
         
         if stand > 0 and stand <= self.num_stands:
-            return True, self.currentState['filter'][stand-1]
+            return True, self.currentState['filter'][stand]
             
         else:
             self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
@@ -826,9 +721,9 @@ class AnalogProcessor(object):
         """
         
         if  stand > 0 and stand <= self.num_stands:
-            at1 = self.currentState['at1'][stand-1]
-            at2 = self.currentState['at2'][stand-1]
-            ats = self.currentState['ats'][stand-1]
+            at1 = self.currentState['at1'][stand]
+            at2 = self.currentState['at2'][stand]
+            ats = self.currentState['ats'][stand]
             return True, (at1, at2, ats)
             
         else:
@@ -844,7 +739,8 @@ class AnalogProcessor(object):
         """
         
         if stand > 0 and stand <= self.num_stands:
-            return True, tuple(self.currentState['power'][stand-1])
+            return True, (self.currentState['power1'][stand],
+                          self.currentState['power2'][stand])
             
         else:
             self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
