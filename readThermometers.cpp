@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
 					std::cerr << "readThermometers - get temperature #3 - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
-				printf("0x%02X Module%02i %.2f\n", addr, page, 1.0*data);
+				std::cout << "0x" << std::uppercase << std::hex << (int) addr << std::nouppercase << std::dec << " Module" << page << " " << (1.0*data) << std::endl;
 			}
 			
 			// Set the module number back to 0
