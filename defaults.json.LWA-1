@@ -7,7 +7,7 @@
     "message_in_port": 1740
   },
   
-  "temp_min": 10.0,
+  "temp_min": 0.0,
   "temp_warn": 40.0,
   "temp_max": 45.0,
   "temp_period": 60,
