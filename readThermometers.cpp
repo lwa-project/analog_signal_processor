@@ -136,14 +136,14 @@ int main(int argc, char** argv) {
 			std::cerr << "readThermometers - get temperature #1 - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
-		std::cout << "0x" << std::hex << (int) addr << std::dec << " Case " << (data/4.0) << std::endl;
+		std::cout << "0x" << std::uppercase << std::hex << (int) addr << std::nouppercase << std::dec << " Case " << (data/4.0) << std::endl;
 		
 		success = sub20->read_i2c(addr, 0x8E, (char *) &data, 2);
 		if( !success ) {
 			std::cerr << "readThermometers - get temperature #2 - " << sub_strerror(sub_errno) << std::endl;
 			continue;
 		}
-		std::cout << "0x" << std::hex << (int) addr << std::dec << " PrimarySide " << (data/4.0) << std::endl;
+		std::cout << "0x" << std::uppercase << std::hex << (int) addr << std::nouppercase << std::dec << " PrimarySide " << (data/4.0) << std::endl;
 	}
 	
 	/*******************
