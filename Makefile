@@ -83,7 +83,7 @@ readARXDevice: readARXDevice.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 	
 sub20Config: sub20Config.cpp
-	python setup.py build_ext --inplace
+	python3 setup.py build_ext --inplace
 
 install:
 	cp sendARXDevice /usr/local/bin
