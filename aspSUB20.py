@@ -9,7 +9,7 @@ import threading
 import subprocess
 from collections import deque
 
-from aspCommon import MAX_SPI_RETRY, WAIT_SPI_RETRY, SUB20_ANTENNA_MAPPING, SUB20_LOCKS
+from aspThreads import SUB20_LOCKS
 
 __version__ = '0.3'
 __all__ = ['spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread', 'psuSend', 
@@ -23,6 +23,10 @@ __all__ = ['spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread', 'psuSe
 
 
 aspSUB20Logger = logging.getLogger('__main__')
+
+# SPI control
+MAX_SPI_RETRY = 0
+WAIT_SPI_RETRY = 0.2
 
 
 # SPI constants
@@ -75,14 +79,14 @@ SPI_P31_off = 0x003F
 SPI_NoOp = 0x0000
 
 
-def spiCountBoards(maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
     """
     Count the number of ARX stands on all known SUB-20s.
     """
     
     nBoards = 0
     overallStatus = True
-    for sub20SN in sorted(SUB20_ANTENNA_MAPPING):
+    for sub20SN in sorted(sub20Mapper):
         with SUB20_LOCKS[sub20SN]:
             attempt = 0
             status = False
@@ -90,7 +94,7 @@ def spiCountBoards(maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
                 if attempt != 0:
                     time.sleep(waitRetry)
                     
-                p = subprocess.Popen('/usr/local/bin/countBoards %04X' % sub20SN, shell=True,
+                p = subprocess.Popen('/usr/local/bin/countBoards %s' % sub20SN, shell=True,
                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 output, output2 = p.communicate()
                 try:
@@ -100,7 +104,7 @@ def spiCountBoards(maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
                     pass
                     
                 if p.returncode == 0:
-                    aspSUB20Logger.warning("%s: SUB-20 S/N %04X command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
+                    aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
                     status = False
                 else:
                     nBoards += p.returncode
@@ -136,13 +140,14 @@ class SPIProcessingThread(object):
     
     _lock = threading.Lock()
     
-    def __init__(self, pollInterval=2.0, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+    def __init__(self, sub20Mapper, pollInterval=2.0, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+        self._sub20Mapper = sub20Mapper
         self._pollInterval = pollInterval
         self._maxRetry = maxRetry
         self._waitRetry = waitRetry
         
         self._queue = {}
-        for sub20SN in sorted(SUB20_ANTENNA_MAPPING):
+        for sub20SN in sorted(self._sub20Mapper):
             self._queue[sub20SN] = deque()
             
         self.thread = None
@@ -167,7 +172,7 @@ class SPIProcessingThread(object):
     @staticmethod
     def _run_command(sub20SN, device_count, devices, spi_commands, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
         with SUB20_LOCKS[sub20SN]:
-            command = ["/usr/local/bin/sendARXDevice", "%04X" % sub20SN, str(device_count)]
+            command = ["/usr/local/bin/sendARXDevice", sub20SN, str(device_count)]
             for dev,cmd in zip(devices,spi_commands):
                 command.append(str(dev))
                 command.append("0x%04X" % cmd)
@@ -193,43 +198,43 @@ class SPIProcessingThread(object):
         
         with self._lock:
             if device == 0:
-                for sub20SN in sorted(SUB20_ANTENNA_MAPPING):
-                    device_count = SUB20_ANTENNA_MAPPING[sub20SN][1] - SUB20_ANTENNA_MAPPING[sub20SN][0] + 1
+                for sub20SN in sorted(self._sub20Mapper):
+                    device_count = self._sub20Mapper[sub20SN][1] - self._sub20Mapper[sub20SN][0] + 1
                     
                     devices, commands = [], []
-                    for dev in range(SUB20_ANTENNA_MAPPING[sub20SN][0], SUB20_ANTENNA_MAPPING[sub20SN][1]+1):
-                        devices.append(dev - SUB20_ANTENNA_MAPPING[sub20SN][0] + 1)
+                    for dev in range(self._sub20Mapper[sub20SN][0], self._sub20Mapper[sub20SN][1]+1):
+                        devices.append(dev - self._sub20Mapper[sub20SN][0] + 1)
                         commands.append(command)
-                    status &= self._run_command(sub20SN, device_count, devices, commands, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY)
+                    status &= self._run_command(sub20SN, device_count, devices, commands, maxRetry=self._maxRetry, waitRetry=self._waitRetry)
                         
             else:
-                for sub20SN in SUB20_ANTENNA_MAPPING:
-                    device_count = SUB20_ANTENNA_MAPPING[sub20SN][1] - SUB20_ANTENNA_MAPPING[sub20SN][0] + 1
+                for sub20SN in self._sub20Mapper:
+                    device_count = self._sub20Mapper[sub20SN][1] - self._sub20Mapper[sub20SN][0] + 1
                     
-                    if device >= SUB20_ANTENNA_MAPPING[sub20SN][0] and device <= SUB20_ANTENNA_MAPPING[sub20SN][1]:
-                        devices = [device - SUB20_ANTENNA_MAPPING[sub20SN][0] + 1,]
+                    if device >= self._sub20Mapper[sub20SN][0] and device <= self._sub20Mapper[sub20SN][1]:
+                        devices = [device - self._sub20Mapper[sub20SN][0] + 1,]
                         commands = [command,]
-                        status &= self._run_command(sub20SN, device_count, devices, commands, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY)
+                        status &= self._run_command(sub20SN, device_count, devices, commands, maxRetry=self._maxRetry, waitRetry=self._waitRetry)
                         
         return status
         
     def queue_command(self, device, command, callback=None):
         with self._lock:
             if device == 0:
-                for sub20SN in sorted(SUB20_ANTENNA_MAPPING):
-                    for dev in range(SUB20_ANTENNA_MAPPING[sub20SN][0], SUB20_ANTENNA_MAPPING[sub20SN][1]+1):
-                        dev = dev - SUB20_ANTENNA_MAPPING[sub20SN][0] + 1
+                for sub20SN in sorted(self._sub20Mapper):
+                    for dev in range(self._sub20Mapper[sub20SN][0], self._sub20Mapper[sub20SN][1]+1):
+                        dev = dev - self._sub20Mapper[sub20SN][0] + 1
                         self._queue[sub20SN].append((dev,command,callback))
                         callback = None
             else:
-                for sub20SN in SUB20_ANTENNA_MAPPING:
-                    if device >= SUB20_ANTENNA_MAPPING[sub20SN][0] and device <= SUB20_ANTENNA_MAPPING[sub20SN][1]:
-                        dev = device - SUB20_ANTENNA_MAPPING[sub20SN][0] + 1
+                for sub20SN in self._sub20Mapper:
+                    if device >= self._sub20Mapper[sub20SN][0] and device <= self._sub20Mapper[sub20SN][1]:
+                        dev = device - self._sub20Mapper[sub20SN][0] + 1
                         self._queue[sub20SN].append((dev,command,callback))
                         
     def processingThread(self):
         while self.alive.is_set():
-            for sub20SN in sorted(SUB20_ANTENNA_MAPPING):
+            for sub20SN in sorted(self._sub20Mapper):
                 to_execute = None
                 with self._lock:
                     if len(self._queue[sub20SN]) > 0:
@@ -237,7 +242,7 @@ class SPIProcessingThread(object):
                         self._queue[sub20SN] = deque()
                         
                 if to_execute is not None:
-                    device_count = SUB20_ANTENNA_MAPPING[sub20SN][1] - SUB20_ANTENNA_MAPPING[sub20SN][0] + 1
+                    device_count = self._sub20Mapper[sub20SN][1] - self._sub20Mapper[sub20SN][0] + 1
                     status = self._run_command(sub20SN, device_count,
                                                [entry[0] for entry in to_execute],
                                                [entry[1] for entry in to_execute],
@@ -261,7 +266,7 @@ def psuSend(sub20SN, psuAddress, state):
     """
     
     with SUB20_LOCKS[sub20SN]:
-        p = subprocess.Popen('/usr/local/bin/onoffPSU %04X 0x%02X %s' % (sub20SN, psuAddress, str(state)), shell=True,
+        p = subprocess.Popen('/usr/local/bin/onoffPSU %s 0x%02X %s' % (sub20SN, psuAddress, str(state)), shell=True,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, output2 = p.communicate()
         try:
