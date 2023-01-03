@@ -358,27 +358,17 @@ class AnalogProcessor(object):
         if self.getARXPowerSupplyStatus()[1] == 'ON ':
             status = self.currentState['spiThread'].process_command(0, SPI_cfg_shutdown)        # Into sleep mode
             time.sleep(5)
-        status = True
+            
+        # Power off the power supplies
+        self.__rxpProcess(00, internal=True)
+        self.__fepProcess(00, internal=True)
         
-        if status:
-            # Power off the power supplies
-            self.__rxpProcess(00, internal=True)
-            self.__fepProcess(00, internal=True)
-
-            self.currentState['status'] = 'SHUTDWN'
-            self.currentState['info'] = 'System has been shut down'
-            self.currentState['lastLog'] = 'System has been shut down'
-            
-        else:
-            self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_SPI_RETRY)
-            self.currentState['lastLog'] = 'SHT: failed in %.3f s' % (time.time() - tStart,)
-            self.currentState['ready'] = False
-            
-            aspFunctionsLogger.critical("SHT failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
-            
         # Stop the SPI command processor
         self.currentState['spiThread'].stop()
+        
+        self.currentState['status'] = 'SHUTDWN'
+        self.currentState['info'] = 'System has been shut down'
+        self.currentState['lastLog'] = 'System has been shut down'
         
         # Update the current state
         aspFunctionsLogger.info("Finished the SHT process in %.3f s", time.time() - tStart)
