@@ -550,14 +550,13 @@ def main(args):
     tStop = time.time()
     print('\nShutting down ASP, please wait...')
     logger.info('Shutting down ASP, please wait...')
-    lwaASP.sht()
-    time.sleep(5)
     for attempt in range(5):
+        lwaASP.sht()
+        time.sleep(5)
+        
         if lwaASP.currentState['info'] == 'System has been shut down':
             break
             
-        lwaASP.sht()
-        time.sleep(5)
     logger.info('Shutdown completed in %.3f seconds', time.time() - tStop)
     mcsComms.stop()
     
