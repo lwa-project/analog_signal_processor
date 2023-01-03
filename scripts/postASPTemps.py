@@ -12,7 +12,7 @@ SITE = gethostname().split("-",1)[0]
 SUBSYSTEM = "ASP"
 
 # Get the last line of the log file
-test = subprocess.check_output(["tail", "-n1", '/data/temp.txt'], stderr=subprocess.PIPE)
+test = subprocess.check_output(["tail", "-n1", '/data/temp.txt'], stderr=subprocess.DEVNULL)
 test = test.decode('ascii')
 test = test.replace('\n', '')
 
