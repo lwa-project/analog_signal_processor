@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
         continue;
       }
       
-      std::cout << " -> " << std::hex << "0x" << (int) addr << std::dec << std::endl;
+      std::cout << " -> " << std::uppercase << std::hex << "0x" << (int) addr << std::nouppercase << std::dec << std::endl;
 		  
 			// Get a list of smart modules for polling
 			success = sub20->read_i2c(addr, 0xD3, (char *) &data, 2);
