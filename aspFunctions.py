@@ -79,7 +79,7 @@ class ASPSettingsList(object):
                 self._list[i] = val
         else:
             try:
-                self._list[idx] = val
+                self._list[idx-1] = val
             except IndexError:
                 raise IndexError("stand assignment index out of range")
 
