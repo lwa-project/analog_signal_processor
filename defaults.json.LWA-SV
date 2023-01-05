@@ -36,8 +36,8 @@
   "fee_ps_address": 30,
   
   "influx": {
-    "username": "lwasv",
-    "password": "logging4Fun@SV",
-    "database": "lwasv"
+    "username": "!LWA_AUTH USERNAME influx",
+    "password": "!LWA_AUTH PASSWORD influx",
+    "database": "!LWA_AUTH URL influx"
   }
 }

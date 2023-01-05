@@ -27,13 +27,14 @@ try:
 except ImportError:
     from io import StringIO
 
+from lwa_auth import STORE as LWA_AUTH_STORE, TagNotFoundError
 
 from MCS import *
 
 from aspFunctions import  AnalogProcessor
 
 
-__version__ = '0.4'
+__version__ = '0.5'
 __all__ = ['DEFAULTS_FILENAME', 'MCSCommunicate']
 
 
@@ -41,6 +42,40 @@ __all__ = ['DEFAULTS_FILENAME', 'MCSCommunicate']
 # Default Configuration File
 #
 DEFAULTS_FILENAME = '/lwa/software/defaults.json'
+
+
+def _config_load(json_data):
+    """
+    Wrapper around json.loads that deals with secret loading.
+    """
+    
+    config = json.loads(json_minify.json_minify(ch.read()))
+    for key,value in config.items():
+        if value.startswith('!LWA_AUTH'):
+            try:
+                _, stype, stag = value.split(None, 2)
+            except ValueError:
+                raise ValueError("Invalid lwa_auth loader call: '%s'" % value)
+                
+            if stype not in ('USERNAME', 'PASSWORD', 'URL'):
+                raise ValueError("Invalid lwa_auth loader parameter: '%s'" % stype)
+                
+            new_value = None
+            try:
+                sentry = LWA_AUTH_STORE.get(stag)
+                if stype == 'USERNAME':
+                    new_value = sentry.username
+                elif stype == 'PASSWORD':
+                    new_value = sentry.password
+                elif stype == 'URL':
+                    new_value = sentry.url
+            except TagNotFoundError:
+                raise ValueError("Invalid lwa_auth loader tag: '%s'" % stag)
+                
+            if new_value is not None:
+                config[key] = new_value
+                
+    return config
 
 
 class MCSCommunicate(Communicate):
@@ -330,7 +365,7 @@ class MCSCommunicate(Communicate):
             elif command == 'INI':
                 # Re-read in the configuration file
                 with open(self.opts.config, 'r') as ch:
-                    config = json.loads(json_minify.json_minify(ch.read()))
+                    config = _config_load(ch.read())
                     
                 # Refresh the configuration for the communicator and ASP
                 self.updateConfig(config)
@@ -490,7 +525,7 @@ def main(args):
     
     # Read in the configuration file
     with open(args.config, 'r') as ch:
-        config = json.loads(json_minify.json_minify(ch.read()))
+        config = _config_load(ch.read())
         
     # Setup ASP control
     lwaASP = AnalogProcessor(config)
