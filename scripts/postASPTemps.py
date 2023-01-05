@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
 import time
-import requests
 import subprocess
 from socket import gethostname
+
+from lwa_auth import KEYS as LWA_AUTH_KEYS
+from lwa_auth.signed_requests import post as signed_post
 
 
 URL = "https://lwalab.phys.unm.edu/OpScreen/update.php"
@@ -27,6 +29,6 @@ if time.time() > lastUpdated + 300:
     test = "%.2f,%s" % (time.time(), ','.join(["NaN" for i in range(4)]))
 
 # Send the update to lwalab
-f = requests.post(URL,
-                  data={'key': KEY, 'site': SITE, 'subsystem': SUBSYSTEM, 'data': test})
+f = signed_post(LWA_AUTH_KEYS.get('asp', kind='private'), URL,
+                data={'key': KEY, 'site': SITE, 'subsystem': SUBSYSTEM, 'data': test})
 f.close()
