@@ -67,7 +67,7 @@ class AnalogProcessor(object):
         
         # ASP system information
         self.subSystem = 'ASP'
-        self.serialNumber = self.config['SERIALNUMBER']
+        self.serialNumber = self.config['serial_number']
         self.version = str(__version__)
         
         # ASP system state
@@ -81,7 +81,7 @@ class AnalogProcessor(object):
         self.currentState['activeProcess'] = []
         
         ## Operational state - ASP
-        self.currentState['config']  = [{} for i in range(2*MAX_BOARDS*STANDS_PER_BOARD)]
+        self.currentState['config']  = [{} for i in range(2*self.config['max_boards']*self.config['stands_per_board'])]
         
         ## Monitoring and background threads
         self.currentState['serviceThread'] = None
@@ -130,7 +130,7 @@ class AnalogProcessor(object):
             return False, 0x08
             
         # Check to see if there is a valid number of boards
-        if nBoards < 0 or nBoards > MAX_BOARDS:
+        if nBoards < 0 or nBoards > self.config['max_boards']:
             aspFunctionsLogger.warning("INI command rejected due to invalid board count")
             self.currentState['lastLog'] = 'INI: %s' % commandExitCodes[0x01]
             return False, 0x01
@@ -183,22 +183,40 @@ class AnalogProcessor(object):
             time.sleep(1)
             
             # Board check - found vs. expected from INI
-            boardsFound = rs485CountBoards()
+            boardsFound = rs485CountBoards(self.config['antenna_mapping'],
+                                           maxRetry=self.config['max_rs485_retry'],
+                                           waitRetry=self.config['wait_rs485_retry'])
             if boardsFound == nBoards:
                 # Board and stand counts.  NOTE: Stand counts are capped at 260
                 self.num_boards = nBoards
-                self.num_stands = nBoards * STANDS_PER_BOARD
-                if self.num_stands > MAX_STANDS:
-                    self.num_stands = MAX_STANDS
-                self.num_chpairs = nBoards * STANDS_PER_BOARD
+                self.num_stands = nBoards * self.config['stands_per_board']
+                if self.num_stands > self.config['max_stands']:
+                    self.num_stands = self.config['max_stands']
+                self.num_chpairs = nBoards * self.config['stands_per_board']
                 aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
                     
+<<<<<<< HEAD
                 # Stop the non-service threads.  If the don't exist yet, create them.
+=======
+                # Stop all threads.  If the don't exist yet, create them.
+                if self.currentState['powerThreads'] is not None:
+                    for t in self.currentState['powerThreads']:
+                        t.stop()
+                        t.updateConfig(self.config)
+                else:
+                    self.currentState['powerThreads'] = []
+                    self.currentState['powerThreads'].append( PowerStatus(self.config['arx_ps_port'], self.config['arx_ps_address'], self.config, ASPCallbackInstance=self) )
+                    self.currentState['powerThreads'].append( PowerStatus(self.config['fee_ps_port'], self.config['fee_ps_address'], self.config, ASPCallbackInstance=self) )
+>>>>>>> revH_compat
                 if self.currentState['tempThread'] is not None:
                     self.currentState['tempThread'].stop()
                     self.currentState['tempThread'].updateConfig(self.config)
                 else:
+<<<<<<< HEAD
                     self.currentState['tempThread'] = None
+=======
+                    self.currentState['tempThread'] = TemperatureSensors(self.config['arx_ps_port'], self.config, ASPCallbackInstance=self)
+>>>>>>> revH_compat
                 if self.currentState['chassisThreads'] is not None:
                     for t in self.currentState['chassisThreads']:
                         t.stop()
@@ -208,10 +226,14 @@ class AnalogProcessor(object):
                     self.currentState['chassisThreads'].append( ChassisStatus(self.config, ASPCallbackInstance=self) )
                     
                 # Do the RS485 bus stuff
-                status = rs485Reset()
+                status = rs485Reset(self.config['antenna_mapping'],
+                                    maxRetry=self.config['max_rs485_retry'],
+                                    waitRetry=self.config['wait_rs485_retry'])
                 
                 # Update the analog signal chain state
-                self.currentState['config'] = rs485Get(0)
+                self.currentState['config'] = rs485Get(0, self.config['antenna_mapping'],
+                                                       maxRetry=self.config['max_rs485_retry'],
+                                                       waitRetry=self.config['wait_rs485_retry'])
                 
                 # Start the non-service threads
                 #self.currentState['tempThread'].start()
@@ -226,11 +248,11 @@ class AnalogProcessor(object):
                     
                 else:
                     self.currentState['status'] = 'ERROR'
-                    self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_RS485_RETRY)
+                    self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], self.config['max_rs485_retry'])
                     self.currentState['lastLog'] = 'INI: finished with error'
                     self.currentState['ready'] = False
                     
-                    aspFunctionsLogger.critical("INI failed sending SPI bus commands after %i attempts", MAX_RS485_RETRY)
+                    aspFunctionsLogger.critical("INI failed sending SPI bus commands after %i attempts", self.config['max_rs485_retry'])
             else:
                 self.currentState['status'] = 'ERROR'
                 self.currentState['info'] = 'SUMMARY! 0x%02X %s - Found %i boards, expected %i' % (0x09, subsystemErrorCodes[0x09], boardsFound, nBoards)
@@ -307,11 +329,11 @@ class AnalogProcessor(object):
             
         else:
             self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_RS485_RETRY)
+            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], self.config['max_rs485_retry'])
             self.currentState['lastLog'] = 'SHT: failed in %.3f s' % (time.time() - tStart,)
             self.currentState['ready'] = False
             
-            aspFunctionsLogger.critical("SHT failed sending SPI bus commands after %i attempts", MAX_RS485_RETRY)
+            aspFunctionsLogger.critical("SHT failed sending SPI bus commands after %i attempts", self.config['max_rs485_retry'])
         
         # Stop the service thread
         if self.currentState['serviceThread'] is not None:
@@ -387,7 +409,9 @@ class AnalogProcessor(object):
             elif filterCode == 3:
                 # Set Filters OFF
                 c['sig_on'] = False
-        status = rs485Send(stand, config)
+        status = rs485Send(stand, config, self.config['antenna_mapping'],
+                           maxRetry=self.config['max_rs485_retry'],
+                           waitRetry=self.config['wait_rs485_retry'])
         
         if status:
             self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
@@ -404,7 +428,7 @@ class AnalogProcessor(object):
             aspFunctionsLogger.error('FIL - Failed to set filter to %02i for stand %i', filterCode, stand)
             
             self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_RS485_RETRY)
+            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], self.config['max_rs485_retry'])
             self.currentState['ready'] = False
             
         # Cleanup and save the state of FIL
@@ -466,7 +490,9 @@ class AnalogProcessor(object):
         config = self.__getStandConfig(stand)
         for c in config:
             c[key] = setting
-        status = rs485Send(stand, config)
+        status = rs485Send(stand, config, self.config['antenna_mapping'],
+                           maxRetry=self.config['max_rs485_retry'],
+                           waitRetry=self.config['wait_rs485_retry'])
         
         if status:
             self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
@@ -483,7 +509,7 @@ class AnalogProcessor(object):
             aspFunctionsLogger.error('%s - Failed to set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
             
             self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_RS485_RETRY)
+            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], self.config['max_rs485_retry'])
             self.currentState['ready'] = False
             
         # Cleanup
@@ -540,7 +566,9 @@ class AnalogProcessor(object):
             elif state == 0:
                 if i%2 == (pol-1):
                     c['dc_on'] = False
-        status = rs485Send(stand, config)
+        status = rs485Send(stand, config, self.config['antenna_mapping'],
+                           maxRetry=self.config['max_rs485_retry'],
+                           waitRetry=self.config['wait_rs485_retry'])
         
         if status:
             self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
@@ -557,7 +585,7 @@ class AnalogProcessor(object):
             aspFunctionsLogger.error('FPW - Failed to set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
             
             self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], MAX_RS485_RETRY)
+            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], self.config['max_rs485_retry'])
             self.currentState['ready'] = False
             
         # Cleanup
@@ -599,7 +627,7 @@ class AnalogProcessor(object):
         supply.
         """
         
-        status = psuSend(ARX_PS_PORT, ARX_PS_ADDRESS, state)
+        status = psuSend(self.config['arx_ps_port'], self.config['arx_ps_address'], state)
         
         if status:
             aspFunctionsLogger.debug('RXP - Set ARX power supplies to state %02i', state)
@@ -657,7 +685,7 @@ class AnalogProcessor(object):
         supply.
         """
         
-        status = psuSend(FEE_PS_PORT, FEE_PS_ADDRESS, state)
+        status = psuSend(self.config['fee_ps_port'], self.config['fee_ps_address'], state)
         
         if status:
             aspFunctionsLogger.debug('FEP - Set FEE power supplies to state %02i', state)
@@ -765,8 +793,22 @@ class AnalogProcessor(object):
         value is False.
         """
         
+<<<<<<< HEAD
         self.currentState['lastLog'] = 'ARXSUPPLY: This function is depreciated'
         return False, 'UNK'
+=======
+        if self.currentState['powerThreads'] is None:
+            self.currentState['lastLog'] = 'ARXSUPPLY: Monitoring processes are not running'
+            return False, 'UNK'
+            
+        else:
+            status = 'UNK'
+            for t in self.currentState['powerThreads']:
+                if t.getDeviceAddress() == self.config['arx_ps_address']:
+                    status = t.getOnOff()
+                
+            return True, status
+>>>>>>> revH_compat
             
     def getARXPowerSupplyCount(self):
         """
@@ -791,8 +833,29 @@ class AnalogProcessor(object):
         the returned success value is False.
         """
         
+<<<<<<< HEAD
         self.currentState['lastLog'] = 'ARXPWRUNIT_%s: This function is now depreciated' % psNumb
         return False, None
+=======
+        if self.currentState['powerThreads'] is None:
+            self.currentState['lastLog'] = 'ARXPWRUNIT_%s: Monitoring processes are not running' % psNumb
+            return False, None
+            
+        else:
+            if psNumb > 0 and psNumb < 2:
+                info = 'UNK - UNK'
+                for t in self.currentState['powerThreads']:
+                    if t.getDeviceAddress() == self.config['arx_ps_address']:
+                        info1 = t.getDescription()
+                        info2 = t.getStatus()
+                        info = "%s - %s" % (info1, info2)
+            
+                return True, info
+                
+            else:
+                self.currentState['lastLog'] = 'ARXPWRUNIT_%s: Invalid ARX power supply' % psNumb
+                return False, None
+>>>>>>> revH_compat
             
     def getARXPowerSupplyCurrentDraw(self):
         """
@@ -804,8 +867,22 @@ class AnalogProcessor(object):
         value is False.
         """
         
+<<<<<<< HEAD
         self.currentState['lastLog'] = 'ARXCURR: This function is now depreciated'
         return False, 0 
+=======
+        if self.currentState['powerThreads'] is None:
+            self.currentState['lastLog'] = 'ARXCURR: Monitoring processes are not running'
+            return False, 0
+            
+        else:
+            curr = 0.0
+            for t in self.currentState['powerThreads']:
+                if t.getDeviceAddress() == self.config['arx_ps_address']:
+                    curr = t.getCurrent()
+                    
+            return True, curr*1000.0
+>>>>>>> revH_compat
         
     def getARXPowerSupplyVoltage(self):
         """
@@ -817,8 +894,22 @@ class AnalogProcessor(object):
         value is False.
         """
         
+<<<<<<< HEAD
         self.currentState['lastLog'] = 'ARXVOLT: This function is now depreciated'
         return False, 0.0
+=======
+        if self.currentState['powerThreads'] is None:
+            self.currentState['lastLog'] = 'ARXVOLT: Monitoring processes are not running'
+            return False, 0.0
+            
+        else:
+            volt = 0.0
+            for t in self.currentState['powerThreads']:
+                if t.getDeviceAddress() == self.config['arx_ps_address']:
+                    volt = t.getVoltage()
+                    
+            return True, volt
+>>>>>>> revH_compat
         
     def getFEEPowerSupplyStatus(self):
         """
@@ -830,8 +921,22 @@ class AnalogProcessor(object):
         value is False.
         """
         
+<<<<<<< HEAD
         self.currentState['lastLog'] = 'FEESUPPLY: This function is now depreciated'
         return False, 'UNK'
+=======
+        if self.currentState['powerThreads'] is None:
+            self.currentState['lastLog'] = 'FEESUPPLY: Monitoring processes are not running'
+            return False, 'UNK'
+            
+        else:
+            status = 'UNK'
+            for t in self.currentState['powerThreads']:
+                if t.getDeviceAddress() == self.config['fee_ps_address']:
+                    status = t.getOnOff()
+                
+            return True, status
+>>>>>>> revH_compat
             
     def getFEEPowerSupplyCount(self):
         """
@@ -856,8 +961,29 @@ class AnalogProcessor(object):
         failure if the returned success value is False.
         """
         
+<<<<<<< HEAD
         self.currentState['lastLog'] = 'FEEPWRUNIT_%s: This function is now depreciated' % psNumb
         return False, None
+=======
+        if self.currentState['powerThreads'] is None:
+            self.currentState['lastLog'] = 'FEEPWRUNIT_%s: Monitoring processes are not running' % psNumb
+            return False, None
+            
+        else:
+            if psNumb > 0 and psNumb < 2:
+                info = 'UNK - UNK'
+                for t in self.currentState['powerThreads']:
+                    if t.getDeviceAddress() == self.config['fee_ps_address']:
+                        info1 = t.getDescription()
+                        info2 = t.getStatus()
+                        info = "%s - %s" % (info1, info2)
+            
+                return True, info
+                
+            else:
+                self.currentState['lastLog'] = 'Invalid ARX power supply (%i)' % psNumb
+                return False, None
+>>>>>>> revH_compat
             
     def getFEEPowerSupplyCurrentDraw(self):
         """
@@ -869,8 +995,22 @@ class AnalogProcessor(object):
         value is False.
         """
         
+<<<<<<< HEAD
         self.currentState['lastLog'] = 'FEECURR: This function is now depreciated'
         return False, 0
+=======
+        if self.currentState['powerThreads'] is None:
+            self.currentState['lastLog'] = 'FEECURR: Monitoring processes are not running'
+            return False, 0
+            
+        else:
+            curr = 0.0
+            for t in self.currentState['powerThreads']:
+                if t.getDeviceAddress() == self.config['fee_ps_address']:
+                    curr = t.getCurrent()
+                    
+            return True, curr*1000.0
+>>>>>>> revH_compat
         
     def getFEEPowerSupplyVoltage(self):
         """
@@ -882,9 +1022,24 @@ class AnalogProcessor(object):
         value is False.
         """
         
+<<<<<<< HEAD
         self.currentState['lastLog'] = 'FEEVOLT: This function is now depreciated'
         return False, 0.0
 
+=======
+        if self.currentState['powerThreads'] is None:
+            self.currentState['lastLog'] = 'FEEVOLT: Monitoring processes are not running'
+            return False, 0.0
+            
+        else:
+            volt = 0.0
+            for t in self.currentState['powerThreads']:
+                if t.getDeviceAddress() == self.config['fee_ps_address']:
+                    volt = t.getVoltage()
+                    
+            return True, volt
+        
+>>>>>>> revH_compat
     def getTemperatureStatus(self):
         """
         Return the summary status (IN_RANGE, OVER_TEMP, UNDER_TEMP) for ASP as a two-element
@@ -1040,7 +1195,7 @@ class AnalogProcessor(object):
         else:
             return False
         
-        if deviceAddress == ARX_PS_ADDRESS:
+        if deviceAddress == self.config['arx_ps_address']:
             if self.getARXPowerSupplyStatus()[1] == 'ON ':
                 self.__rxpProcess(00, internal=True)
             
@@ -1049,7 +1204,7 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'ARX power supply critical - %s - powered off' % reason
             self.currentState['ready'] = False
             
-        elif deviceAddress == FEE_PS_ADDRESS:
+        elif deviceAddress == self.config['fee_ps_address']:
             if self.getFEEPowerSupplyStatus()[1] == 'ON ':
                 self.__fepProcess(00, internal=True)
             

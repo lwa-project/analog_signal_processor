@@ -200,10 +200,10 @@ class TemperatureSensors(object):
         if config is None:
             return True
             
-        self.monitorPeriod = config['TEMPPERIOD']
-        self.minTemp  = config['TEMPMIN']
-        self.warnTemp = config['TEMPWARN']
-        self.maxTemp  = config['TEMPMAX']
+        self.monitorPeriod = config['temp_period']
+        self.minTemp  = config['temp_min']
+        self.warnTemp = config['temp_warn']
+        self.maxTemp  = config['temp_max']
         self.influxdb = LWAInfluxClient.from_config(config)
         
     def start(self):
@@ -432,7 +432,7 @@ class PowerStatus(object):
         if config is None:
             return True
             
-        self.monitorPeriod = config['POWERPERIOD']
+        self.monitorPeriod = config['power_period']
         self.influxdb = LWAInfluxClient.from_config(config)
         
     def start(self):
@@ -614,7 +614,10 @@ class ChassisStatus(object):
         if config is None:
             return True
             
-        self.monitorPeriod = config['CHASSISPERIOD']
+        self.antennaMapping = config['antennaMapping']
+        self.maxRetry = config['max_rs485_retry']
+        self.waitRetry = config['wait_rs485_retry']
+        self.monitorPeriod = config['chassis_period']
         
     def start(self):
         """
@@ -654,8 +657,9 @@ class ChassisStatus(object):
             tStart = time.time()
             
             try:
-                ## Basic check for board presence
-                self.configured, failed = rs485Check()
+                self.configured, failed = rs485Check(self.antennaMapping,
+                                                     maxRetry=self.maxRetry,
+                                                     waitRetry=self.waitRetry)
                 if self.ASPCallbackInstance is not None:
                     if not self.configured:
                         self.ASPCallbackInstance.processUnconfiguredChassis(failed)
@@ -668,7 +672,7 @@ class ChassisStatus(object):
                         ### Configuration from ASP-MCS
                         req_config = self.ASPCallbackInstance.currentState['config'][2*(stand-1):2*(stand-1)+2]
                         ### Configuration from the board itself
-                        act_config = rs485Get(stand)
+                        act_config = rs485Get(stand, self.antennaMapping)
                         for pol in (0, 1):
                             for key in act_config[pol].keys():
                                 if act_config[pol][key] != req_config[pol][key]:
@@ -687,7 +691,9 @@ class ChassisStatus(object):
                     if config_failures > 1:
                         self.ASPCallbackInstance.processUnconfiguredChassis([[1, 8],])
                         
-                status, boards, fees = rs485Power()
+                status, boards, fees = rs485Power(self.antennaMapping,
+                                                  maxRetry=self.maxRetry,
+                                                  waitRetry=self.waitRetry)
                 if status:
                     self.board_currents = boards
                     self.fee_currents = fees
