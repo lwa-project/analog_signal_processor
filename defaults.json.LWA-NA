@@ -41,8 +41,8 @@
   "chassis_period": 120.0,
   
   "influx": {
-    "username": "lwana",
-    "password": "logging4Fun@NA",
-    "database": "lwana"
+    "username": "!LWA_AUTH USERNAME influx",
+    "password": "!LWA_AUTH PASSWORD influx",
+    "database": "!LWA_AUTH URL influx"
   }
 }

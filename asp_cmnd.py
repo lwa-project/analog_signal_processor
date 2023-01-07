@@ -30,6 +30,7 @@ try:
 except ImportError:
     from io import StringIO
 
+from lwa_auth.tools import load_json_config
 
 from MCS import *
 
@@ -324,9 +325,8 @@ class MCSCommunicate(Communicate):
             # INI
             elif command == 'INI':
                 # Re-read in the configuration file
-                with open(self.opts.config, 'r') as ch:
-                    config = json.loads(json_minify.json_minify(ch.read()))
-                    
+                config = load_json_config(self.opts.config)
+                
                 # Refresh the configuration for the communicator and ASP
                 self.updateConfig(config)
                 self.SubSystemInstance.updateConfig(config)
@@ -484,9 +484,8 @@ def main(args):
     logger.info('All dates and times are in UTC except where noted')
     
     # Read in the configuration file
-    with open(args.config, 'r') as ch:
-        config = json.loads(json_minify.json_minify(ch.read()))
-        
+    config = load_json_config(args.config)
+    
     # Setup ASP control
     lwaASP = AnalogProcessor(config)
 
