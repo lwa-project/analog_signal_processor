@@ -36,4 +36,4 @@ jobs:
             setuptools
       - name: "Build"
         run: |
-          make all
+          make -C arx_control all
