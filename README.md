@@ -4,5 +4,5 @@
 
 [![Memo](https://img.shields.io/badge/lwa%20memo-219-blue)](https://leo.phys.unm.edu/~lwa/memos/memo/lwa0219.pdf)
 
-Monitor and control software for the Long Wavelenght Array (LWA) Analog Signal
+Monitor and control software for the Long Wavelength Array (LWA) Analog Signal
 Processor (ASP).
