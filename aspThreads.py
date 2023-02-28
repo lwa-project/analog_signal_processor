@@ -204,8 +204,11 @@ class TemperatureSensors(object):
         self.minTemp  = config['temp_min']
         self.warnTemp = config['temp_warn']
         self.maxTemp  = config['temp_max']
-        self.influxdb = LWAInfluxClient.from_config(config)
-        
+        try:
+            self.influxdb = LWAInfluxClient.from_config(config)
+        except ValueError:
+            self.influxdb = None
+            
     def start(self):
         """
         Start the monitoring thread.
@@ -309,8 +312,9 @@ class TemperatureSensors(object):
                              "fields": {}},]
                     for i in range(self.nTemps):
                         json[0]['fields'][self.description[i].replace(' ', '_')] = self.temp[i]
-                    self.influxdb.write(json)
-                     
+                    if self.influxdb is not None:
+                        self.influxdb.write(json)
+                        
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread failed with: %s at line %i", type(self).__name__, str(e), exc_traceback.tb_lineno)
