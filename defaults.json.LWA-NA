@@ -38,11 +38,11 @@
   
   "temp_period": 60.0,
   "power_period": 60.0,
-  "chassis_period": 120.0,
-  
-  "influx": {
-    "username": "!LWA_AUTH USERNAME influx",
-    "password": "!LWA_AUTH PASSWORD influx",
-    "database": "!LWA_AUTH URL influx"
-  }
+  "chassis_period": 120.0//,
+  //
+  //"influx": {
+  //  "username": "!LWA_AUTH USERNAME influx",
+  //  "password": "!LWA_AUTH PASSWORD influx",
+  //  "database": "!LWA_AUTH URL influx"
+  //}
 }
