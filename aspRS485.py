@@ -11,9 +11,9 @@ import subprocess
 from lwautils import lwa_arx
 _ARX = lwa_arx.ARX()
 
-__version__ = '0.1'
+__version__ = '0.2'
 __all__ = ['rs485CountBoards', 'rs485Reset', 'rs485Check', 'rs485Get',
-           'rs485Send', 'rs485Power']
+           'rs485Send', 'rs485Power', 'rs485Temperature']
 
 
 aspRS485Logger = logging.getLogger('__main__')
@@ -185,8 +185,8 @@ def rs485Power(antennaMapping, maxRetry=0, waitRetry=0.2):
     boards = []
     fees = []
     with RS485_LOCK:
-        for board in antennaMapping.keys():
-            board = int(board)
+        for board_key in antennaMapping.keys():
+            board = int(board_key)
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
@@ -202,3 +202,24 @@ def rs485Power(antennaMapping, maxRetry=0, waitRetry=0.2):
             success &= board_success
             
     return success, boards, fees
+
+
+def rs485Temperature(antennaMapping, maxRetry=0, waitRetry=0.2):
+    success = True
+    temps = []
+    with RS485_LOCK:
+        for board_key in antennaMapping.keys():
+            board = int(board_key)
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    new_temps = _ARX.get_1wire_temp(board & 0xFF)
+                    temps.extend(new_temps)
+                    board_success = True
+                    break
+                except Exception as e:
+                    aspRS485Logger.warning("Could not get temperature info. for board %s: %s", board, str(e))
+                    time.sleep(waitRetry)
+            success &= board_success
+            
+    return success, temps

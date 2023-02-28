@@ -171,8 +171,7 @@ class TemperatureSensors(object):
     Class for monitoring temperature for the power supplies via the I2C interface.
     """
     
-    def __init__(self, serialPort, config, logfile='/data/temp.txt', ASPCallbackInstance=None):
-        self.port = port
+    def __init__(self, config, logfile='/data/temp.txt', ASPCallbackInstance=None):
         self.logfile = logfile
         self.updateConfig(config)
         
@@ -200,6 +199,7 @@ class TemperatureSensors(object):
         if config is None:
             return True
             
+        self.antennaMapping = config['antenna_mapping']
         self.monitorPeriod = config['temp_period']
         self.minTemp  = config['temp_min']
         self.warnTemp = config['temp_warn']
@@ -214,8 +214,7 @@ class TemperatureSensors(object):
         if self.thread is not None:
             self.stop()
             
-        _, temps = psuTemperatureRead(self.port, 0x1F)
-        self.nTemps = len(temps)
+        self.nTemps = 3*len(list(self.antennaMapping.keys()))
         self.description = ["UNK" for i in range(self.nTemps)]
         self.temp = [0.0 for i in range(self.nTemps)]
         self.coldCount = 0
@@ -233,8 +232,6 @@ class TemperatureSensors(object):
         Stop the monitor thread, waiting until it's finished.
         """
         
-        os.system("pkill readThermometers")
-        
         if self.thread is not None:
             self.alive.clear()          #clear alive event for thread
             self.thread.join()          #wait until thread has finished
@@ -247,14 +244,17 @@ class TemperatureSensors(object):
         Create a monitoring thread for the temperature.
         """
         
+        board_keys = list(self.antennaMapping.keys())
+        
         while self.alive.isSet():
             tStart = time.time()
             
             try:
-                status, temps = psuTemperatureRead(self.port, 0x1F)
+                status, temps = rs485Temperature(self.antennaMapping)
                 if status:
                     for i,t in enumerate(temps):
-                        self.description[i] = '%s %s' % (0x1F, i+1)
+                        board_key = board_keys[i//3]
+                        self.description[i] = '%s %s' % (board_key, (i%3)+1)
                         self.temp[i] = t
                         
                 # Open the log file and save the temps
