@@ -76,7 +76,7 @@ def rs485Reset(antennaMapping, maxRetry=0, waitRetry=0.2):
     return success
 
 
-def rs485Check(antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485Check(antennaMapping, maxRetry=0, waitRetry=0.2, verbose=False):
     data = "check_for_me"
     
     success = True
