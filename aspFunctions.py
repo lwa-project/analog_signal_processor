@@ -198,6 +198,8 @@ class AnalogProcessor(object):
                 if self.currentState['tempThread'] is not None:
                     self.currentState['tempThread'].stop()
                     self.currentState['tempThread'].updateConfig(self.config)
+                else:
+                    self.currentState['tempThread'] = TemperatureSensors(self.config, ASPCallbackInstance=self)
                 if self.currentState['chassisThreads'] is not None:
                     for t in self.currentState['chassisThreads']:
                         t.stop()
