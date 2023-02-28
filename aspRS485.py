@@ -145,8 +145,8 @@ def rs485Send(stand, config, antennaMapping, maxRetry=0, waitRetry=0.2):
                 for attempt in range(maxRetry+1):
                     try:
                         # THIS IS ALL DEBUG GARBAGE
-                        config_start = 2*(RS485_ANTENNA_MAPPING[board][0]-1)
-                        config_end = 2*(RS485_ANTENNA_MAPPING[board][1])
+                        config_start = 2*(antennaMapping[board][0]-1)
+                        config_end = 2*(antennaMapping[board][1])
                         subconfig = config[config_start:config_end]
                         for i,c in enumerate(subconfig):
                              _ARX.set_chan_cfg(board & 0xFF, i, c)
