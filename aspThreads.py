@@ -21,7 +21,7 @@ except ImportError:
     
 from lwainflux import LWAInfluxClient
 
-from aspRS485 import rs485Check, rs485Get, rs485Power
+from aspRS485 import rs485Check, rs485Get, rs485Power, rs485Temperature
 from aspI2C import psuRead
 
 
