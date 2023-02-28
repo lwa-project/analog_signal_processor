@@ -9,7 +9,6 @@ import ctypes
 import logging
 import threading
 
-from aspCommon import *
 from aspRS485 import *
 from aspI2C import *
 from aspThreads import *
