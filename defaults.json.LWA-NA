@@ -34,7 +34,7 @@
   
   "temp_min": 10.0,
   "temp_warn": 40.0,
-  "temp_max": 45.0,
+  "temp_max": 55.0,
   
   "temp_period": 60.0,
   "power_period": 60.0,
