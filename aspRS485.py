@@ -42,6 +42,7 @@ def rs485CountBoards(antennaMapping, maxRetry=0, waitRetry=0.2):
             board = int(board)
             for attempt in range(maxRetry+1):
                 try:
+                    _ARX._send(board&0xFF, 'arxn', '')
                     _ARX.get_board_info(board & 0xFF)
                     found += 1
                     break
@@ -61,10 +62,17 @@ def rs485Reset(antennaMapping, maxRetry=0, waitRetry=0.2):
                 try:
                     _ARX.reset(board & 0xFF)
                     board_success = True
+                    break
                 except Exception as e:
                     aspRS485Logger.warning("Could not reset board %s: %s", board, str(e))
                     time.sleep(waitRetry)
             success &= board_success
+
+    # Check for completion of reset
+    time.sleep(10) # Wait a little bit
+    reset_check, failed = rs485Check(verbose=False)
+    success &= reset_check
+
     return success
 
 
@@ -80,12 +88,11 @@ def rs485Check(antennaMapping, maxRetry=0, waitRetry=0.2):
             for attempt in range(maxRetry+1):
                 try:
                     echo_data = _ARX.echo(board & 0xFF,data)
-                    if echo_data == data:
-                        board_success = True
-                    else:
-                        raise ValueError()
+                    board_success = True
+                    break
                 except Exception as e:
-                    aspRS485Logger.warning("Could not echo '%s' to board %s: %s", data, board, str(e))
+                    if verbose:
+                        aspRS485Logger.warning("Could not echo '%s' to board %s: %s", data, board, str(e))
                     time.sleep(waitRetry)
             success &= board_success
             if not board_success:
@@ -137,7 +144,13 @@ def rs485Send(stand, config, antennaMapping, maxRetry=0, waitRetry=0.2):
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
-                        _ARX.set_all_different_chan_config(board & 0xFF, config)
+                        # THIS IS ALL DEBUG GARBAGE
+                        config_start = 2*(RS485_ANTENNA_MAPPING[board][0]-1)
+                        config_end = 2*(RS485_ANTENNA_MAPPING[board][1])
+                        subconfig = config[config_start:config_end]
+                        for i,c in enumerate(subconfig):
+                             _ARX.set_chan_cfg(board & 0xFF, i, c)
+                        #_ARX.set_all_different_chan_cfg(board & 0xFF, subconfig)
                         board_success = True
                         break
                     except Exception as e:

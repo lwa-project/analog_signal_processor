@@ -9,6 +9,7 @@ from __future__ import division
 import os
 import sys
 import time
+import select
 import logging
 import threading
 import traceback
@@ -20,15 +21,149 @@ except ImportError:
     
 from lwainflux import LWAInfluxClient
 
-from aspRS485 import rs485Check, rs485Power
+from aspRS485 import rs485Check, rs485Get, rs485Power
 from aspI2C import psuRead
 
 
-__version__ = '0.5'
-__all__ = ['TemperatureSensors', 'PowerStatus', 'ChassisStatus']
+__version__ = '0.6'
+__all__ = ['BackendService', 'TemperatureSensors', 'PowerStatus', 'ChassisStatus']
 
 
 aspThreadsLogger = logging.getLogger('__main__')
+
+
+class BackendService(object):
+    """
+    Class for managing the RS485 background service.
+    """
+    
+    def __init__(self, ASPCallbackInstance=None):
+        self.service_running = False
+        
+        # Setup the callback
+        self.ASPCallbackInstance = ASPCallbackInstance
+        
+        self.thread = None
+        self.alive = threading.Event()
+        
+    def start(self):
+        """
+        Start the background service thread.
+        """
+        
+        if self.thread is not None:
+            self.stop()
+            
+        self.thread = threading.Thread(target=self.serviceThread)
+        self.thread.setDaemon(1)
+        self.alive.set()
+        self.thread.start()
+        
+        time.sleep(1)
+        
+    def stop(self):
+        """
+        Stop the background service thread, waiting until it's finished.
+        """
+        
+        if self.thread is not None:
+            self.alive.clear()          #clear alive event for thread
+            self.thread.join()          #wait until thread has finished
+            
+    def serviceThread(self):
+        # Determine the path for the service executable
+        path = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(path, 'backend')
+        
+        # Start the service
+        service = subprocess.Popen([os.path.join(path, 'lwaARXserial')], cwd=path, 
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        watch_out = select.poll()
+        watch_out.register(service.stdout)
+        watch_err = select.poll()
+        watch_err.register(service.stderr)
+        
+        while self.alive.isSet():
+            try:
+                ## Are we alive?
+                if service.poll() is None:
+                    self.service_running = True
+                else:
+                    self.service_running = False
+                    if self.ASPCallbackInstance is not None:
+                        self.ASPCallbackInstance.processNoBackendService(self.service_running)
+                        
+                ## Is there anything to read on stdout?
+                if watch_out.poll(1):
+                    ### Good, read in all that we can
+                    line = service.stdout.readline()
+                    try:
+                        line = line.decode()
+                    except AttributeError:
+                        # Python2 catch
+                        pass
+                    aspThreadsLogger.debug("%s: serviceThread %s", type(self).__name__, line.rstrip())
+                    while watch_out.poll(1) and self.alive.isSet():
+                        line = service.stdout.readline()
+                        try:
+                            line = line.decode()
+                        except AttributeError:
+                            # Python2 catch
+                            pass
+                        aspThreadsLogger.debug("%s: serviceThread %s", type(self).__name__, line.rstrip())
+                        
+                ## Is there anything to read on stderr?
+                if watch_err.poll(1):
+                    ### Ugh, read in all that we can
+                    line = service.stderr.readline()
+                    try:
+                        line = line.decode()
+                    except AttributeError:
+                        # Python2 catch
+                        pass
+                    aspThreadsLogger.debug("%s: serviceThread %s", type(self).__name__, line.rstrip())
+                    while watch_err.poll(1) and self.alive.isSet():
+                        line = service.stderr.readline()
+                        try:
+                            line = line.decode()
+                        except AttributeError:
+                            # Python2 catch
+                            pass
+                        aspThreadsLogger.debug("%s: serviceThread %s", type(self).__name__, line.rstrip())
+                        
+            except Exception as e:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                aspThreadsLogger.error("%s: serviceThread failed with: %s at line %i", type(self).__name__, str(e), exc_traceback.tb_lineno)
+                
+                ## Grab the full traceback and save it to a string via StringIO
+                fileObject = StringIO()
+                traceback.print_tb(exc_traceback, file=fileObject)
+                tbString = fileObject.getvalue()
+                fileObject.close()
+                ## Print the traceback to the logger as a series of DEBUG messages
+                for line in tbString.split('\n'):
+                    aspThreadsLogger.debug("%s", line)
+                    
+            ## Sleep for a bit to wait on new log entries
+            time.sleep(1)
+            
+        # Clean up and get ready to exit
+        try:
+            watch_out.unregister(service.stdout)
+        except KeyError:
+            pass
+        try:
+            watch_out.unregister(service.stderr)
+        except KeyError:
+            pass
+        try:
+            service.kill()
+        except OSError:
+            pass
+        self.service_running = False
+        
+    def isRunning(self):
+        return self.service_running
 
 
 class TemperatureSensors(object):
@@ -516,6 +651,8 @@ class ChassisStatus(object):
         Create a monitoring thread for the temperature.
         """
         
+        config_failures = 0
+        
         while self.alive.isSet():
             tStart = time.time()
             
@@ -526,6 +663,33 @@ class ChassisStatus(object):
                 if self.ASPCallbackInstance is not None:
                     if not self.configured:
                         self.ASPCallbackInstance.processUnconfiguredChassis(failed)
+                        
+                ## Detailed configuration check for the first 8 stands - only if
+                ## we have access to the current requested configuration
+                if self.ASPCallbackInstance is not None:
+                    config_status = True
+                    for stand in range(1, 8+1):
+                        ### Configuration from ASP-MCS
+                        req_config = self.ASPCallbackInstance.currentState['config'][2*(stand-1):2*(stand-1)+2]
+                        ### Configuration from the board itself
+                        act_config = rs485Get(stand, self.antennaMapping)
+                        for pol in (0, 1):
+                            for key in act_config[pol].keys():
+                                if act_config[pol][key] != req_config[pol][key]:
+                                    config_status = False
+                                    break
+                            if not config_status:
+                                break
+                                
+                    if config_status:
+                        config_failures = 0
+                    else:
+                        config_failures += 1
+                        
+                    ## If we have had more than two consecutive polling failures,
+                    ## it's a problem
+                    if config_failures > 1:
+                        self.ASPCallbackInstance.processUnconfiguredChassis([[1, 8],])
                         
                 status, boards, fees = rs485Power(self.antennaMapping,
                                                   maxRetry=self.maxRetry,
@@ -551,7 +715,7 @@ class ChassisStatus(object):
                 
             # Stop time
             tStop = time.time()
-            aspThreadsLogger.debug('Finished updating chassis status for 0x%04X in %.3f seconds', self.sub20SN, tStop - tStart)
+            aspThreadsLogger.debug('Finished updating chassis status in %.3f seconds', tStop - tStart)
             
             # Sleep for a bit
             sleepCount = 0

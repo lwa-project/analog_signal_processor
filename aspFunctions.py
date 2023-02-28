@@ -84,8 +84,8 @@ class AnalogProcessor(object):
         self.currentState['config']  = [{} for i in range(2*self.config['max_boards']*self.config['stands_per_board'])]
         
         ## Monitoring and background threads
+        self.currentState['serviceThread'] = None
         self.currentState['tempThread'] = None
-        self.currentState['powerThreads'] = None
         self.currentState['chassisThreads'] = None
         
         # Board and stand counts
@@ -159,6 +159,15 @@ class AnalogProcessor(object):
         self.currentState['info'] = 'Running INI sequence'
         self.currentState['activeProcess'].append('INI')
         
+        # Stop the backend service thread.  If it doesn't exist create it
+        if self.currentState['serviceThread'] is not None:
+            self.currentState['serviceThread'].stop()
+        else:
+            self.currentState['serviceThread'] = BackendService(ASPCallbackInstance=self)
+            
+        # Start the backend service thread
+        self.currentState['serviceThread'].start()
+        
         # Make sure the RS485 is present
         if os.system('lsusb -d 10c4: >/dev/null') == 0:
             # Good, we can continue
@@ -186,6 +195,9 @@ class AnalogProcessor(object):
                 self.num_chpairs = nBoards * self.config['stands_per_board']
                 aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
                     
+<<<<<<< HEAD
+                # Stop the non-service threads.  If the don't exist yet, create them.
+=======
                 # Stop all threads.  If the don't exist yet, create them.
                 if self.currentState['powerThreads'] is not None:
                     for t in self.currentState['powerThreads']:
@@ -195,11 +207,16 @@ class AnalogProcessor(object):
                     self.currentState['powerThreads'] = []
                     self.currentState['powerThreads'].append( PowerStatus(self.config['arx_ps_port'], self.config['arx_ps_address'], self.config, ASPCallbackInstance=self) )
                     self.currentState['powerThreads'].append( PowerStatus(self.config['fee_ps_port'], self.config['fee_ps_address'], self.config, ASPCallbackInstance=self) )
+>>>>>>> revH_compat
                 if self.currentState['tempThread'] is not None:
                     self.currentState['tempThread'].stop()
                     self.currentState['tempThread'].updateConfig(self.config)
                 else:
+<<<<<<< HEAD
+                    self.currentState['tempThread'] = None
+=======
                     self.currentState['tempThread'] = TemperatureSensors(self.config['arx_ps_port'], self.config, ASPCallbackInstance=self)
+>>>>>>> revH_compat
                 if self.currentState['chassisThreads'] is not None:
                     for t in self.currentState['chassisThreads']:
                         t.stop()
@@ -218,10 +235,8 @@ class AnalogProcessor(object):
                                                        maxRetry=self.config['max_rs485_retry'],
                                                        waitRetry=self.config['wait_rs485_retry'])
                 
-                # Start the threads
-                for t in self.currentState['powerThreads']:
-                    t.start()
-                self.currentState['tempThread'].start()
+                # Start the non-service threads
+                #self.currentState['tempThread'].start()
                 for t in self.currentState['chassisThreads']:
                     t.start()
                     
@@ -295,10 +310,7 @@ class AnalogProcessor(object):
         self.currentState['activeProcess'].append('SHT')
         self.currentState['ready'] = False
         
-        # Stop all threads.
-        if self.currentState['powerThreads'] is not None:
-            for t in self.currentState['powerThreads']:
-                t.stop()
+        # Stop all threads except for the service thread.
         if self.currentState['tempThread'] is not None:
             self.currentState['tempThread'].stop()
         if self.currentState['chassisThreads'] is not None:
@@ -323,6 +335,10 @@ class AnalogProcessor(object):
             
             aspFunctionsLogger.critical("SHT failed sending SPI bus commands after %i attempts", self.config['max_rs485_retry'])
         
+        # Stop the service thread
+        if self.currentState['serviceThread'] is not None:
+            self.currentState['serviceThread'].stop()
+            
         # Update the current state
         aspFunctionsLogger.info("Finished the SHT process in %.3f s", time.time() - tStart)
         self.currentState['activeProcess'].remove('SHT')
@@ -437,6 +453,9 @@ class AnalogProcessor(object):
             return False, 0x08
             
         # Validate inputs
+        if mode  == 3:
+            self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], 'ATS Setting Depreciated')
+            return False, 0x05
         if stand < 0 or stand > self.num_stands:
             self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x02])
             return False, 0x02
@@ -515,7 +534,7 @@ class AnalogProcessor(object):
         if stand < 0 or stand > self.num_stands:
             self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x02]
             return False, 0x02
-        if pol < 0 or pol > 2:
+        if pol < 1 or pol > 2:
             self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x03]
             return False, 0x03
         if state not in (0, 11):
@@ -766,12 +785,18 @@ class AnalogProcessor(object):
             
     def getARXPowerSupplyStatus(self):
         """
-        Return the overall ARX power supply status as a two-element tuple (success, values) 
+        Now depreciated
+        
+        Old: Return the overall ARX power supply status as a two-element tuple (success, values) 
         where success is a boolean related to if the status was found.  See the 
         currentState['lastLog'] entry for the reason for failure if the returned success 
         value is False.
         """
         
+<<<<<<< HEAD
+        self.currentState['lastLog'] = 'ARXSUPPLY: This function is depreciated'
+        return False, 'UNK'
+=======
         if self.currentState['powerThreads'] is None:
             self.currentState['lastLog'] = 'ARXSUPPLY: Monitoring processes are not running'
             return False, 'UNK'
@@ -783,30 +808,35 @@ class AnalogProcessor(object):
                     status = t.getOnOff()
                 
             return True, status
+>>>>>>> revH_compat
             
     def getARXPowerSupplyCount(self):
         """
-        Return the number of ARX power supplies being polled as a two-element tuple (success, 
+        Now depreciated
+        
+        Old: Return the number of ARX power supplies being polled as a two-element tuple (success, 
         value) where success is a boolean related to if the status was found.  See the 
         currentState['lastLog'] entry for the reason for failure if the returned success 
         value is False.
         """
         
-        if self.currentState['powerThreads'] is None:
-            self.currentState['lastLog'] = 'ARXSUPPLY-NO: Monitoring processes are not running'
-            return False, 0
-            
-        else:
-            return True, 1
+        self.currentState['lastlog'] = 'ARXSUPPLY-NO: This function is depreciated'    
+        return True, 0
         
     def getARXPowerSupplyInfo(self, psNumb):
         """
-        Return information (name - status) about the  various ARX power supplies as a two-
+        Now depreciated
+        
+        Old: Return information (name - status) about the  various ARX power supplies as a two-
         element tuple (success, values) where success is a boolean related to if the values 
         were found.  See the currentState['lastLog'] entry for the reason for failure if 
         the returned success value is False.
         """
         
+<<<<<<< HEAD
+        self.currentState['lastLog'] = 'ARXPWRUNIT_%s: This function is now depreciated' % psNumb
+        return False, None
+=======
         if self.currentState['powerThreads'] is None:
             self.currentState['lastLog'] = 'ARXPWRUNIT_%s: Monitoring processes are not running' % psNumb
             return False, None
@@ -825,15 +855,22 @@ class AnalogProcessor(object):
             else:
                 self.currentState['lastLog'] = 'ARXPWRUNIT_%s: Invalid ARX power supply' % psNumb
                 return False, None
+>>>>>>> revH_compat
             
     def getARXPowerSupplyCurrentDraw(self):
         """
-        Return the ARX current draw (in mA) as a two-element tuple (success, values) where 
+        Now depreciated
+        
+        Old: Return the ARX current draw (in mA) as a two-element tuple (success, values) where 
         success is a boolean related to if the current value was found.  See the 
         currentState['lastLog'] entry for the reason for failure if the returned success 
         value is False.
         """
         
+<<<<<<< HEAD
+        self.currentState['lastLog'] = 'ARXCURR: This function is now depreciated'
+        return False, 0 
+=======
         if self.currentState['powerThreads'] is None:
             self.currentState['lastLog'] = 'ARXCURR: Monitoring processes are not running'
             return False, 0
@@ -845,15 +882,22 @@ class AnalogProcessor(object):
                     curr = t.getCurrent()
                     
             return True, curr*1000.0
+>>>>>>> revH_compat
         
     def getARXPowerSupplyVoltage(self):
         """
-        Return the ARX output voltage (in V) as a two-element tuple (success, value) where
+        Now depreciated
+        
+        Old: Return the ARX output voltage (in V) as a two-element tuple (success, value) where
         success is a boolean related to if the current value was found.  See the 
         currentState['lastLog'] entry for the reason for failure if the returned success 
         value is False.
         """
         
+<<<<<<< HEAD
+        self.currentState['lastLog'] = 'ARXVOLT: This function is now depreciated'
+        return False, 0.0
+=======
         if self.currentState['powerThreads'] is None:
             self.currentState['lastLog'] = 'ARXVOLT: Monitoring processes are not running'
             return False, 0.0
@@ -865,15 +909,22 @@ class AnalogProcessor(object):
                     volt = t.getVoltage()
                     
             return True, volt
+>>>>>>> revH_compat
         
     def getFEEPowerSupplyStatus(self):
         """
-        Return the overall FEE power supply status as a two-element tuple (success, values) 
+        Now depreciated
+        
+        Old: Return the overall FEE power supply status as a two-element tuple (success, values) 
         where success is a boolean related to if the status was found.  See the 
         currentState['lastLog'] entry for the reason for failure if the returned success 
         value is False.
         """
         
+<<<<<<< HEAD
+        self.currentState['lastLog'] = 'FEESUPPLY: This function is now depreciated'
+        return False, 'UNK'
+=======
         if self.currentState['powerThreads'] is None:
             self.currentState['lastLog'] = 'FEESUPPLY: Monitoring processes are not running'
             return False, 'UNK'
@@ -885,30 +936,35 @@ class AnalogProcessor(object):
                     status = t.getOnOff()
                 
             return True, status
+>>>>>>> revH_compat
             
     def getFEEPowerSupplyCount(self):
         """
-        Return the number of FEE power supplies being polled as a two-element tuple (success, 
+        Now depreciated
+        
+        Old: Return the number of FEE power supplies being polled as a two-element tuple (success, 
         value) where success is a boolean related to if the status was found.  See the 
         currentState['lastLog'] entry for the reason for failure if the returned success 
         value is False.
         """
         
-        if self.currentState['powerThreads'] is None:
-            self.currentState['lastLog'] = 'FEESUPPLY-NO: Monitoring processes are not running'
-            return False, 0
-            
-        else:
-            return True, 1
+        self.currentState['lastLog'] = 'FEESUPPLY-NO: This function is now depreciated'
+        return False, 0
         
     def getFEEPowerSupplyInfo(self, psNumb):
         """
-        Return information (name and status) about the  various FEE power supplies as a three-
+        Now depreciated
+        
+        Old: Return information (name and status) about the  various FEE power supplies as a three-
         element tuple (success, name, status string) where success is a boolean related to if 
         the values were found.  See the currentState['lastLog'] entry for the reason for 
         failure if the returned success value is False.
         """
         
+<<<<<<< HEAD
+        self.currentState['lastLog'] = 'FEEPWRUNIT_%s: This function is now depreciated' % psNumb
+        return False, None
+=======
         if self.currentState['powerThreads'] is None:
             self.currentState['lastLog'] = 'FEEPWRUNIT_%s: Monitoring processes are not running' % psNumb
             return False, None
@@ -927,15 +983,22 @@ class AnalogProcessor(object):
             else:
                 self.currentState['lastLog'] = 'Invalid ARX power supply (%i)' % psNumb
                 return False, None
+>>>>>>> revH_compat
             
     def getFEEPowerSupplyCurrentDraw(self):
         """
-        Return the FEE power supply current draw (in mA) as a two-element tuple (success, values) 
+        Now depreciated
+        
+        Old: Return the FEE power supply current draw (in mA) as a two-element tuple (success, values) 
         where success is a boolean related to if the current value was found.  See the 
         currentState['lastLog'] entry for the reason for failure if the returned success 
         value is False.
         """
         
+<<<<<<< HEAD
+        self.currentState['lastLog'] = 'FEECURR: This function is now depreciated'
+        return False, 0
+=======
         if self.currentState['powerThreads'] is None:
             self.currentState['lastLog'] = 'FEECURR: Monitoring processes are not running'
             return False, 0
@@ -947,15 +1010,23 @@ class AnalogProcessor(object):
                     curr = t.getCurrent()
                     
             return True, curr*1000.0
+>>>>>>> revH_compat
         
     def getFEEPowerSupplyVoltage(self):
         """
-        Return the ARX output voltage (in V) as a two-element tuple (success, value) where
+        Now depreciated
+        
+        Old: Return the ARX output voltage (in V) as a two-element tuple (success, value) where
         success is a boolean related to if the current value was found.  See the 
         currentState['lastLog'] entry for the reason for failure if the returned success 
         value is False.
         """
         
+<<<<<<< HEAD
+        self.currentState['lastLog'] = 'FEEVOLT: This function is now depreciated'
+        return False, 0.0
+
+=======
         if self.currentState['powerThreads'] is None:
             self.currentState['lastLog'] = 'FEEVOLT: Monitoring processes are not running'
             return False, 0.0
@@ -968,6 +1039,7 @@ class AnalogProcessor(object):
                     
             return True, volt
         
+>>>>>>> revH_compat
     def getTemperatureStatus(self):
         """
         Return the summary status (IN_RANGE, OVER_TEMP, UNDER_TEMP) for ASP as a two-element
@@ -1046,6 +1118,20 @@ class AnalogProcessor(object):
                 self.currentState['lastLog'] = 'SENSOR-NAME-%i: Invalid temperature sensor' % sensorNumb
                 return False, 0.0
                 
+    def processNoBackendService(self, running):
+        """
+        Function to set ASP to ERROR if the backend service is not running when
+        it should be.
+        """
+        
+        if not running:
+            self.currentState['status'] = 'ERROR'
+            self.currentState['info'] = 'SUMMARY! 0x%02X %s' % (0x07, subsystemErrorCodes[0x07])
+            self.currentState['lastLog'] = 'ASP backend service not running'
+            self.currentState['ready'] = False
+            
+        return True
+        
     def processWarningTemperature(self, clear=False):
         """
         Function to set ASP to WARNING if the temperature is creeping up.  This 
