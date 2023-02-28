@@ -1,5 +1,5 @@
 {
-  "serial_number: "ASP03",
+  "serial_number": "ASP03",
   
   "mcs": {
     "message_host": "10.1.3.2",
