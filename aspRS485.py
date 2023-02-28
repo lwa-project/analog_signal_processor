@@ -70,7 +70,7 @@ def rs485Reset(antennaMapping, maxRetry=0, waitRetry=0.2):
 
     # Check for completion of reset
     time.sleep(10) # Wait a little bit
-    reset_check, failed = rs485Check(verbose=False)
+    reset_check, failed = rs485Check(antennaMapping, verbose=False)
     success &= reset_check
 
     return success
