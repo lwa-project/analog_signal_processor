@@ -102,7 +102,7 @@ class BackendService(object):
                     except AttributeError:
                         # Python2 catch
                         pass
-                    aspThreadsLogger.debug("%s: serviceThread stdout - %s", type(self).__name__, line.rstrip())
+                    aspThreadsLogger.debug("%s: serviceThread - %s", type(self).__name__, line.rstrip())
                     while watch_out.poll(1) and self.alive.isSet():
                         line = service.stdout.readline()
                         try:
@@ -110,7 +110,7 @@ class BackendService(object):
                         except AttributeError:
                             # Python2 catch
                             pass
-                        aspThreadsLogger.debug("%s: serviceThread stdout - %s", type(self).__name__, line.rstrip())
+                        aspThreadsLogger.debug("%s: serviceThread - %s", type(self).__name__, line.rstrip())
                         
                 ## Is there anything to read on stderr?
                 if watch_err.poll(1):
@@ -121,7 +121,7 @@ class BackendService(object):
                     except AttributeError:
                         # Python2 catch
                         pass
-                    aspThreadsLogger.debug("%s: serviceThread stderr - %s", type(self).__name__, line.rstrip())
+                    aspThreadsLogger.debug("%s: serviceThread - %s", type(self).__name__, line.rstrip())
                     while watch_err.poll(1) and self.alive.isSet():
                         line = service.stderr.readline()
                         try:
@@ -129,7 +129,7 @@ class BackendService(object):
                         except AttributeError:
                             # Python2 catch
                             pass
-                        aspThreadsLogger.debug("%s: serviceThread stderr - %s", type(self).__name__, line.rstrip())
+                        aspThreadsLogger.debug("%s: serviceThread - %s", type(self).__name__, line.rstrip())
                         
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
