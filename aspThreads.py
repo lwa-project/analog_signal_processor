@@ -406,11 +406,10 @@ class PowerStatus(object):
     for the power supplies via the I2C interface.
     """
     
-    def __init__(self, port, deviceAddress, config, logfile='/data/psu.txt', ASPCallbackInstance=None):
-        self.port = port
-        self.deviceAddress = int(deviceAddress)
-        base, ext = logfile.rsplit('.', 1)
-        self.logfile = '%s-0x%02X.%s' % (base, self.deviceAddress, ext)
+    def __init__(self, config, logfile='/data/power.txt', ASPCallbackInstance=None):
+        logbase, logext = os.path.splitext(logfile)
+        self.logfile_board = logbase+'-board'+logext
+        self.logfile_fee = logbar+'-fee'+logext
         self.updateConfig(config)
         
         # Setup the callback
@@ -436,9 +435,13 @@ class PowerStatus(object):
         if config is None:
             return True
             
+        self.antennaMapping = config['antenna_mapping']
         self.monitorPeriod = config['power_period']
-        self.influxdb = LWAInfluxClient.from_config(config)
-        
+        try:
+            self.influxdb = LWAInfluxClient.from_config(config)
+        except ValueError:
+            self.influxdb = None
+            
     def start(self):
         """
         Start the monitoring thread.
@@ -481,22 +484,31 @@ class PowerStatus(object):
             tStart = time.time()
             
             try:
-                success, voltage, current, onoff, status = psuRead(self.port, self.deviceAddress)
+                success, boards, fees = rs485Power(self.antennaMapping)
                 if success:
-                    self.description = '%s - %s' % (self.port, self.deviceAddress)
-                    elf.voltage = voltage
-                    self.current = current
-                    self.onoff = onoff
-                    self.status = status
+                    self._boards = boards
+                    self._fees = fees
                     
                 try:
-                    log = open(self.logfile, 'a+')
+                    log = open(self.logfile_board, 'a+')
                     log.write('%s,' % time.time())
-                    log.write('%s\n' % ','.join(["%.2f" % self.voltage, "%.3f" % self.current, self.onoff, self.status]))
+                    log.write('%s,' % sum(self._boards))
+                    log.write('%s\n' % ','.join([str(v) for v in self._boards]))
                     log.flush()
                     log.close()
                 except IOError:
-                    aspThreadsLogger.error("%s: could not open flag logfile %s for writing", type(self).__name__, self.logfile)
+                    aspThreadsLogger.error("%s: could not open flag logfile %s for writing", type(self).__name__, self.logfile_board)
+                    pass
+                    
+                try:
+                    log = open(self.logfile_fee, 'a+')
+                    log.write('%s,' % time.time())
+                    log.write('%s,' % sum(self._fees))
+                    log.write('%s\n' % ','.join([str(v) for v in self._fees]))
+                    log.flush()
+                    log.close()
+                except IOError:
+                    aspThreadsLogger.error("%s: could not open flag logfile %s for writing", type(self).__name__, self.logfile_fees)
                     pass
                     
                 # Deal with power supplies that are over temperature, current, or voltage; 
@@ -508,15 +520,16 @@ class PowerStatus(object):
                             
                             self.ASPCallbackInstance.processCriticalPowerSupply(self.deviceAddress, modeOfFailure)
                             
-                json = [{"measurement": "power",
-                         "tags": {"subsystem": "asp",
-                                  "monitorpoint": "psu%s" % self.deviceAddress},
-                         "time": self.influxdb.now(),
-                         "fields": {"voltage": self.voltage,
-                                    "current": self.current}},]
-                json[0]['fields']['power'] = json[0]['fields']['voltage']*json[0]['fields']['current']
-                self.influxdb.write(json)
-                 
+                if self.influxdb is not None:
+                    json = [{"measurement": "power",
+                             "tags": {"subsystem": "asp",
+                                      "monitorpoint": "psu%s" % self.deviceAddress},
+                             "time": self.influxdb.now(),
+                             "fields": {"voltage": self.voltage,
+                                        "current": self.current}},]
+                    json[0]['fields']['power'] = json[0]['fields']['voltage']*json[0]['fields']['current']
+                    self.influxdb.write(json)
+                     
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread 0x%02X failed with: %s at line %i", type(self).__name__, self.deviceAddress, str(e), exc_traceback.tb_lineno)

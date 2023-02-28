@@ -85,6 +85,7 @@ class AnalogProcessor(object):
         ## Monitoring and background threads
         self.currentState['serviceThread'] = None
         self.currentState['tempThread'] = None
+        self.currentState['powerThreads'] = None
         self.currentState['chassisThreads'] = None
         
         # Board and stand counts
@@ -200,6 +201,13 @@ class AnalogProcessor(object):
                     self.currentState['tempThread'].updateConfig(self.config)
                 else:
                     self.currentState['tempThread'] = TemperatureSensors(self.config, ASPCallbackInstance=self)
+                if self.currentState['powerThreads'] is not None:
+                    for t in self.currentState['powerThreads']:
+                        t.stop()
+                        t.updateConfig(self.config)
+                else:
+                    self.currentState['powerThreads'] = []
+                    self.currentState['powerThreads'].append( PowerStatus(self.config, ASPCallbackInstance=None) )
                 if self.currentState['chassisThreads'] is not None:
                     for t in self.currentState['chassisThreads']:
                         t.stop()
@@ -220,6 +228,8 @@ class AnalogProcessor(object):
                 
                 # Start the non-service threads
                 self.currentState['tempThread'].start()
+                for t in self.currentState['powerThreads']:
+                    t.start()
                 for t in self.currentState['chassisThreads']:
                     t.start()
                     
@@ -296,6 +306,9 @@ class AnalogProcessor(object):
         # Stop all threads except for the service thread.
         if self.currentState['tempThread'] is not None:
             self.currentState['tempThread'].stop()
+        if self.currentState['powerThreads'] is not None:
+            for t in self.currentState['powerThreads']:
+                t.stop()
         if self.currentState['chassisThreads'] is not None:
             for t in self.currentState['chassisThreads']:
                 t.stop()
