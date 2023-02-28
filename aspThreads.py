@@ -305,14 +305,14 @@ class TemperatureSensors(object):
                     else:
                         self.ASPCallbackInstance.processWarningTemperature(clear=True)
                         
-                    json = [{"measurement": "temperature",
-                             "tags": {"subsystem": "asp",
-                                      "monitorpoint": "temperature"},
-                             "time": self.influxdb.now(),
-                             "fields": {}},]
-                    for i in range(self.nTemps):
-                        json[0]['fields'][self.description[i].replace(' ', '_')] = self.temp[i]
                     if self.influxdb is not None:
+                        json = [{"measurement": "temperature",
+                                 "tags": {"subsystem": "asp",
+                                          "monitorpoint": "temperature"},
+                                 "time": self.influxdb.now(),
+                                 "fields": {}},]
+                        for i in range(self.nTemps):
+                            json[0]['fields'][self.description[i].replace(' ', '_')] = self.temp[i]
                         self.influxdb.write(json)
                         
             except Exception as e:
