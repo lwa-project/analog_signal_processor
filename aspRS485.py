@@ -115,7 +115,7 @@ def rs485Get(stand, antennaMapping, maxRetry=0, waitRetry=0.2):
                         aspRS485Logger.warning("Could not get channel info. for board %s: %s", board, str(e))
                         time.sleep(waitRetry)
     else:
-        board, chan0, chan1 = _stand_to_board_chan(stand, antennaMapping)
+        board, chan0, chan1 = _stand_to_board_chans(stand, antennaMapping)
         if board is None:
             aspRS485Logger.warning("Unable to relate stand %i to a RS485 board", stand)
             return False
@@ -159,7 +159,7 @@ def rs485Send(stand, config, antennaMapping, maxRetry=0, waitRetry=0.2):
                 success &= board_success
                 
     else:
-        board, chan0, chan1 = _stand_to_board_chan(stand, antennaMapping)
+        board, chan0, chan1 = _stand_to_board_chans(stand, antennaMapping)
         if board is None:
             aspRS485Logger.warning("Unable to relate stand %i to a RS485 board", stand)
             return False
