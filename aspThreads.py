@@ -614,7 +614,7 @@ class ChassisStatus(object):
         if config is None:
             return True
             
-        self.antennaMapping = config['antennaMapping']
+        self.antennaMapping = config['antenna_mapping']
         self.maxRetry = config['max_rs485_retry']
         self.waitRetry = config['wait_rs485_retry']
         self.monitorPeriod = config['chassis_period']
