@@ -140,7 +140,7 @@ def rs485Send(stand, config, antennaMapping, maxRetry=0, waitRetry=0.2):
     if stand == 0:
         with RS485_LOCK:
             for board_key in antennaMapping.keys():
-                board = int(board)
+                board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
