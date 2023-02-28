@@ -104,8 +104,8 @@ def rs485Get(stand, antennaMapping, maxRetry=0, waitRetry=0.2):
     config = []
     if stand == 0:
         with RS485_LOCK:
-            for board in antennaMapping.keys():
-                board = int(board)
+            for board_key in antennaMapping.keys():
+                board = int(board_key)
                 for attempt in range(maxRetry+1):
                     try:
                         board_config = _ARX.get_all_chan_cfg(board & 0xFF)
@@ -139,14 +139,14 @@ def rs485Send(stand, config, antennaMapping, maxRetry=0, waitRetry=0.2):
     success = True
     if stand == 0:
         with RS485_LOCK:
-            for board in antennaMapping.keys():
+            for board_key in antennaMapping.keys():
                 board = int(board)
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
                         # THIS IS ALL DEBUG GARBAGE
-                        config_start = 2*(antennaMapping[board][0]-1)
-                        config_end = 2*(antennaMapping[board][1])
+                        config_start = 2*(antennaMapping[board_key][0]-1)
+                        config_end = 2*(antennaMapping[board_key][1])
                         subconfig = config[config_start:config_end]
                         for i,c in enumerate(subconfig):
                              _ARX.set_chan_cfg(board & 0xFF, i, c)
