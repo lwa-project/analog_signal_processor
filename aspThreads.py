@@ -409,7 +409,7 @@ class PowerStatus(object):
     def __init__(self, config, logfile='/data/power.txt', ASPCallbackInstance=None):
         logbase, logext = os.path.splitext(logfile)
         self.logfile_board = logbase+'-board'+logext
-        self.logfile_fee = logbar+'-fee'+logext
+        self.logfile_fee = logbase+'-fee'+logext
         self.updateConfig(config)
         
         # Setup the callback
