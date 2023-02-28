@@ -198,7 +198,6 @@ class AnalogProcessor(object):
                 if self.currentState['tempThread'] is not None:
                     self.currentState['tempThread'].stop()
                     self.currentState['tempThread'].updateConfig(self.config)
-                    self.currentState['tempThread'] = None
                 if self.currentState['chassisThreads'] is not None:
                     for t in self.currentState['chassisThreads']:
                         t.stop()
@@ -218,7 +217,7 @@ class AnalogProcessor(object):
                                                        waitRetry=self.config['wait_rs485_retry'])
                 
                 # Start the non-service threads
-                #self.currentState['tempThread'].start()
+                self.currentState['tempThread'].start()
                 for t in self.currentState['chassisThreads']:
                     t.start()
                     
