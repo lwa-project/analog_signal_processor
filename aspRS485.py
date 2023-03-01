@@ -110,7 +110,8 @@ def rs485Check(antennaMapping, maxRetry=0, waitRetry=0.2, verbose=False):
                     time.sleep(waitRetry)
             success &= board_success
             if not board_success:
-                failed.append(antennaMapping[str(board)])
+                failed.append(antennaMapping[board_key])
+                
     return success, failed
 
 
