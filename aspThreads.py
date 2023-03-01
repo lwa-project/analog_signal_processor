@@ -22,10 +22,9 @@ except ImportError:
 from lwainflux import LWAInfluxClient
 
 from aspRS485 import rs485Check, rs485Get, rs485Power, rs485Temperature
-from aspI2C import psuRead
 
 
-__version__ = '0.6'
+__version__ = '0.7'
 __all__ = ['BackendService', 'TemperatureSensors', 'ChassisStatus']
 
 

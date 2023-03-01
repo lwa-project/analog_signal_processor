@@ -33,11 +33,10 @@
   "fee_ps_address": 30,
   
   "temp_min": 10.0,
-  "temp_warn": 40.0,
+  "temp_warn": 50.0,
   "temp_max": 55.0,
   
   "temp_period": 60.0,
-  "power_period": 60.0,
   "chassis_period": 120.0//,
   //
   //"influx": {

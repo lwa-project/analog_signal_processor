@@ -596,7 +596,7 @@ class AnalogProcessor(object):
         supply.
         """
         
-        status = psuSend(self.config['arx_ps_port'], self.config['arx_ps_address'], state)
+        status = False
         
         if status:
             aspFunctionsLogger.debug('RXP - Set ARX power supplies to state %02i', state)
@@ -654,7 +654,7 @@ class AnalogProcessor(object):
         supply.
         """
         
-        status = psuSend(self.config['fee_ps_port'], self.config['fee_ps_address'], state)
+        status = False
         
         if status:
             aspFunctionsLogger.debug('FEP - Set FEE power supplies to state %02i', state)
