@@ -4,8 +4,6 @@
 Module implementing the various ASP monitoring threads.
 """
 
-from __future__ import division
-
 import os
 import sys
 import time
@@ -14,10 +12,7 @@ import logging
 import threading
 import traceback
 import subprocess
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
     
 from lwainflux import LWAInfluxClient
 
@@ -96,38 +91,22 @@ class BackendService(object):
                 if watch_out.poll(1):
                     ### Good, read in all that we can
                     line = service.stdout.readline()
-                    try:
-                        line = line.decode()
-                    except AttributeError:
-                        # Python2 catch
-                        pass
+                    line = line.decode()
                     aspThreadsLogger.debug("%s: serviceThread - %s", type(self).__name__, line.rstrip())
                     while watch_out.poll(1) and self.alive.isSet():
                         line = service.stdout.readline()
-                        try:
-                            line = line.decode()
-                        except AttributeError:
-                            # Python2 catch
-                            pass
+                        line = line.decode()
                         aspThreadsLogger.debug("%s: serviceThread - %s", type(self).__name__, line.rstrip())
                         
                 ## Is there anything to read on stderr?
                 if watch_err.poll(1):
                     ### Ugh, read in all that we can
                     line = service.stderr.readline()
-                    try:
-                        line = line.decode()
-                    except AttributeError:
-                        # Python2 catch
-                        pass
+                    line = line.decode()
                     aspThreadsLogger.debug("%s: serviceThread - %s", type(self).__name__, line.rstrip())
                     while watch_err.poll(1) and self.alive.isSet():
                         line = service.stderr.readline()
-                        try:
-                            line = line.decode()
-                        except AttributeError:
-                            # Python2 catch
-                            pass
+                        line = line.decode()
                         aspThreadsLogger.debug("%s: serviceThread - %s", type(self).__name__, line.rstrip())
                         
             except Exception as e:

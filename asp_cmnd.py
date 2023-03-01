@@ -6,8 +6,6 @@ asp_cmnd - Software for controlling ASP within the guidelines of the ASP and
 MCS ICDs.
 """
 
-from __future__ import print_function
-
 import os
 import git
 import sys
@@ -25,10 +23,7 @@ try:
 except ImportError:
     from logging import FileHandler as WatchedFileHandler
 import traceback
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 from lwa_auth.tools import load_json_config
 
