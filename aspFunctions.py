@@ -85,7 +85,6 @@ class AnalogProcessor(object):
         ## Monitoring and background threads
         self.currentState['serviceThread'] = None
         self.currentState['tempThread'] = None
-        self.currentState['powerThreads'] = None
         self.currentState['chassisThreads'] = None
         
         # Board and stand counts
@@ -172,16 +171,6 @@ class AnalogProcessor(object):
         if os.system('lsusb -d 10c4: >/dev/null') == 0:
             # Good, we can continue
             
-            # Turn off the power supplies
-            self.__rxpProcess(00, internal=True)
-            self.__fepProcess(00, internal=True)
-            time.sleep(5)
-            
-            # Turn on the power supplies
-            self.__rxpProcess(11, internal=True)
-            self.__fepProcess(11, internal=True)
-            time.sleep(1)
-            
             # Board check - found vs. expected from INI
             boardsFound = rs485CountBoards(self.config['antenna_mapping'],
                                            maxRetry=self.config['max_rs485_retry'],
@@ -201,13 +190,6 @@ class AnalogProcessor(object):
                     self.currentState['tempThread'].updateConfig(self.config)
                 else:
                     self.currentState['tempThread'] = TemperatureSensors(self.config, ASPCallbackInstance=self)
-                if self.currentState['powerThreads'] is not None:
-                    for t in self.currentState['powerThreads']:
-                        t.stop()
-                        t.updateConfig(self.config)
-                else:
-                    self.currentState['powerThreads'] = []
-                    self.currentState['powerThreads'].append( PowerStatus(self.config, ASPCallbackInstance=None) )
                 if self.currentState['chassisThreads'] is not None:
                     for t in self.currentState['chassisThreads']:
                         t.stop()
@@ -228,8 +210,6 @@ class AnalogProcessor(object):
                 
                 # Start the non-service threads
                 self.currentState['tempThread'].start()
-                for t in self.currentState['powerThreads']:
-                    t.start()
                 for t in self.currentState['chassisThreads']:
                     t.start()
                     
@@ -306,19 +286,12 @@ class AnalogProcessor(object):
         # Stop all threads except for the service thread.
         if self.currentState['tempThread'] is not None:
             self.currentState['tempThread'].stop()
-        if self.currentState['powerThreads'] is not None:
-            for t in self.currentState['powerThreads']:
-                t.stop()
         if self.currentState['chassisThreads'] is not None:
             for t in self.currentState['chassisThreads']:
                 t.stop()
                 
         status = True
         if status:
-            # Power off the power supplies
-            self.__rxpProcess(00, internal=True)
-            self.__fepProcess(00, internal=True)
-            
             self.currentState['status'] = 'SHUTDWN'
             self.currentState['info'] = 'System has been shut down'
             self.currentState['lastLog'] = 'System has been shut down'
@@ -1027,15 +1000,9 @@ class AnalogProcessor(object):
         """
         
         if high:
-            if self.getARXPowerSupplyStatus()[1] == 'ON ':
-                self.__rxpProcess(00, internal=True)
-                
-            if self.getFEEPowerSupplyStatus()[1] == 'ON ':
-                self.__fepProcess(00, internal=True)
-            
             self.currentState['status'] = 'ERROR'
             self.currentState['info'] = 'TEMP-STATUS! 0x%02X %s' % (0x0A, subsystemErrorCodes[0x0A])
-            self.currentState['lastLog'] = 'ASP over temperature - turning off power supplies'
+            self.currentState['lastLog'] = 'ASP over temperature'
             self.currentState['ready'] = False
             
         elif low:
@@ -1044,44 +1011,6 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'ASP under temperature'
             self.currentState['ready'] = False
             
-        return True
-
-    def processCriticalPowerSupply(self, deviceAddress, reason):
-        """
-        Function to shutdown critical power supplies and put the system into ERROR.
-        """
-        
-        if reason == 'OverCurrent':
-            code = 0x05
-        elif reason == 'OverVolt':
-            code = 0x03
-        elif reason == 'UnderVolt':
-            code = 0x04
-        elif reason == 'OverTemperature':
-            code = 0x01
-        elif reason == 'ModuleFault':
-            code = 0x06
-        else:
-            return False
-        
-        if deviceAddress == self.config['arx_ps_address']:
-            if self.getARXPowerSupplyStatus()[1] == 'ON ':
-                self.__rxpProcess(00, internal=True)
-            
-            self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'ARXPWRUNIT_1! 0x%02X %s - %s' % (code, subsystemErrorCodes[code], reason)
-            self.currentState['lastLog'] = 'ARX power supply critical - %s - powered off' % reason
-            self.currentState['ready'] = False
-            
-        elif deviceAddress == self.config['fee_ps_address']:
-            if self.getFEEPowerSupplyStatus()[1] == 'ON ':
-                self.__fepProcess(00, internal=True)
-            
-            self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'FEPPWRUNIT_1! 0x%02X %s - %s' % (code, subsystemErrorCodes[code], reason)
-            self.currentState['lastLog'] = 'FEE power supply critical - %s - powered off' % reason
-            self.currentState['ready'] = False
-        
         return True
         
     def processUnconfiguredChassis(self, antennas):
@@ -1100,11 +1029,9 @@ class AnalogProcessor(object):
         else:
             # This condition overrides the ARXSUPPLY ERROR...
             if self.currentState['info'].find('ARXSUPPLY!') != -1:
-                # ... if the power is on
-                if self.getARXPowerSupplyStatus()[1] == 'ON ':
-                    self.currentState['status'] = 'ERROR'
-                    self.currentState['info'] = 'SUMMARY! 0x%02X %s - Antennas %i through %i are unconfigured ' % (0x09, subsystemErrorCodes[0x09], dStart, dStop)
-                    self.currentState['lastLog'] = 'Antennas %i through %i are unconfigured' % (dStart, dStop)
-                    self.currentState['ready'] = False
-                    
+                self.currentState['status'] = 'ERROR'
+                self.currentState['info'] = 'SUMMARY! 0x%02X %s - Antennas %i through %i are unconfigured ' % (0x09, subsystemErrorCodes[0x09], dStart, dStop)
+                self.currentState['lastLog'] = 'Antennas %i through %i are unconfigured' % (dStart, dStop)
+                self.currentState['ready'] = False
+                
         return True

@@ -26,7 +26,7 @@ from aspI2C import psuRead
 
 
 __version__ = '0.6'
-__all__ = ['BackendService', 'TemperatureSensors', 'PowerStatus', 'ChassisStatus']
+__all__ = ['BackendService', 'TemperatureSensors', 'ChassisStatus']
 
 
 aspThreadsLogger = logging.getLogger('__main__')
@@ -168,7 +168,7 @@ class BackendService(object):
 
 class TemperatureSensors(object):
     """
-    Class for monitoring temperature for the power supplies via the I2C interface.
+    Class for monitoring temperature for the ARX boards via the RS485 interface.
     """
     
     def __init__(self, config, logfile='/data/temp.txt', ASPCallbackInstance=None):
@@ -400,211 +400,6 @@ class TemperatureSensors(object):
         return status
 
 
-class PowerStatus(object):
-    """
-    Class for monitoring output voltage and current as well as the status
-    for the power supplies via the I2C interface.
-    """
-    
-    def __init__(self, config, logfile='/data/power.txt', ASPCallbackInstance=None):
-        logbase, logext = os.path.splitext(logfile)
-        self.logfile_board = logbase+'-board'+logext
-        self.logfile_fee = logbase+'-fee'+logext
-        self.updateConfig(config)
-        
-        # Setup the callback
-        self.ASPCallbackInstance = ASPCallbackInstance
-        
-        # Setup voltage, current, and status
-        self.nPSUs = 0
-        self.description = None
-        self.voltage = None
-        self.current = None
-        self.onoff = None
-        self.status = None
-        self.lastError = None
-        
-        self.thread = None
-        self.alive = threading.Event()
-        
-    def updateConfig(self, config=None):
-        """
-        Update the current configuration.
-        """
-        
-        if config is None:
-            return True
-            
-        self.antennaMapping = config['antenna_mapping']
-        self.monitorPeriod = config['power_period']
-        try:
-            self.influxdb = LWAInfluxClient.from_config(config)
-        except ValueError:
-            self.influxdb = None
-            
-    def start(self):
-        """
-        Start the monitoring thread.
-        """
-        
-        if self.thread is not None:
-            self.stop()
-            
-        self.description = "UNK"
-        self.voltage     = 0.0
-        self.current     = 0.0
-        self.onoff       = "UNK"
-        self.status      = "UNK"
-            
-        self.thread = threading.Thread(target=self.monitorThread)
-        self.thread.setDaemon(1)
-        self.alive.set()
-        self.thread.start()
-        
-        time.sleep(1)
-        
-    def stop(self):
-        """
-        Stop the monitor thread, waiting until it's finished.
-        """
-        
-        if self.thread is not None:
-            self.alive.clear()          #clear alive event for thread
-            self.thread.join()          #wait until thread has finished
-            self.thread = None
-            self.nPSUs = 0
-            self.lastError = None
-            
-    def monitorThread(self):
-        """
-        Create a monitoring thread for the temperature.
-        """
-        
-        while self.alive.isSet():
-            tStart = time.time()
-            
-            try:
-                success, boards, fees = rs485Power(self.antennaMapping)
-                if success:
-                    self._boards = boards
-                    self._fees = fees
-                    
-                try:
-                    log = open(self.logfile_board, 'a+')
-                    log.write('%s,' % time.time())
-                    log.write('%s,' % sum(self._boards))
-                    log.write('%s\n' % ','.join([str(v) for v in self._boards]))
-                    log.flush()
-                    log.close()
-                except IOError:
-                    aspThreadsLogger.error("%s: could not open flag logfile %s for writing", type(self).__name__, self.logfile_board)
-                    pass
-                    
-                try:
-                    log = open(self.logfile_fee, 'a+')
-                    log.write('%s,' % time.time())
-                    log.write('%s,' % sum(self._fees))
-                    log.write('%s\n' % ','.join([str(v) for v in self._fees]))
-                    log.flush()
-                    log.close()
-                except IOError:
-                    aspThreadsLogger.error("%s: could not open flag logfile %s for writing", type(self).__name__, self.logfile_fees)
-                    pass
-                    
-                # Deal with power supplies that are over temperature, current, or voltage; 
-                # or under voltage; or has a module fault
-                if self.ASPCallbackInstance is not None:
-                    for modeOfFailure in ('OverTemperature', 'OverCurrent', 'OverVolt', 'UnderVolt', 'ModuleFault'):
-                        if self.status.find(modeOfFailure) != -1:
-                            aspThreadsLogger.critical('%s: monitorThread PS at 0x%02X is in %s', type(self).__name__, self.deviceAddress, modeOfFailure)
-                            
-                            self.ASPCallbackInstance.processCriticalPowerSupply(self.deviceAddress, modeOfFailure)
-                            
-                if self.influxdb is not None:
-                    json = [{"measurement": "power",
-                             "tags": {"subsystem": "asp",
-                                      "monitorpoint": "psu%s" % self.deviceAddress},
-                             "time": self.influxdb.now(),
-                             "fields": {"voltage": self.voltage,
-                                        "current": self.current}},]
-                    json[0]['fields']['power'] = json[0]['fields']['voltage']*json[0]['fields']['current']
-                    self.influxdb.write(json)
-                     
-            except Exception as e:
-                exc_type, exc_value, exc_traceback = sys.exc_info()
-                aspThreadsLogger.error("%s: monitorThread 0x%02X failed with: %s at line %i", type(self).__name__, self.deviceAddress, str(e), exc_traceback.tb_lineno)
-                
-                ## Grab the full traceback and save it to a string via StringIO
-                fileObject = StringIO()
-                traceback.print_tb(exc_traceback, file=fileObject)
-                tbString = fileObject.getvalue()
-                fileObject.close()
-                ## Print the traceback to the logger as a series of DEBUG messages
-                for line in tbString.split('\n'):
-                    aspThreadsLogger.debug("%s", line)
-                
-                self.voltage = 0.0
-                self.current = 0.0
-                self.onoff = "UNK"
-                self.status = "UNK"
-                self.lastError = str(e)
-                
-            # Stop time
-            tStop = time.time()
-            aspThreadsLogger.debug('Finished updating PSU status for 0x%02X in %.3f seconds', self.deviceAddress, tStop - tStart)
-            
-            # Sleep for a bit
-            sleepCount = 0
-            sleepTime = self.monitorPeriod - (tStop - tStart)
-            while (self.alive.isSet() and sleepCount < sleepTime):
-                time.sleep(0.2)
-                sleepCount += 0.2
-                
-    def getDeviceAddress(self):
-        """
-        Convenience function to get the I2C address of the PSU.
-        """
-        
-        return self.deviceAddress
-        
-    def getDescription(self):
-        """
-        Convenience function to get the description of the module.
-        """
-        
-        return self.description
-        
-    def getVoltage(self):
-        """
-        Convenience function to get the voltage in volts.
-        """
-        
-        return self.voltage
-        
-    def getCurrent(self):
-        """
-        Convenience function to get the current in amps.
-        """
-        
-        return self.current
-        
-    def getOnOff(self):
-        """
-        Convenience function to get the module on/off status as a human-readable 
-        string.
-        """
-        
-        return self.onoff
-        
-    def getStatus(self):
-        """
-        Convenience function to get the module status as a human-readable 
-        string.
-        """
-        
-        return self.status
-
-
 class ChassisStatus(object):
     """
     Class for monitoring the configuration state of the boards to see if 
@@ -708,6 +503,7 @@ class ChassisStatus(object):
                     if config_failures > 1:
                         self.ASPCallbackInstance.processUnconfiguredChassis([[1, 8],])
                         
+                ## Record the power consumption while we are at it
                 status, boards, fees = rs485Power(self.antennaMapping,
                                                   maxRetry=self.maxRetry,
                                                   waitRetry=self.waitRetry)
@@ -715,6 +511,22 @@ class ChassisStatus(object):
                     self.board_currents = boards
                     self.fee_currents = fees
                     
+                    try:
+                        with open('/data/board-power.txt', 'a') as fh:
+                            fh.write('%s,' % time.time())
+                            fh.write('%.3f,' % sum(self.board_currents))
+                            fh.write('%s\n' % ','.join(['%.3f' % v for b in self.board_currents]))
+                    except Exception as e:
+                        aspThreadsLogger.error("%s: monitorThread failed to update board power log - %s", type(self).__name__, str(e))
+                        
+                    try:
+                        with open('/data/fee-power.txt', 'a') as fh:
+                            fh.write('%s,' % time.time())
+                            fh.write('%.3f,' % sum(self.fee_currents))
+                            fh.write('%s\n' % ','.join(['%.3f' % v for b in self.fee_currents]))
+                    except Exception as e:
+                        aspThreadsLogger.error("%s: monitorThread failed to update FEE power log - %s", type(self).__name__, str(e))
+                        
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread failed with: %s at line %i", type(self).__name__, str(e), exc_traceback.tb_lineno)
