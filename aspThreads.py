@@ -88,27 +88,17 @@ class BackendService(object):
                         self.ASPCallbackInstance.processNoBackendService(self.service_running)
                         
                 ## Is there anything to read on stdout?
-                if watch_out.poll(1):
-                    ### Good, read in all that we can
+                while watch_out.poll(1) and self.alive.isSet():
                     line = service.stdout.readline()
                     line = line.decode()
                     aspThreadsLogger.debug("%s: serviceThread - %s", type(self).__name__, line.rstrip())
-                    while watch_out.poll(1) and self.alive.isSet():
-                        line = service.stdout.readline()
-                        line = line.decode()
-                        aspThreadsLogger.debug("%s: serviceThread - %s", type(self).__name__, line.rstrip())
-                        
+                    
                 ## Is there anything to read on stderr?
-                if watch_err.poll(1):
-                    ### Ugh, read in all that we can
+                while watch_err.poll(1) and self.alive.isSet():
                     line = service.stderr.readline()
                     line = line.decode()
                     aspThreadsLogger.debug("%s: serviceThread - %s", type(self).__name__, line.rstrip())
-                    while watch_err.poll(1) and self.alive.isSet():
-                        line = service.stderr.readline()
-                        line = line.decode()
-                        aspThreadsLogger.debug("%s: serviceThread - %s", type(self).__name__, line.rstrip())
-                        
+                    
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: serviceThread failed with: %s at line %i", type(self).__name__, str(e), exc_traceback.tb_lineno)
