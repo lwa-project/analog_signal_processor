@@ -42,7 +42,6 @@ def rs485CountBoards(antennaMapping, maxRetry=0, waitRetry=0.2):
             board = int(board_key)
             for attempt in range(maxRetry+1):
                 try:
-                    _ARX._send(board & 0xFF, 'arxn', '')
                     _ARX.get_board_info(board & 0xFF)
                     found += 1
                     break
