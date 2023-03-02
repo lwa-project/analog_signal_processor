@@ -35,20 +35,6 @@ def _stand_to_board_chans(stand, antennaMapping):
     return board, chan0, chan1
 
 
-def rs485Sleep(antennaMapping, maxRetry=0, waitRetry=0.2):
-    with RS485_LOCK:
-        for board_key in antennaMapping.keys():
-            board = int(board_key)
-            for attempt in range(maxRetry+1):
-                try:
-                    _ARX._send(board & 0xFF, 'slep', '')
-                    break
-                except Exception as e:
-                    aspRS485Logger.warning("Could not sleep board %s: %s", board_key, str(e))
-                    time.sleep(waitRetry)
-    return True
-
-
 def rs485CountBoards(antennaMapping, maxRetry=0, waitRetry=0.2):
     found = 0
     with RS485_LOCK:

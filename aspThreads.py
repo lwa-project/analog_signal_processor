@@ -16,7 +16,7 @@ from io import StringIO
     
 from lwainflux import LWAInfluxClient
 
-from aspRS485 import rs485Check, rs485Get, rs485Power, rs485Temperature, rs485Sleep
+from aspRS485 import rs485Check, rs485Get, rs485Power, rs485Temperature
 
 
 __version__ = '0.7'
