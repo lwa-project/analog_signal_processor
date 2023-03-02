@@ -16,7 +16,7 @@ from io import StringIO
     
 from lwainflux import LWAInfluxClient
 
-from aspRS485 import rs485Check, rs485Get, rs485Power, rs485Temperature
+from aspRS485 import rs485Check, rs485Get, rs485Power, rs485Temperature, rs485Sleep
 
 
 __version__ = '0.7'
@@ -221,6 +221,7 @@ class TemperatureSensors(object):
             tStart = time.time()
             
             try:
+                # Poll the boards
                 status, temps = rs485Temperature(self.antennaMapping)
                 if status:
                     for i,t in enumerate(temps):
@@ -283,6 +284,9 @@ class TemperatureSensors(object):
                             json[0]['fields'][self.description[i].replace(' ', '_')] = self.temp[i]
                         self.influxdb.write(json)
                         
+                # Back to sleep
+                rs485Sleep(self.antennaMapping)
+                
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread failed with: %s at line %i", type(self).__name__, str(e), exc_traceback.tb_lineno)
@@ -495,6 +499,9 @@ class ChassisStatus(object):
                     except Exception as e:
                         aspThreadsLogger.error("%s: monitorThread failed to update FEE power log - %s", type(self).__name__, str(e))
                         
+                ## Back to sleep
+                rs485Sleep(self.antennaMapping)
+                
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread failed with: %s at line %i", type(self).__name__, str(e), exc_traceback.tb_lineno)
