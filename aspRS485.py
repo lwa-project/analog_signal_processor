@@ -41,7 +41,7 @@ def rs485Sleep(antennaMapping, maxRetry=0, waitRetry=0.2):
             board = int(board_key)
             for attempt in range(maxRetry+1):
                 try:
-                    _ARX._send(board & 0xFF, 'slep', '')
+                    _ARX._send(board & 0xFF, 'SLEP', '')
                     break
                 except Exception as e:
                     aspRS485Logger.warning("Could not sleep board %s: %s", board_key, str(e))
@@ -56,7 +56,7 @@ def rs485CountBoards(antennaMapping, maxRetry=0, waitRetry=0.2):
             board = int(board_key)
             for attempt in range(maxRetry+1):
                 try:
-                    _ARX._send(board & 0xFF, 'arxn', '')
+                    _ARX._send(board & 0xFF, 'ARXN', '')
                     _ARX.get_board_info(board & 0xFF)
                     found += 1
                     break
