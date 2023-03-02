@@ -493,7 +493,7 @@ class ChassisStatus(object):
                         with open('/data/board-power.txt', 'a') as fh:
                             fh.write('%s,' % time.time())
                             fh.write('%.3f,' % sum(self.board_currents))
-                            fh.write('%s\n' % ','.join(['%.3f' % v for b in self.board_currents]))
+                            fh.write('%s\n' % ','.join(['%.3f' % v for v in self.board_currents]))
                     except Exception as e:
                         aspThreadsLogger.error("%s: monitorThread failed to update board power log - %s", type(self).__name__, str(e))
                         
@@ -501,7 +501,7 @@ class ChassisStatus(object):
                         with open('/data/fee-power.txt', 'a') as fh:
                             fh.write('%s,' % time.time())
                             fh.write('%.3f,' % sum(self.fee_currents))
-                            fh.write('%s\n' % ','.join(['%.3f' % v for b in self.fee_currents]))
+                            fh.write('%s\n' % ','.join(['%.3f' % v for v in self.fee_currents]))
                     except Exception as e:
                         aspThreadsLogger.error("%s: monitorThread failed to update FEE power log - %s", type(self).__name__, str(e))
                         
