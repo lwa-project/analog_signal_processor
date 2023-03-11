@@ -214,7 +214,7 @@ bool ATmega::read_i2c(uint8_t addr, uint8_t reg, char* data, int size) {
   return true;
 }
 
-bool ATmega::write_i2c(uint8_t addr, uint8_t reg, const char* data, int size) {
+bool ATmega::write_i2c(uint8_t addr, uint8_t reg, char* data, int size) {
   if( _fd < 0 ) {
     return false;
   }

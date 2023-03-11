@@ -54,7 +54,7 @@ private:
   std::string   _dev;
   int           _fd;
   
-  inline int _send(const atmega_buffer* cmd, atmega_buffer* resp) {
+  inline int _send(atmega_buffer* cmd, atmega_buffer* resp) {
     int open_attempts = 0;
     int n = send_command(_fd, cmd, resp);
     while( (n == 0) && (open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS) ) {
