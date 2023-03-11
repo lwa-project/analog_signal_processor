@@ -49,7 +49,7 @@ LDFLAGS += -lm
 # Target Builds
 # 
 #------------------------------------------------------------------------------
-LIBSUB: 
+LIBATMEGA: 
 	make -C libatmega
 
 sendARXDevice: sendARXDevice.o aspCommon.o
