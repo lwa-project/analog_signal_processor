@@ -1,12 +1,12 @@
 #------------------------------------------------------------------------------
 # Main Targets
 #------------------------------------------------------------------------------
-all: LIBSUB sendARXDevice \
+all: LIBATMEGA sendARXDevice \
      countBoards countPSUs countThermometers \
      readPSU readThermometers \
      onoffPSU configPSU \
      readARXDevice \
-		 sub20Config
+		 atmegaConfig
 
 #------------------------------------------------------------------------------
 # Config
@@ -35,9 +35,9 @@ CFLAGS  := -O2 -Wall
 #------------------------------------------------------------------------------
 # Linker Flags 
 #------------------------------------------------------------------------------
-LDFLAGS := -lsub -Llibsub
-CFLAGS += -Ilibsub
-LDFLAGS += -L/usr/local/lib -lusb-1.0 -lm
+LDFLAGS := -latmega -Llibatmega
+CFLAGS += -Ilibatmega
+LDFLAGS += -lm
 
 #------------------------------------------------------------------------------
 # Common rules
@@ -45,7 +45,7 @@ LDFLAGS += -L/usr/local/lib -lusb-1.0 -lm
 %.o:	%.c  
 	$(CC) -c $(CFLAGS) -o $@ $<
 %.o:	%.cpp 
-	$(CXX) -c $(CFLAGS) -std=c++11 -o $@ $<
+	$(CXX) -c $(CFLAGS) -std=c++17 -o $@ $<
 
 
 #------------------------------------------------------------------------------
@@ -53,7 +53,7 @@ LDFLAGS += -L/usr/local/lib -lusb-1.0 -lm
 # 
 #------------------------------------------------------------------------------
 LIBSUB: 
-	make -C libsub
+	make -C libatmega
 
 sendARXDevice: sendARXDevice.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
@@ -82,7 +82,7 @@ configPSU: configPSU.o aspCommon.o
 readARXDevice: readARXDevice.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 	
-sub20Config: sub20Config.cpp
+atmegaConfig: atmegaConfig.cpp
 	python3 setup.py build_ext --inplace
 
 install:
@@ -109,4 +109,4 @@ install:
 clean:
 	rm -f *.o *.out *.err *.exe *.a *.so
 	rm -f sendARXDevice countBoards countPSUs countThermometers readPSU readThermometers onoffPSU configPSU readARXDevice
-	make -C libsub clean
+	make -C libatmega clean

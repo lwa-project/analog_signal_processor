@@ -4,7 +4,7 @@ specified devices.  An exit code of zero indicates that
 no errors were encountered.
  
 Usage:
-  sendARXDevice <SUB-20 S/N> <total stand count> <device> <command> ...
+  sendARXDevice <ATmega S/N> <total stand count> <device> <command> ...
 
   * Command is a four digit hexadecimal values (i.e., 
   0x1234)
@@ -53,11 +53,11 @@ int main(int argc, char** argv) {
   }
   
   /************************************
-	* SUB-20 device selection and ready *
+	* ATmega device selection and ready *
 	************************************/
-  Sub20 *sub20 = new Sub20(requestedSN);
+  ATmega *atm = new ATmega(requestedSN);
   
-  bool success = sub20->open();
+  bool success = atm->open();
   if( !success ) {
     std::cerr << "sendARXDevice - failed to open " << requestedSN << std::endl;
 	  std::exit(EXIT_FAILURE);
@@ -72,12 +72,12 @@ int main(int argc, char** argv) {
   while( !queue->is_empty() ) {
     commands = queue->get_commands();
     
-    success = sub20->transfer_spi((char*) commands, (char*) responses, 2*device_count+2);
+    success = atm->transfer_spi((char*) commands, (char*) responses, 2*device_count+2);
   	if( !success ) {
   		std::cerr << "sendARXDevice - SPI write failed - " << sub_strerror(sub_errno) << std::endl;
       ::free(commands);
       ::free(responses);
-      delete sub20;
+      delete atm;
       delete queue;
   		std::exit(EXIT_FAILURE);
   	}
@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
                 << std::hex << SPI_COMMAND_MARKER << std::dec << std::endl;
       ::free(commands);
       ::free(responses);
-      delete sub20;
+      delete atm;
       delete queue;
   		std::exit(EXIT_FAILURE);
   	}
@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
 	*******************/
 	::free(responses);
   
-  delete sub20;
+  delete atm;
   delete queue;
   
 	std::exit(EXIT_SUCCESS);

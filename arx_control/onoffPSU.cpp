@@ -3,7 +3,7 @@ onoffPSU - Change the overall power state for the
 specified device.
 
 Usage:
-  onoffPSU <SUB-20 S/N> <device address> <new power state>
+  onoffPSU <ATmega S/N> <device address> <new power state>
   
   * Device addresses are two-digit hexadecimal numbers 
     (i.e. 0x1F)
@@ -43,11 +43,11 @@ int main(int argc, char** argv) {
 	}
   
   /************************************
-  * SUB-20 device selection and ready *
+  * ATmega device selection and ready *
   ************************************/
-  Sub20 *sub20 = new Sub20(requestedSN);
+  ATmega *atm = new ATmega(requestedSN);
   
-  bool success = sub20->open();
+  bool success = atm->open();
   if( !success ) {
     std::cerr << "onoffPSU - failed to open " << requestedSN << std::endl;
 		std::exit(EXIT_FAILURE);
@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
   /********************
 	* Read from the I2C *
 	********************/
-  std::list<uint8_t> i2c_devices = sub20->list_i2c_devices();
+  std::list<uint8_t> i2c_devices = atm->list_i2c_devices();
   
   uint8_t data, status;
   bool found = false;
@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
     }
     
     // Get the current power supply state
-		success = sub20->read_i2c(addr, 0x01, (char *) &data, 1);
+		success = atm->read_i2c(addr, 0x01, (char *) &data, 1);
 		if( !success ) {
 			std::cerr << "onoffPSU - page change - " << sub_strerror(sub_errno) << std::endl;
 			continue;
@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
 		
 		// Enable writing to the OPERATION address (0x01) so we can change modules
 		data = 0;
-		success = sub20->write_i2c(addr, 0x10, (char *) &data, 1);
+		success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
 		if( !success ) {
 			std::cerr << "onoffPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 			continue;
@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
 		}
 		
 		// Toggle the power status and wait a bit for the changes to take affect
-		success = sub20->write_i2c(addr, 0x01, (char *) &data, 1);
+		success = atm->write_i2c(addr, 0x01, (char *) &data, 1);
 		if( !success ) {
 			std::cerr << "onoffPSU - on/off toggle - " << sub_strerror(sub_errno) << std::endl;
 			continue;
@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
 		
 		// Check the power supply status
 		data = 0;
-		success = sub20->read_i2c(addr, 0x01, (char *) &data, 1);
+		success = atm->read_i2c(addr, 0x01, (char *) &data, 1);
 		if( !success ) {
 			std::cerr << "onoffPSU - page change - " << sub_strerror(sub_errno) << std::endl;
 			continue;
@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
 		
 		// Write-protect all entries but WRITE_PROTECT (0x10)
 		data = (1 << 7) & 1;
-		success = sub20->write_i2c(addr, 0x10, (char *) &data, 1);
+		success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
 		if( !success ) {
 			std::cerr << "onoffPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 			continue;
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
 	/*******************
 	* Cleanup and exit *
 	*******************/
-	delete sub20;
+	delete atm;
 	
   if( !found ) {
 		std::cerr << "onoffPSU - Cannot find device at address " << std::uppercase << std::hex << "0x%" << i2c_device << std::endl;

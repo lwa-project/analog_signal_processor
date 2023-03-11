@@ -4,7 +4,7 @@ ARX boards connected to the SPI bus.  The exit code
 contains the number of boards found.
  
 Usage:
-  countBoards <SUB-20 S/N>
+  countBoards <ATmega S/N>
 
 Options:
   None
@@ -34,11 +34,11 @@ int main(int argc, char** argv) {
   std::string requestedSN = std::string(argv[1]);
   
   /************************************
-	* SUB-20 device selection and ready *
+	* ATmega device selection and ready *
 	************************************/
-  Sub20 *sub20 = new Sub20(requestedSN);
+  ATmega *atm = new ATmega(requestedSN);
   
-  bool success = sub20->open();
+  bool success = atm->open();
   if( !success ) {
     std::cout << "countBoards - failed to open " << requestedSN << std::endl;
 	  return 0;
@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
     
     ::memset(responses, 0, sizeof(uint16_t)*2*(MAX_BOARDS*STANDS_PER_BOARD+1));
     
-    success = sub20->transfer_spi((char*) commands, (char*) responses, 2*num+2);
+    success = atm->transfer_spi((char*) commands, (char*) responses, 2*num+2);
   	if( !success ) {
   		std::cerr << "coundBoards - SPI write failed - " << sub_strerror(sub_errno) << std::endl;
   	}
@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
   ::free(commands);
   ::free(responses);
   
-	delete sub20;
+	delete atm;
 	
 	// Report
 	std::cout << "Found " << num << " boards (" << (num*STANDS_PER_BOARD) << " stands)" << std::endl;

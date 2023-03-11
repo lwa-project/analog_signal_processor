@@ -28,17 +28,17 @@
 #endif
 
 
-static PyMethodDef Sub20Methods[] = { {NULL, NULL, 0, NULL} };
+static PyMethodDef ATmegaMethods[] = { {NULL, NULL, 0, NULL} };
 
 
-PyDoc_STRVAR(sub20config_doc, "Compile time configuration values used by the SUB-20 interface.");
+PyDoc_STRVAR(atmegaconfig_doc, "Compile time configuration values used by the ATmega interface.");
 
 
-MOD_INIT(sub20Config) {
+MOD_INIT(atmegaConfig) {
   PyObject *m, *all, *value0, *value1, *value2, *value3;
   
   // Module definitions and functions
-  MOD_DEF(m, "sub20Config", Sub20Methods, sub20config_doc);
+  MOD_DEF(m, "atmegaConfig", ATmegaMethods, atmegaconfig_doc);
   if( m == NULL ) {
       return MOD_ERROR_VAL;
   }

@@ -23,23 +23,23 @@ Options:
 
 int main(int argc, char** argv) {
   /************************************
-	* SUB-20 device selection and ready *
+	* ATmega device selection and ready *
 	************************************/
-  std::list<std::string> sub20s = list_sub20s();
+  std::list<std::string> atmegas = list_atmegas();
   
   int total = 0;
   std::string i2cSN = std::string("UNK");
-  for(std::string& sn: sub20s) {
-    Sub20 *sub20 = new Sub20(sn);
+  for(std::string& sn: atmegas) {
+    ATmega *atm = new ATmega(sn);
     
-    bool success = sub20->open();
+    bool success = atm->open();
     if( !success ) {
       std::cerr << "countPSUs - failed to open " << sn << std::endl;
   	  continue;
     }
     
-    std::cout << "Found SUB-20 device S/N: " << sn << std::endl;
-    std::list<uint8_t> i2c_devices = sub20->list_i2c_devices();
+    std::cout << "Found ATmega device S/N: ATmegasn << std::endl;
+    std::list<uint8_t> i2c_devices = atm->list_i2c_devices();
     
     if( i2c_devices.size() > 0 ) {
       std::cout << "-> found " << i2c_devices.size() << " I2C devices:" << std::endl;
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
       std::cout << " -> " << std::uppercase << std::hex << "0x" << (int) addr << std::nouppercase << std::dec << std::endl;
 		  
 			// Get a list of smart modules for polling
-			success = sub20->read_i2c(addr, 0xD3, (char *) &data, 2);
+			success = atm->read_i2c(addr, 0xD3, (char *) &data, 2);
 			if( !success ) {
 				std::cerr <<  "countPSUs - module status - " << sub_strerror(sub_errno) << std::endl;
 				continue;
@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
 		/**********
 		* Cleanup *
 		**********/
-		delete sub20;
+		delete atm;
 	}
 
 	std::cout << "I2C devices appear to be on " << i2cSN << std::endl;

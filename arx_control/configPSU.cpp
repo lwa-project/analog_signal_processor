@@ -2,7 +2,7 @@
 configPSU - Change configuration of the specified PSU
 
 Usage:
-  configPSU <SUB-20 S/N> <device address> <command>
+  configPSU <ATmega S/N> <device address> <command>
   
   * Device addresses are two-digit hexadecimal numbers 
     (i.e. 0x1F)
@@ -84,11 +84,11 @@ int main(int argc, char** argv) {
 	}
   
   /************************************
-  * SUB-20 device selection and ready *
+  * ATmega device selection and ready *
   ************************************/
-  Sub20 *sub20 = new Sub20(requestedSN);
+  ATmega *atm = new ATmega(requestedSN);
   
-  bool success = sub20->open();
+  bool success = atm->open();
   if( !success ) {
     std::cerr << "configPSU - failed to open " << requestedSN << std::endl;
 		std::exit(EXIT_FAILURE);
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
   /********************
 	* Read from the I2C *
 	********************/
-  std::list<uint8_t> i2c_devices = sub20->list_i2c_devices();
+  std::list<uint8_t> i2c_devices = atm->list_i2c_devices();
   
   uint16_t data;
   bool found = false;
@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
     if( mode != MODE_QUERY ) {
 			// Enable writing to the OPERATION address (0x01) so we can change modules
 			data = 0;
-			success = sub20->write_i2c(addr, 0x10, (char *) &data, 1);
+			success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
 			if( !success ) {
 				std::cerr << "configPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 				continue;
@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
 			case MODE_QUERY:
 				// Querty the PSU setup
 				data = 0;
-				success = sub20->read_i2c(addr, 0xD6, (char *) &data, 1);
+				success = atm->read_i2c(addr, 0xD6, (char *) &data, 1);
 				if( !success ) {
 					std::cerr << "configPSU - get setup - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
 				
 				// Query the PSU configuation
 				data = 0;
-				success = sub20->read_i2c(addr, 0xD5, (char *) &data, 1);
+				success = atm->read_i2c(addr, 0xD5, (char *) &data, 1);
 				if( !success ) {
 					std::cerr << "configPSU - get configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -158,14 +158,14 @@ int main(int argc, char** argv) {
 				std::cout << "DC Output ON with Power:   " << (int) ((data >> 7) & 1) << std::endl;
 				
 				// Query temperature limits
-				success = sub20->read_i2c(addr, 0x51, (char *) &data, 2);
+				success = atm->read_i2c(addr, 0x51, (char *) &data, 2);
 				if( !success ) {
 					std::cerr << "configPSU - get temperature warning - " << sub_strerror(sub_errno) << std::endl;
 					continue;
 				}
 			  std::cout << "Temperature Warning Limit: " << (float) data/4.0 << " C" << std::endl;
 				
-				success = sub20->read_i2c(addr, 0x4F, (char *) &data, 2);
+				success = atm->read_i2c(addr, 0x4F, (char *) &data, 2);
 				if( !success ) {
 					std::cerr << "configPSU - get temperature fault - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -175,7 +175,7 @@ int main(int argc, char** argv) {
 				// Query power limits
         uint64_t wide_data;
         wide_data = 0;
-				success = sub20->read_i2c(addr, 0xEB, (char *) &wide_data, 5);
+				success = atm->read_i2c(addr, 0xEB, (char *) &wide_data, 5);
 				if( !success ) {
 					std::cerr << "configPSU - get power limits - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -187,7 +187,7 @@ int main(int argc, char** argv) {
 			case MODE_AUTOOFF:
 				// Query the PSU configuation
 				data = 0;
-				success = sub20->read_i2c(addr, 0xD5, (char *) &data, 1);
+				success = atm->read_i2c(addr, 0xD5, (char *) &data, 1);
 				if( !success ) {
 					std::cerr << "configPSU - get configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -197,7 +197,7 @@ int main(int argc, char** argv) {
         data = (data & 63) & ~(1 << 7);
 				
 				// Write the PSU configuation
-				success = sub20->write_i2c(addr, 0xD5, (char *) &data, 1);
+				success = atm->write_i2c(addr, 0xD5, (char *) &data, 1);
 				if( !success ) {
 					std::cerr << "configPSU - set configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -205,7 +205,7 @@ int main(int argc, char** argv) {
 				
 				// Save the configutation as default
 			  data = 0x21;
-				success = sub20->write_i2c(addr, 0x15, (char *) &data, 1);
+				success = atm->write_i2c(addr, 0x15, (char *) &data, 1);
 				if( !success ) {
 					std::cerr << "configPSU - save configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -215,7 +215,7 @@ int main(int argc, char** argv) {
 			case MODE_AUTOON:
 				// Query the PSU configuation
 				data = 0;
-				success = sub20->read_i2c(addr, 0xD5, (char *) &data, 1);
+				success = atm->read_i2c(addr, 0xD5, (char *) &data, 1);
 				if( !success ) {
 					std::cerr << "configPSU - get configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -225,7 +225,7 @@ int main(int argc, char** argv) {
 				data = (data & 63) | (1 << 7);
 				
 				// Write the PSU configuation
-				success = sub20->write_i2c(addr, 0xD5, (char *) &data, 1);
+				success = atm->write_i2c(addr, 0xD5, (char *) &data, 1);
 				if( !success ) {
 					std::cerr << "configPSU - set configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -233,7 +233,7 @@ int main(int argc, char** argv) {
 				
 				// Save the configutation as default
 				data = 0x21;
-				success = sub20->write_i2c(addr, 0x15, (char *) &data, 1);
+				success = atm->write_i2c(addr, 0x15, (char *) &data, 1);
 				if( !success ) {
 					std::cerr << "configPSU - save configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -245,7 +245,7 @@ int main(int argc, char** argv) {
 				data = (uint16_t) round(arg_value*4);
 				
 				// Write to memory
-				success = sub20->write_i2c(addr, 0x51, (char *) &data, 2);
+				success = atm->write_i2c(addr, 0x51, (char *) &data, 2);
 				if( !success ) {
 					std::cerr << "configPSU - set temperature warning - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -253,7 +253,7 @@ int main(int argc, char** argv) {
 				
 				// Save the configutation as default
 				data = 0x21;
-				success = sub20->write_i2c(addr, 0x15, (char *) &data, 1);
+				success = atm->write_i2c(addr, 0x15, (char *) &data, 1);
 				if( !success ) {
 					std::cerr << "configPSU - save configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -265,7 +265,7 @@ int main(int argc, char** argv) {
 				data = (uint16_t) round(arg_value*4);
 				
 				// Write to memory
-				success = sub20->write_i2c(addr, 0x4F, (char *) &data, 2);
+				success = atm->write_i2c(addr, 0x4F, (char *) &data, 2);
 				if( !success ) {
 					std::cerr << "configPSU - set temperature warning - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -273,7 +273,7 @@ int main(int argc, char** argv) {
 				
 				// Save the configutation as default
 				data = 0x21;
-				success = sub20->write_i2c(addr, 0x15, (char *) &data, 1);
+				success = atm->write_i2c(addr, 0x15, (char *) &data, 1);
 				if( !success ) {
 					std::cerr << "configPSU - save configuration - " << sub_strerror(sub_errno) << std::endl;
 					continue;
@@ -286,7 +286,7 @@ int main(int argc, char** argv) {
 		
     if( mode != MODE_QUERY ) {// Write-protect all entries but WRITE_PROTECT (0x10)
 			data = ((1 << 7) & 1);
-			success = sub20->write_i2c(addr, 0x10, (char *) &data, 1);
+			success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
 			if( !success ) {
 				std::cerr << "configPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
 				continue;
@@ -300,7 +300,7 @@ int main(int argc, char** argv) {
 	/*******************
 	* Cleanup and exit *
 	*******************/
-	delete sub20;
+	delete atm;
 	
   if( !found ) {
 		std::cerr << "configPSU - Cannot find device at address " << std::uppercase << std::hex << "0x%" << i2c_device << std::endl;

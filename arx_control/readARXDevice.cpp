@@ -4,7 +4,7 @@ device.  An exit code of zero indicates that no errors
 were encountered.
  
 Usage:
-  readARXDevice <SUB-20 S/N> <total stand count> <device> <register> ...
+  readARXDevice <ATmega S/N> <total stand count> <device> <register> ...
 
   * Command is a four digit hexadecimal values (i.e., 
   0x1234)
@@ -53,11 +53,11 @@ int main(int argc, char* argv[]) {
   }
   
   /************************************
-	* SUB-20 device selection and ready *
+	* ATmega device selection and ready *
 	************************************/
-  Sub20 *sub20 = new Sub20(requestedSN);
+  ATmega *atm = new ATmega(requestedSN);
   
-  bool success = sub20->open();
+  bool success = atm->open();
   if( !success ) {
     std::cerr << "readARXDevice - failed to open " << requestedSN << std::endl;
 		std::exit(EXIT_FAILURE);
@@ -72,12 +72,12 @@ int main(int argc, char* argv[]) {
   while( !queue->is_empty() ) {
     reads = queue->get_commands();
     
-    success = sub20->transfer_spi((char*) reads, (char*) values, 2*device_count+2);
+    success = atm->transfer_spi((char*) reads, (char*) values, 2*device_count+2);
   	if( !success ) {
   		std::cerr << "readARXDevice - SPI write #1 failed - " << sub_strerror(sub_errno) << std::endl;
       ::free(reads);
       ::free(values);
-      delete sub20;
+      delete atm;
       delete queue;
   		std::exit(EXIT_FAILURE);
   	}
@@ -88,19 +88,19 @@ int main(int argc, char* argv[]) {
                 << std::hex << SPI_COMMAND_MARKER << std::dec << std::endl;
       ::free(reads);
       ::free(values);
-      delete sub20;
+      delete atm;
       delete queue;
   		std::exit(EXIT_FAILURE);
   	}
     
     ::memset(reads+1, 0, 2*device_count);
     
-    success = sub20->transfer_spi((char*) reads, (char*) values, 2*device_count+2);
+    success = atm->transfer_spi((char*) reads, (char*) values, 2*device_count+2);
   	if( !success ) {
   		std::cerr << "readARXDevice - SPI write #2 failed - " << sub_strerror(sub_errno) << std::endl;
       ::free(reads);
       ::free(values);
-      delete sub20;
+      delete atm;
       delete queue;
   		std::exit(EXIT_FAILURE);
   	}
@@ -111,7 +111,7 @@ int main(int argc, char* argv[]) {
                 << std::hex << SPI_COMMAND_MARKER << std::dec << std::endl;
       ::free(reads);
       ::free(values);
-      delete sub20;
+      delete atm;
       delete queue;
   		std::exit(EXIT_FAILURE);
   	}
@@ -130,7 +130,7 @@ int main(int argc, char* argv[]) {
 	*******************/
 	::free(values);
   
-	delete sub20;
+	delete atm;
   delete queue;
 	
 	std::exit(EXIT_SUCCESS);
