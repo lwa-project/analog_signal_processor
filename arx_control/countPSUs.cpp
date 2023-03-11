@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
   	  continue;
     }
     
-    std::cout << "Found ATmega device S/N: ATmegasn << std::endl;
+    std::cout << "Found ATmega device S/N: " << sn << std::endl;
     std::list<uint8_t> i2c_devices = atm->list_i2c_devices();
     
     if( i2c_devices.size() > 0 ) {
@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
 			// Get a list of smart modules for polling
 			success = atm->read_i2c(addr, 0xD3, (char *) &data, 2);
 			if( !success ) {
-				std::cerr <<  "countPSUs - module status - " << sub_strerror(sub_errno) << std::endl;
+				std::cerr <<  "countPSUs - module status failed" << std::endl;
 				continue;
 			}
 		  

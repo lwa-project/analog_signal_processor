@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
     // Get the current power supply state
 		success = atm->read_i2c(addr, 0x01, (char *) &data, 1);
 		if( !success ) {
-			std::cerr << "onoffPSU - page change - " << sub_strerror(sub_errno) << std::endl;
+			std::cerr << "onoffPSU - page change failed" << std::endl;
 			continue;
 		}
 		status = (data >> 7) & 1;
@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
 		data = 0;
 		success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
 		if( !success ) {
-			std::cerr << "onoffPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
+			std::cerr << "onoffPSU - write settings failed" << std::endl;
 			continue;
 		}
 
@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
 		// Toggle the power status and wait a bit for the changes to take affect
 		success = atm->write_i2c(addr, 0x01, (char *) &data, 1);
 		if( !success ) {
-			std::cerr << "onoffPSU - on/off toggle - " << sub_strerror(sub_errno) << std::endl;
+			std::cerr << "onoffPSU - on/off toggle failed" << std::endl;
 			continue;
 		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
 		data = 0;
 		success = atm->read_i2c(addr, 0x01, (char *) &data, 1);
 		if( !success ) {
-			std::cerr << "onoffPSU - page change - " << sub_strerror(sub_errno) << std::endl;
+			std::cerr << "onoffPSU - page change failed" << std::endl;
 			continue;
 		}
 		status = (data >> 7) & 1;
@@ -113,7 +113,7 @@ int main(int argc, char** argv) {
 		data = (1 << 7) & 1;
 		success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
 		if( !success ) {
-			std::cerr << "onoffPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
+			std::cerr << "onoffPSU - write settings failed" << std::endl;
 			continue;
 		}
     

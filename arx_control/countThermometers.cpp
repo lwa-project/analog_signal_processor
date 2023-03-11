@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
       uint16_t data;
       success = atm->read_i2c(addr, 0xD3, (char *) &data, 2);
 			if( !success ) {
-				std::cerr << "countThermometers - module status - " << sub_strerror(sub_errno) << std::endl;
+				std::cerr << "countThermometers - module status failed" << std::endl;
 				continue;
 			}
 			

@@ -43,7 +43,7 @@ LFLAGS  := -fPIC
 # Target Builds
 # 
 #------------------------------------------------------------------------------
-LIBATMEGA : libatmega.a libatmega.so
+LIBATMEGA : libatmega.a #libatmega.so
 libatmega.a : libatmega.o
 	ar -rcsv $@ $^
 libatmega.so: libatmega.o

@@ -10,6 +10,7 @@
 #include <vector>
 #include <queue>
 #include <list>
+#include <thread>
 #include <cstring>
 #include <stdexcept>
 #include "libatmega.hpp"
@@ -40,7 +41,7 @@
 //#define __USE_INPUT_CURRENT__
 
 // Get a list of all USB devices that *might* be ATmega
-std::list<std::string> list_possible_atmega();
+std::list<std::string> list_possible_atmegas();
 
 
 // Get a list of all ATmega serial numbers
@@ -50,36 +51,33 @@ std::list<std::string> list_atmegas();
 // Class to simplify interfacing with a ATmega via the libatmega library
 class ATmega {
 private:
-  std::string   _sn;
-  std::string   _dev;
-  int           _fd;
+  std::string    _sn;
+  std::string    _dev;
+  atmega::handle _fd;
   
-  inline int _send(atmega_buffer* cmd, atmega_buffer* resp) {
+  inline void _send(const atmega::buffer* cmd, atmega::buffer* resp) {
     int open_attempts = 0;
-    int n = send_command(_fd, cmd, resp);
+    int n = atmega::send_command(_fd, cmd, resp);
     while( (n == 0) && (open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS) ) {
       open_attempts++;
       std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
-      n = send_command(_fd, cmd, resp);
+      n = atmega::send_command(_fd, cmd, resp);
     }
     resp->size = ntohs(resp->size);
-    return n;
   }
 public:
   ATmega(std::string sn): _sn(""), _dev(""), _fd(-1) {
     _sn = sn;
   }
   ~ATmega() {
-    if( _fd >= 0 ) {
-      close(_fd);
-    }
+    atmega::close(_fd);
   }
   bool open();
   std::string get_version();
-  bool transfer_spi(char* inputs, char* outputs, int size);
+  bool transfer_spi(const char* inputs, char* outputs, int size);
   std::list<uint8_t> list_i2c_devices();
   bool read_i2c(uint8_t addr, uint8_t reg, char* data, int size);
-  bool write_i2c(uint8_t addr, uint8_t reg, char* data, int size);
+  bool write_i2c(uint8_t addr, uint8_t reg, const char* data, int size);
   std::list<float> read_adcs();
 };
 

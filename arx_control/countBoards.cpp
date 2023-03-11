@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
     
     success = atm->transfer_spi((char*) commands, (char*) responses, 2*num+2);
   	if( !success ) {
-  		std::cerr << "coundBoards - SPI write failed - " << sub_strerror(sub_errno) << std::endl;
+  		std::cerr << "coundBoards - SPI write failed" << std::endl;
   	}
   }
   if( num > STANDS_PER_BOARD*17 ) {

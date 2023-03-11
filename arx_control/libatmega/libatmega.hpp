@@ -1,29 +1,54 @@
-#include <list>
+#pragma once
+
 #include <string>
-#include <filesystem>
-#include <iostream>
 #include <cstring>
-#include <chrono>
-#include <thread>
+#include <stdexcept>
 
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
-#include <arpa/inet.h>
-#include <linux/serial.h>
 #include <sys/ioctl.h>
 
-#pragma once
+#define ATMEGA_MAX_BUFFER_SIZE 130
 
-#define ATMEGA_COMMAND_SUCCESS 0x00
-#define ATMEGA_COMMAND_FAILED 0xFF
-
-struct __attribute__((packed)) atmega_buffer {
-  uint8_t  command;
-  uint16_t size;
-  uint8_t  buffer[256];
-};
-
-int configure_port(int fd);
-
-int send_command(int fd, atmega_buffer* command, atmega_buffer* response);
+namespace atmega {
+  // Device file handle
+  typedef int handle;
+  
+  // Command values
+  typedef enum Command_: uint8_t {
+    COMMAND_SUCCESS      = 0x00,
+    COMMAND_READ_SN      = 0x01,
+    COMMAND_READ_VER     = 0x02,
+    COMMAND_READ_MLEN    = 0x03,
+    COMMAND_ECHO         = 0x04,
+    COMMAND_TRANSFER_SPI = 0x11,
+    COMMAND_READ_ADCS    = 0x21,
+    COMMAND_SCAN_I2C     = 0x31,
+    COMMAND_READ_I2C     = 0x32,
+    COMMAND_WRITE_I2C    = 0x33,
+    COMMAND_LOCK         = 0xA1,
+    COMMAND_UNLOCK       = 0xA2,
+    COMMAND_WRITE_SN     = 0xA3,
+    COMMAND_FAILURE      = 0xFF
+  } Command;
+  
+  // Command/response data structure
+  typedef struct __attribute__((packed)) buffer_ {
+    Command  command;
+    uint16_t size;    // NOTE: big endian
+    uint8_t  buffer[ATMEGA_MAX_BUFFER_SIZE];
+  } buffer;
+  
+  // Open a device
+  handle open(std::string device_name);
+  
+  // Configure the device for reading and writing
+  void configure_port(handle fd, bool exclusive_access=true);
+  
+  // Send a command, return the number of bytes received
+  int send_command(handle fd, const buffer* command, buffer* response);
+  
+  // Close an open device
+  void close(handle fd);
+}

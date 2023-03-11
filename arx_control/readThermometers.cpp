@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
 			// Get a list of smart modules for polling
 			success = atm->read_i2c(addr, 0xD3, (char *) &data, 2);
 			if( !success ) {
-				std::cerr << "readThermometers - module status - " << sub_strerror(sub_errno) << std::endl;
+				std::cerr << "readThermometers - module status failed" << std::endl;
 				continue;
 			}
 			modules = data;
@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
       data = ((1 << 6) & 1) << 8;
 			success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
 			if( !success ) {
-				std::cerr << "readThermometers - write settings - " << sub_strerror(sub_errno) << std::endl;
+				std::cerr << "readThermometers - write settings failed" << std::endl;
 				continue;
 			}
 			
@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
 				data = j << 8;
 				success = atm->write_i2c(addr, 0x00, (char *) &data, 1);
 				if( !success ) {
-					std::cerr << "readThermometers - page change - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "readThermometers - page change failed" << std::endl;
 					continue;
 				}
 				std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
 				// Verify the current page
 				success = atm->read_i2c(addr, 0x00, (char *) &data, 1);
 				if( !success ) {
-					std::cerr << "readThermometers - get page - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "readThermometers - get page failed" << std::endl;
 					continue;
 				}
 				page = (data >> 8) & 0xFFFF;
@@ -105,7 +105,7 @@ int main(int argc, char** argv) {
 				
 				success = atm->read_i2c(addr, 0x8F, (char *) &data, 2);
 				if( !success ) {
-					std::cerr << "readThermometers - get temperature #3 - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "readThermometers - get temperature #3 failed" << std::endl;
 					continue;
 				}
 				std::cout << "0x" << std::uppercase << std::hex << (int) addr << std::nouppercase << std::dec << " Module" << page << " " << (1.0*data) << std::endl;
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
 			data = 0;
 			success = atm->write_i2c(addr, 0x00, (char *) &data, 1);
 			if( !success ) {
-				std::cerr << "readThermometers - page change - " << sub_strerror(sub_errno) << std::endl;
+				std::cerr << "readThermometers - page change failed" << std::endl;
 				continue;
 			}
 			
@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
 			data = ((1 << 7) & 1) << 8;
 			success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
 			if( !success ) {
-				std::cerr << "readThermometers - write settings - " << sub_strerror(sub_errno) << std::endl;
+				std::cerr << "readThermometers - write settings failed" << std::endl;
 				continue;
 			}
 		#endif
@@ -133,14 +133,14 @@ int main(int argc, char** argv) {
 		**************************/
 		success = atm->read_i2c(addr, 0x8D, (char *) &data, 2);
 		if( !success ) {
-			std::cerr << "readThermometers - get temperature #1 - " << sub_strerror(sub_errno) << std::endl;
+			std::cerr << "readThermometers - get temperature #1 failed" << std::endl;
 			continue;
 		}
 		std::cout << "0x" << std::uppercase << std::hex << (int) addr << std::nouppercase << std::dec << " Case " << (data/4.0) << std::endl;
 		
 		success = atm->read_i2c(addr, 0x8E, (char *) &data, 2);
 		if( !success ) {
-			std::cerr << "readThermometers - get temperature #2 - " << sub_strerror(sub_errno) << std::endl;
+			std::cerr << "readThermometers - get temperature #2 failed" << std::endl;
 			continue;
 		}
 		std::cout << "0x" << std::uppercase << std::hex << (int) addr << std::nouppercase << std::dec << " PrimarySide " << (data/4.0) << std::endl;

@@ -6,7 +6,7 @@
 
 #include "aspCommon.hpp"
 
-std::list<std::string> list_possible_atmega() {
+std::list<std::string> list_possible_atmegas() {
   std::list<std::string> devices;
   
   for(auto const& dir_entry: std::filesystem::directory_iterator{"/sys/bus/usb/devices/"}) {
@@ -36,79 +36,89 @@ std::list<std::string> list_possible_atmega() {
   return devices;
 }
 
-std::list<std::string> list_atmega() {
+std::list<std::string> list_atmegas() {
   std::list<std::string> devices, atmega_sns;
   
-  devices = list_possible_atmega();
-  std::cout << "devices.size()=" << devices.size() << std::endl;
+  devices = list_possible_atmegas();
   
-  for(auto const& dev_name: devices) {
+  for(std::string const& dev_name: devices) {
     std::cout << " " << dev_name << std::endl;
     
     int open_attempts = 0;
-    int fd = ::open(dev_name.c_str(), O_RDONLY | O_NOCTTY);
-    while( (fd < 0) && (open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS) ) {
-      open_attempts++;
-      std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
-      fd = ::open(dev_name.c_str(), O_RDONLY | O_NOCTTY);
+    atmega::handle fd = -1;
+    while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
+      try {
+        fd = atmega::open(dev_name);
+        break;
+      } catch(const std::exception& e) {
+        open_attempts++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
+      }
     }
     
     if( fd < 0) {
       continue;
     }
     
-    std::cout << "fd=" << fd << std::endl;
-    if( configure_port(fd) == 0 ) {
-      atmega_buffer cmd, resp;
-      cmd.command = 0x01;
+    try {
+      atmega::configure_port(fd);
+      
+      atmega::buffer cmd, resp;
+      cmd.command = atmega::COMMAND_READ_SN;
       cmd.size = htons(0);
       
       open_attempts = 0;
-      int n = send_command(fd, &cmd, &resp);
+      int n = atmega::send_command(fd, &cmd, &resp);
       while( (n == 0) && (open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS) ) {
         open_attempts++;
         std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
-        n = send_command(fd, &cmd, &resp);
+        n = atmega::send_command(fd, &cmd, &resp);
       }
       resp.size = ntohs(resp.size);
       
-      if( resp.command != ATMEGA_COMMAND_FAILED ) {
+      if( resp.command != atmega::COMMAND_FAILURE ) {
         std::string sn;
         for(int i=0; i<resp.size; i++) {
           sn.append((char*) &(resp.buffer[i]));
         }
         atmega_sns.push_back(sn);
       }
-    }
-    close(fd);
+    } catch(const std::exception& e) {}
+    atmega::close(fd);
   }
   return atmega_sns;
 }
 
 bool ATmega::open() {
-  std::list<std::string> devices = list_possible_atmega();
+  std::list<std::string> devices = list_possible_atmegas();
     
   bool found = false;
-  for(auto const& dev_name: devices) {
+  for(std::string const& dev_name: devices) {
     int open_attempts = 0;
-    int fd = ::open(dev_name.c_str(), O_RDONLY | O_NOCTTY);
-    while( (fd < 0) && (open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS) ) {
-      open_attempts++;
-      std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
-      fd = ::open(dev_name.c_str(), O_RDONLY | O_NOCTTY);
+    atmega::handle fd = -1;
+    while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
+      try {
+        fd = atmega::open(dev_name);
+        break;
+      } catch(const std::exception& e) {
+        open_attempts++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
+      }
     }
     
     if( fd < 0 ) {
       continue;
     }
     
-    if( configure_port(fd) != 0 ) {
-      atmega_buffer cmd, resp;
-      cmd.command = 0x01;
+    try {
+      atmega::configure_port(fd);
+      
+      atmega::buffer cmd, resp;
+      cmd.command = atmega::COMMAND_READ_SN;
       cmd.size = htons(0);
       
-      int n = this->_send(&cmd, &resp);
-      if( resp.command != ATMEGA_COMMAND_FAILED ) {
+      this->_send(&cmd, &resp);
+      if( resp.command != atmega::COMMAND_FAILURE ) {
         std::string sn;
         for(int i=0; i<resp.size; i++) {
           sn.append((char*) &(resp.buffer[i]));
@@ -120,12 +130,12 @@ bool ATmega::open() {
           _dev = dev_name;
         }
       }
-    }
+    } catch(const std::exception& e) {}
     
     if( found ) {
       break;
     } else {
-      close(fd);
+      atmega::close(fd);
     }
   }
   
@@ -139,12 +149,12 @@ std::string ATmega::get_version() {
     return version;
   }
   
-  atmega_buffer cmd, resp;
-  cmd.command = 0x02;
+  atmega::buffer cmd, resp;
+  cmd.command = atmega::COMMAND_READ_VER;
   cmd.size = 0;
   
-  int n = this->_send(&cmd, &resp);
-  if( resp.command == ATMEGA_COMMAND_FAILED ) {
+  this->_send(&cmd, &resp);
+  if( resp.command == atmega::COMMAND_FAILURE ) {
     return version;
   }
   
@@ -160,32 +170,32 @@ bool ATmega::transfer_spi(const char* inputs, char* outputs, int size) {
     return false;
   }
   
-  atmega_buffer cmd, resp;
-  cmd.command = 0x11;
+  atmega::buffer cmd, resp;
+  cmd.command = atmega::COMMAND_TRANSFER_SPI;
   cmd.size = htons(size);
   ::memcpy(&(cmd.buffer[0]), inputs, size);
   
-  int n = this->_send(&cmd, &resp);
-  if( resp.command == ATMEGA_COMMAND_FAILED ) {
+  this->_send(&cmd, &resp);
+  if( resp.command == atmega::COMMAND_FAILURE ) {
     return false;
   }
   
   ::memcpy(outputs, &(resp.buffer[0]), resp.size);
-  return (n != 0);
+  return true;
 }
 
-std::list<uint8_t> Sub20::list_i2c_devices() {
+std::list<uint8_t> ATmega::list_i2c_devices() {
   std::list<uint8_t> i2c_addresses_list;
   if( _fd < 0 ) {
     return i2c_addresses_list;
   }
   
-  atmega_buffer cmd, resp;
-  cmd.command = 0x31;
+  atmega::buffer cmd, resp;
+  cmd.command = atmega::COMMAND_SCAN_I2C;
   cmd.size = 0;
   
-  int n = this->_send(&cmd, &resp);
-  if( resp.command == ATMEGA_COMMAND_FAILED ) {
+  this->_send(&cmd, &resp);
+  if( resp.command == atmega::COMMAND_FAILURE ) {
     return i2c_addresses_list;
   }
   
@@ -201,12 +211,12 @@ bool ATmega::read_i2c(uint8_t addr, uint8_t reg, char* data, int size) {
     return false;
   }
   
-  atmega_buffer cmd, resp;
-  cmd.command = 0x32;
+  atmega::buffer cmd, resp;
+  cmd.command = atmega::COMMAND_READ_I2C;
   cmd.size = htons(size);
   
-  int n = this->_send(&cmd, &resp);
-  if( resp.command == ATMEGA_COMMAND_FAILED ) {
+  this->_send(&cmd, &resp);
+  if( resp.command == atmega::COMMAND_FAILURE ) {
     return false;
   }
   
@@ -214,18 +224,18 @@ bool ATmega::read_i2c(uint8_t addr, uint8_t reg, char* data, int size) {
   return true;
 }
 
-bool ATmega::write_i2c(uint8_t addr, uint8_t reg, char* data, int size) {
+bool ATmega::write_i2c(uint8_t addr, uint8_t reg, const char* data, int size) {
   if( _fd < 0 ) {
     return false;
   }
   
-  atmega_buffer cmd, resp;
-  cmd.command = 0x33;
+  atmega::buffer cmd, resp;
+  cmd.command = atmega::COMMAND_WRITE_I2C;
   cmd.size = htons(size);
-  ::memcpy(&(cmd.buffer[0], data, size);
+  ::memcpy(&(cmd.buffer[0]), data, size);
   
-  int n = this->_send(&cmd, &resp);
-  if( resp.command == ATMEGA_COMMAND_FAILED ) {
+  this->_send(&cmd, &resp);
+  if( resp.command == atmega::COMMAND_FAILURE ) {
     return false;
   }
   
@@ -233,25 +243,25 @@ bool ATmega::write_i2c(uint8_t addr, uint8_t reg, char* data, int size) {
 }
 
 
-std::list<float> read_adcs() {
+std::list<float> ATmega::read_adcs() {
   std::list<float> values;
   if( _fd < 0 ) {
     return values;
   }
   
-  atmega_buffer cmd, resp;
-  cmd.command = 4;
+  atmega::buffer cmd, resp;
+  cmd.command = atmega::COMMAND_READ_ADCS;
   cmd.size = htons(0);
   
-  int n = this->_send(&cmd, &resp);
-  if( resp.command == ATMEGA_COMMAND_FAILED ) {
+  this->_send(&cmd, &resp);
+  if( resp.command == atmega::COMMAND_FAILURE ) {
     return values;
   }
   
   float value = 0.0;
   for(int i=0; i<resp.size; i+=sizeof(int)) {
     ::memcpy(&value, &(resp.buffer[i]), sizeof(int));
-    value = ntohl(vale);
+    value = ntohl(value);
     values.push_back(value/1023.*5);
   }
   

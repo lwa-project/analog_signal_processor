@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
     
     success = atm->transfer_spi((char*) commands, (char*) responses, 2*device_count+2);
   	if( !success ) {
-  		std::cerr << "sendARXDevice - SPI write failed - " << sub_strerror(sub_errno) << std::endl;
+  		std::cerr << "sendARXDevice - SPI write failed" << std::endl;
       ::free(commands);
       ::free(responses);
       delete atm;

@@ -161,7 +161,7 @@ int main(int argc, char** argv) {
 		// Get a list of smart modules for polling
 		success = atm->read_i2c(addr, 0xD3, (char *) &data, 2);
 		if( !success ) {
-			std::cout << "readPSU - module status - " << sub_strerror(sub_errno) << std::endl;
+			std::cout << "readPSU - module status failed" << std::endl;
 			continue;
 		}
 		modules = data;
@@ -171,7 +171,7 @@ int main(int argc, char** argv) {
 		data = 0;
 		success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
 		if( !success ) {
-			std::cout << "readPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
+			std::cout << "readPSU - write settings failed" << std::endl;
 			continue;
 		}
 
@@ -196,7 +196,7 @@ int main(int argc, char** argv) {
 				data = j;
 				success = atm->write_i2c(addr, 0x00, (char *) &data, 1);
 				if( !success ) {
-					std::cout << "readPSU - page change - " << sub_strerror(sub_errno) << std::endl;
+					std::cout << "readPSU - page change failed" << std::endl;
 				  delete atm;
           std::exit(EXIT_FAILURE);
 				}
@@ -206,7 +206,7 @@ int main(int argc, char** argv) {
 				// Verify the current page
 				success = atm->read_i2c(addr, 0x00, (char *) &data, 1);
 				if( !success ) {
-					std::cout << "readPSU - get page - " << sub_strerror(sub_errno) << std::endl;
+					std::cout << "readPSU - get page failed" << std::endl;
 					continue;
 				}
 				page = data & 0xFF;
@@ -222,7 +222,7 @@ int main(int argc, char** argv) {
 				data = 0;
 				success = atm->write_i2c(addr, 0xDE, (char *) &data, 1);
 				if( !success ) {
-					std::cout << "readPSU - get type - " << sub_strerror(sub_errno) << std::endl;
+					std::cout << "readPSU - get type failed" << std::endl;
 					delete atm;
           std::exit(EXIT_FAILURE);
 				}
@@ -231,7 +231,7 @@ int main(int argc, char** argv) {
 				
 				success = atm->read_i2c(addr, 0xDF, (char *) &wide_data, 4);
 				if( !success ) {
-					std::cout << "readPSU - get type - " << sub_strerror(sub_errno) << std::endl;
+					std::cout << "readPSU - get type failed" << std::endl;
 					continue;
 				}
 				code = (uint8_t) (wide_data & 0xFF);
@@ -253,7 +253,7 @@ int main(int argc, char** argv) {
       data = 0;
 			success = atm->read_i2c(addr, 0xDB, (char *) &data, 1);
 			if( !success ) {
-				std::cout << "readPSU - get status - " << sub_strerror(sub_errno) << std::endl;
+				std::cout << "readPSU - get status failed" << std::endl;
 				continue;
 			}
       data &= 0xFF;
@@ -269,7 +269,7 @@ int main(int argc, char** argv) {
 			
 			success = atm->read_i2c(addr, 0x8B, (char *) &data, 2);
 			if( !success ) {
-				std::cout << "readPSU - get output voltage - " << sub_strerror(sub_errno) << std::endl;
+				std::cout << "readPSU - get output voltage failed" << std::endl;
 				continue;
 			}
 			voltage += (float) data /100.0;
@@ -281,14 +281,14 @@ int main(int argc, char** argv) {
 			#ifdef __USE_INPUT_CURRENT__
 				success = atm->read_i2c(addr, 0x89, (char *) &data, 2);
 				if( !success ) {
-					std::cout << "readPSU - get input current - " << sub_strerror(sub_errno) << std::endl;
+					std::cout << "readPSU - get input current failed" << std::endl;
 					continue;
 				}
 				current = (float) data /100.0 * 0.95;		// Removes the ~5% power conversion loss
 			#else
 				success = atm->read_i2c(addr, 0x8C, (char *) &data, 2);
 				if( !success ) {
-					std::cout << "readPSU - get output current - " << sub_strerror(sub_errno) << std::endl;
+					std::cout << "readPSU - get output current failed" << std::endl;
 					continue;
 				}
 				current += (float) data /100.0;
@@ -307,7 +307,7 @@ int main(int argc, char** argv) {
 		data = 0;
 		success = atm->write_i2c(addr, 0x00, (char *) &data, 1);
 		if( !success ) {
-			std::cout << "readPSU - page change - " << sub_strerror(sub_errno) << std::endl;
+			std::cout << "readPSU - page change failed" << std::endl;
 			continue;
 		}
 
@@ -315,7 +315,7 @@ int main(int argc, char** argv) {
 		data = (1 << 7) & 1;
 		success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
 		if( !success ) {
-			std::cout << "readPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
+			std::cout << "readPSU - write settings failed" << std::endl;
 			continue;
 		}
     

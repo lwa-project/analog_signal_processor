@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
 			data = 0;
 			success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
 			if( !success ) {
-				std::cerr << "configPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
+				std::cerr << "configPSU - write settings failed" << std::endl;
 				continue;
 			}
 		}
@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
 				data = 0;
 				success = atm->read_i2c(addr, 0xD6, (char *) &data, 1);
 				if( !success ) {
-					std::cerr << "configPSU - get setup - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - get setup failed" << std::endl;
 					continue;
 				}
         
@@ -148,7 +148,7 @@ int main(int argc, char** argv) {
 				data = 0;
 				success = atm->read_i2c(addr, 0xD5, (char *) &data, 1);
 				if( !success ) {
-					std::cerr << "configPSU - get configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - get configuration failed" << std::endl;
 					continue;
 				}
         data &= 0xFF;
@@ -160,14 +160,14 @@ int main(int argc, char** argv) {
 				// Query temperature limits
 				success = atm->read_i2c(addr, 0x51, (char *) &data, 2);
 				if( !success ) {
-					std::cerr << "configPSU - get temperature warning - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - get temperature warning failed" << std::endl;
 					continue;
 				}
 			  std::cout << "Temperature Warning Limit: " << (float) data/4.0 << " C" << std::endl;
 				
 				success = atm->read_i2c(addr, 0x4F, (char *) &data, 2);
 				if( !success ) {
-					std::cerr << "configPSU - get temperature fault - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - get temperature fault failed" << std::endl;
 					continue;
 				}
 				std::cout << "Temperature Fault Limit:   " << (float) data/4.0 << " C" << std::endl;
@@ -177,7 +177,7 @@ int main(int argc, char** argv) {
         wide_data = 0;
 				success = atm->read_i2c(addr, 0xEB, (char *) &wide_data, 5);
 				if( !success ) {
-					std::cerr << "configPSU - get power limits - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - get power limits failed" << std::endl;
 					continue;
 				}
 				std::cout << "Low Power Limit:           " << (int) ((wide_data >> 8) & 0xFFFF) << " W" << std::endl;
@@ -189,7 +189,7 @@ int main(int argc, char** argv) {
 				data = 0;
 				success = atm->read_i2c(addr, 0xD5, (char *) &data, 1);
 				if( !success ) {
-					std::cerr << "configPSU - get configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - get configuration failed" << std::endl;
 					continue;
 				}
 				
@@ -199,7 +199,7 @@ int main(int argc, char** argv) {
 				// Write the PSU configuation
 				success = atm->write_i2c(addr, 0xD5, (char *) &data, 1);
 				if( !success ) {
-					std::cerr << "configPSU - set configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - set configuration failed" << std::endl;
 					continue;
 				}
 				
@@ -207,7 +207,7 @@ int main(int argc, char** argv) {
 			  data = 0x21;
 				success = atm->write_i2c(addr, 0x15, (char *) &data, 1);
 				if( !success ) {
-					std::cerr << "configPSU - save configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - save configuration failed" << std::endl;
 					continue;
 				}
 				break;
@@ -217,7 +217,7 @@ int main(int argc, char** argv) {
 				data = 0;
 				success = atm->read_i2c(addr, 0xD5, (char *) &data, 1);
 				if( !success ) {
-					std::cerr << "configPSU - get configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - get configuration failed" << std::endl;
 					continue;
 				}
 				
@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
 				// Write the PSU configuation
 				success = atm->write_i2c(addr, 0xD5, (char *) &data, 1);
 				if( !success ) {
-					std::cerr << "configPSU - set configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - set configuration failed" << std::endl;
 					continue;
 				}
 				
@@ -235,7 +235,7 @@ int main(int argc, char** argv) {
 				data = 0x21;
 				success = atm->write_i2c(addr, 0x15, (char *) &data, 1);
 				if( !success ) {
-					std::cerr << "configPSU - save configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - save configuration failed" << std::endl;
 					continue;
 				}
 				break;
@@ -247,7 +247,7 @@ int main(int argc, char** argv) {
 				// Write to memory
 				success = atm->write_i2c(addr, 0x51, (char *) &data, 2);
 				if( !success ) {
-					std::cerr << "configPSU - set temperature warning - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - set temperature warning failed" << std::endl;
 					continue;
 				}
 				
@@ -255,7 +255,7 @@ int main(int argc, char** argv) {
 				data = 0x21;
 				success = atm->write_i2c(addr, 0x15, (char *) &data, 1);
 				if( !success ) {
-					std::cerr << "configPSU - save configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - save configuration failed" << std::endl;
 					continue;
 				}
 				break;
@@ -267,7 +267,7 @@ int main(int argc, char** argv) {
 				// Write to memory
 				success = atm->write_i2c(addr, 0x4F, (char *) &data, 2);
 				if( !success ) {
-					std::cerr << "configPSU - set temperature warning - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - set temperature warning failed" << std::endl;
 					continue;
 				}
 				
@@ -275,7 +275,7 @@ int main(int argc, char** argv) {
 				data = 0x21;
 				success = atm->write_i2c(addr, 0x15, (char *) &data, 1);
 				if( !success ) {
-					std::cerr << "configPSU - save configuration - " << sub_strerror(sub_errno) << std::endl;
+					std::cerr << "configPSU - save configuration failed" << std::endl;
 					continue;
 				}
 				break;
@@ -288,7 +288,7 @@ int main(int argc, char** argv) {
 			data = ((1 << 7) & 1);
 			success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
 			if( !success ) {
-				std::cerr << "configPSU - write settings - " << sub_strerror(sub_errno) << std::endl;
+				std::cerr << "configPSU - write settings failed" << std::endl;
 				continue;
 			}
 		}

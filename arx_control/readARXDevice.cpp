@@ -74,7 +74,7 @@ int main(int argc, char* argv[]) {
     
     success = atm->transfer_spi((char*) reads, (char*) values, 2*device_count+2);
   	if( !success ) {
-  		std::cerr << "readARXDevice - SPI write #1 failed - " << sub_strerror(sub_errno) << std::endl;
+  		std::cerr << "readARXDevice - SPI write #1 failed" << std::endl;
       ::free(reads);
       ::free(values);
       delete atm;
@@ -97,7 +97,7 @@ int main(int argc, char* argv[]) {
     
     success = atm->transfer_spi((char*) reads, (char*) values, 2*device_count+2);
   	if( !success ) {
-  		std::cerr << "readARXDevice - SPI write #2 failed - " << sub_strerror(sub_errno) << std::endl;
+  		std::cerr << "readARXDevice - SPI write #2 failed" << std::endl;
       ::free(reads);
       ::free(values);
       delete atm;
