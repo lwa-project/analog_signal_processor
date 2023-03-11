@@ -70,13 +70,12 @@ int configure_port(int fd) {
 int send_command(int fd, atmega_buffer* command, atmega_buffer* response) {
   // Empty the response and set the command value to 0xFF
   ::memset(response, 0, sizeof(atmega_buffer));
-  response.command = ATMEGA_COMMAND_FAILED;
+  response->command = ATMEGA_COMMAND_FAILED;
   
   // Send the command
-  write(fd, command, 3+command->size);
+  int n = write(fd, command, 3+command->size);
   
   // Receive the reply
-  int n;
   ioctl(fd, FIONREAD, &n);
   n = read(fd, (uint8_t*) response, n);
   return n;
