@@ -47,7 +47,7 @@ std::list<std::string> list_possible_atmega();
 std::list<std::string> list_atmegas();
 
 
-// Class to simplify interfacing with a ATmega via the libsub library
+// Class to simplify interfacing with a ATmega via the libatmega library
 class ATmega {
 private:
   std::string   _sn;

@@ -31,7 +31,7 @@ Options:
 #include <chrono>
 #include <thread>
 
-#include "libsub.h"
+#include "libatmega.hpp"
 #include "aspCommon.hpp"
 
 #define MODE_UNKOWN      0
