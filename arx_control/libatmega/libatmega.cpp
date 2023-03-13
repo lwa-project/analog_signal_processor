@@ -5,7 +5,8 @@ std::list<std::string> atmega::find_devices() {
   
   for(auto const& dir_entry: std::filesystem::directory_iterator{"/dev/"}) {
     std::string entry_name = dir_entry.path();
-    if( (entry_name.find("ttyUSB") == -1) && (entry_name.find("ttyACM") == -1) ) {
+    if( (   (entry_name.find("ttyUSB") == std::string::npos) 
+         && (entry_name.find("ttyACM") == std::string::npos) ) ) {
       continue;
     }
     
