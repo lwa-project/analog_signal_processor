@@ -77,13 +77,13 @@ void atmega::configure_port(atmega::handle fd, bool exclusive_access) {
   }
 }
 
-int atmega::send_command(atmega::handle fd, const buffer* command, buffer* response) {
+ssize_t atmega::send_command(atmega::handle fd, const buffer* command, buffer* response) {
   // Empty the response and set the command value to 0xFF
   ::memset(response, 0, sizeof(buffer));
   response->command = COMMAND_FAILURE;
   
   // Send the command
-  int n = ::write(fd, command, 3+command->size);
+  ssize_t n = ::write(fd, command, 3+command->size);
   if( n == 0 ) {
     throw(std::runtime_error(std::string("Failed to send command")));
   }
@@ -91,7 +91,7 @@ int atmega::send_command(atmega::handle fd, const buffer* command, buffer* respo
   // Receive the reply
   ::ioctl(fd, FIONREAD, &n);
   n = ::read(fd, (uint8_t*) response, n);
-  if( n < (sizeof(buffer) - ATMEGA_MAX_BUFFER_SIZE) ) {
+  if( n < (ssize_t) (sizeof(buffer) - ATMEGA_MAX_BUFFER_SIZE) ) {
     throw(std::runtime_error(std::string("Failed to receive command response")));
   }
   

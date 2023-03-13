@@ -47,7 +47,7 @@ namespace atmega {
   void configure_port(handle fd, bool exclusive_access=true);
   
   // Send a command, return the number of bytes received
-  int send_command(handle fd, const buffer* command, buffer* response);
+  ssize_t send_command(handle fd, const buffer* command, buffer* response);
   
   // Close an open device
   void close(handle fd);
