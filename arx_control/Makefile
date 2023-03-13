@@ -5,7 +5,7 @@ all: LIBATMEGA sendARXDevice \
      countBoards countPSUs countThermometers \
      readPSU readThermometers \
      onoffPSU configPSU \
-     readARXDevice \
+     readARXDevice setATmegaSN \
 		 atmegaConfig
 
 #------------------------------------------------------------------------------
@@ -77,6 +77,9 @@ configPSU: configPSU.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 readARXDevice: readARXDevice.o aspCommon.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
+
+setATmegaSN: setATmegaSN.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 	
 atmegaConfig: atmegaConfig.cpp
