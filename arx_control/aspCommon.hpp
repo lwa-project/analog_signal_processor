@@ -13,6 +13,8 @@
 #include <thread>
 #include <cstring>
 #include <stdexcept>
+#include <arpa/inet.h>
+
 #include "libatmega.hpp"
 
 // ATmega device opening control
