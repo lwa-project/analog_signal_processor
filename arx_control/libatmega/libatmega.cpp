@@ -19,9 +19,11 @@ std::list<std::string> atmega::find_devices() {
     char buffer[256];
     uint8_t match = 0;
     while( fgets(buffer, 256, pipe.get()) != nullptr ) {
-      if( strstr(buffer, "ID_VENDOR_ID=0403") != nullptr ) {
+      if( (   (strstr(buffer, "ID_VENDOR_ID=0403") != nullptr)
+           || (strstr(buffer, "ID_VENDOR_ID=2341") != nullptr) ) ) {
         match |= 1;
-      } else if( strstr(buffer, "ID_MODEL_ID=6001") != nullptr ) {
+      } else if( (   (strstr(buffer, "ID_MODEL_ID=6001") != nullptr )
+                  || (strstr(buffer, "ID_MODEL_ID=0001") ) ) ) {
         match |= 2;
       }
     }
