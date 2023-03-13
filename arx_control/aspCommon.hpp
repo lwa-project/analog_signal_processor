@@ -50,7 +50,6 @@ std::list<std::string> list_atmegas();
 class ATmega {
 private:
   std::string    _sn;
-  std::string    _dev;
   atmega::handle _fd;
   
   inline void _send(const atmega::buffer* cmd, atmega::buffer* resp) {
@@ -64,7 +63,7 @@ private:
     resp->size = ntohs(resp->size);
   }
 public:
-  ATmega(std::string sn): _sn(""), _dev(""), _fd(-1) {
+  ATmega(std::string sn): _sn(""), _fd(-1) {
     _sn = sn;
   }
   ~ATmega() {

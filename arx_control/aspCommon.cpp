@@ -87,7 +87,6 @@ bool ATmega::open() {
         if( _sn.compare(sn) == 0 ) {
           found = true;
           _fd = fd;
-          _dev = dev_name;
         }
       }
     } catch(const std::exception& e) {}
