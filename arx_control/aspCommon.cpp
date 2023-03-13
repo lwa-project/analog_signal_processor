@@ -7,6 +7,8 @@
 #include "aspCommon.hpp"
 
 std::list<std::string> list_atmegas() {
+  std::list<std::string> atmega_sns;
+  
   for(std::string const& dev_name: atmega::find_devices()) {
     int open_attempts = 0;
     atmega::handle fd = -1;
