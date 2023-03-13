@@ -1,15 +1,45 @@
 #include "libatmega.hpp"
 
-atmega::handle atmega::open(std::string device_name) {
+std::list<std::string> atmega::find_devices() {
+  std::list<std::string> devices;
+  
+  for(auto const& dir_entry: std::filesystem::directory_iterator{"/dev/"}) {
+    std::string entry_name = dir_entry.path();
+    if( (entry_name.find("ttyUSB") == -1) && (entry_name.find("ttyACM") == -1) ) {
+      continue;
+    }
+    
+    std::string udev_lookup = std::string("udevadm info --name=")+entry_name;
+    std::unique_ptr<FILE, decltype(&::pclose)> pipe(::popen(udev_lookup.c_str(), "r"), ::pclose);
+    if( pipe == nullptr ) {
+      continue;
+    }
+    
+    char buffer[256];
+    uint8_t match = 0;
+    while( fgets(buffer, 256, pipe.get()) != nullptr ) {
+      if( strstr(buffer, "ID_VENDOR_ID=0403") != nullptr ) {
+        match |= 1;
+      } else if( strstr(buffer, "ID_MODEL_ID=6001") != nullptr ) {
+        match |= 2;
+      }
+    }
+    
+    if( match == 3 ) {
+      devices.push_back(entry_name);
+    }
+  }
+
+  return devices;
+}
+
+atmega::handle atmega::open(std::string device_name, bool exclusive_access) {
   atmega::handle fd = ::open(device_name.c_str(), O_RDONLY | O_NOCTTY);
   if( fd < 0 ) {
     throw(std::runtime_error(std::string("Failed to open device: ") \
                              +std::string(strerror(errno))));
   }
-  return fd;
-}
-
-void atmega::configure_port(atmega::handle fd, bool exclusive_access) {
+  
   struct termios tty;
   if( ::tcgetattr(fd, &tty) != 0 ) {
     throw(std::runtime_error(std::string("Failed to get attributes: ") \
@@ -75,6 +105,8 @@ void atmega::configure_port(atmega::handle fd, bool exclusive_access) {
     throw(std::runtime_error(std::string("Failed to assert RTS: ") \
                              +std::string(strerror(errno))));
   }
+  
+  return fd;
 }
 
 ssize_t atmega::send_command(atmega::handle fd, const buffer* command, buffer* response) {

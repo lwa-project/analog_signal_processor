@@ -3,6 +3,9 @@
 #include <string>
 #include <cstring>
 #include <stdexcept>
+#include <list>
+#include <filesystem>
+#include <cstdio>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -40,11 +43,11 @@ namespace atmega {
     uint8_t  buffer[ATMEGA_MAX_BUFFER_SIZE];
   } buffer;
   
-  // Open a device
-  handle open(std::string device_name);
+  // List all devices found
+  std::list<std::string> find_devices();
   
-  // Configure the device for reading and writing
-  void configure_port(handle fd, bool exclusive_access=true);
+  // Open a device and get it ready for running commands
+  handle open(std::string device_name, bool exclusive_access=true);
   
   // Send a command, return the number of bytes received
   ssize_t send_command(handle fd, const buffer* command, buffer* response);

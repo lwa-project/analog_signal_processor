@@ -42,10 +42,6 @@
 // Uncomment the next line to use input rather than the module outuput current
 //#define __USE_INPUT_CURRENT__
 
-// Get a list of all USB devices that *might* be ATmega
-std::list<std::string> list_possible_atmegas();
-
-
 // Get a list of all ATmega serial numbers
 std::list<std::string> list_atmegas();
 

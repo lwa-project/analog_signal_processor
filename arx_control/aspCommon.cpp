@@ -6,44 +6,8 @@
 
 #include "aspCommon.hpp"
 
-std::list<std::string> list_possible_atmegas() {
-  std::list<std::string> devices;
-  
-  for(auto const& dir_entry: std::filesystem::directory_iterator{"/sys/bus/usb/devices/"}) {
-    std::string modalias = dir_entry.path()/"modalias";
-    
-    if( std::filesystem::exists(modalias) ) {
-      int md = open(modalias.c_str(), O_RDONLY);
-      char contents[256] = {0};
-      if( md >= 0 ) {
-        read(md, &contents, 255);
-        close(md);
-      }
-
-      std::string scontents = std::string(contents);
-      if( scontents.find("usb:v0403p6001") != -1 ) {
-        for(auto const& child_entry: std::filesystem::directory_iterator{dir_entry}) {
-          std::string entry_name = child_entry.path();
-          
-          if( entry_name.find("ttyUSB") != -1 ) {
-            devices.push_back(std::string("/dev/")+std::string(child_entry.path().filename()));
-          }
-        }
-      }
-    }
-  }
-  
-  return devices;
-}
-
 std::list<std::string> list_atmegas() {
-  std::list<std::string> devices, atmega_sns;
-  
-  devices = list_possible_atmegas();
-  
-  for(std::string const& dev_name: devices) {
-    std::cout << " " << dev_name << std::endl;
-    
+  for(std::string const& dev_name: atmega::find_devices()) {
     int open_attempts = 0;
     atmega::handle fd = -1;
     while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
@@ -61,8 +25,6 @@ std::list<std::string> list_atmegas() {
     }
     
     try {
-      atmega::configure_port(fd);
-      
       atmega::buffer cmd, resp;
       cmd.command = atmega::COMMAND_READ_SN;
       cmd.size = htons(0);
@@ -90,10 +52,8 @@ std::list<std::string> list_atmegas() {
 }
 
 bool ATmega::open() {
-  std::list<std::string> devices = list_possible_atmegas();
-    
   bool found = false;
-  for(std::string const& dev_name: devices) {
+  for(std::string const& dev_name: atmega::find_devices()) {
     int open_attempts = 0;
     atmega::handle fd = -1;
     while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
@@ -111,8 +71,6 @@ bool ATmega::open() {
     }
     
     try {
-      atmega::configure_port(fd);
-      
       atmega::buffer cmd, resp;
       cmd.command = atmega::COMMAND_READ_SN;
       cmd.size = htons(0);
