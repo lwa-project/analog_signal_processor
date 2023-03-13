@@ -2,31 +2,6 @@
 
 #include "aspCommon.hpp"
 
-/*
-  Python3 Compatiability
-*/
-
-#if PY_MAJOR_VERSION >= 3
-    #define PyInt_FromLong PyLong_FromLong
-    #define PyInt_AsLong PyLong_AsLong
-    #define PyString_FromString PyUnicode_FromString
-    #define PyString_AS_STRING PyBytes_AS_STRING
-    
-    #define MOD_ERROR_VAL NULL
-    #define MOD_SUCCESS_VAL(val) val
-    #define MOD_INIT(name) PyMODINIT_FUNC PyInit_##name(void)
-    #define MOD_DEF(ob, name, methods, doc) \
-       static struct PyModuleDef moduledef = { \
-          PyModuleDef_HEAD_INIT, name, doc, -1, methods, }; \
-       ob = PyModule_Create(&moduledef);
-#else
-    #define MOD_ERROR_VAL
-    #define MOD_SUCCESS_VAL(val)
-    #define MOD_INIT(name) PyMODINIT_FUNC init##name(void)
-    #define MOD_DEF(ob, name, methods, doc) \
-       ob = Py_InitModule3(name, methods, doc);
-#endif
-
 
 static PyMethodDef ATmegaMethods[] = { {NULL, NULL, 0, NULL} };
 
@@ -34,19 +9,22 @@ static PyMethodDef ATmegaMethods[] = { {NULL, NULL, 0, NULL} };
 PyDoc_STRVAR(atmegaconfig_doc, "Compile time configuration values used by the ATmega interface.");
 
 
-MOD_INIT(atmegaConfig) {
+PyMODINIT_FUNC PyInit_atmegaConfig(void) {
   PyObject *m, *all, *value0, *value1, *value2, *value3;
   
   // Module definitions and functions
-  MOD_DEF(m, "atmegaConfig", ATmegaMethods, atmegaconfig_doc);
+  static struct PyModuleDef moduledef = {
+     PyModuleDef_HEAD_INIT, "atmegaConfig", atmegaconfig_doc, -1, ATmegaMethods
+  };
+  m = PyModule_Create(&moduledef);
   if( m == NULL ) {
-      return MOD_ERROR_VAL;
+      return NULL;
   }
   
   // Constants
-  value0 = PyInt_FromLong(MAX_BOARDS);
+  value0 = PyLong_FromLong(MAX_BOARDS);
   PyModule_AddObject(m, "MAX_BOARDS", value0);
-  value1 = PyInt_FromLong(STANDS_PER_BOARD);
+  value1 = PyLong_FromLong(STANDS_PER_BOARD);
   PyModule_AddObject(m, "STANDS_PER_BOARD", value1);
   #ifdef __USE_INPUT_CURRENT__
     value2 = Py_True;
@@ -63,12 +41,12 @@ MOD_INIT(atmegaConfig) {
   
   // Module listings
   all = PyList_New(0);
-  PyList_Append(all, PyString_FromString("MAX_BOARDS"));
-  PyList_Append(all, PyString_FromString("STANDS_PER_BOARD"));
-  PyList_Append(all, PyString_FromString("USE_INPUT_CURRENT"));
-  PyList_Append(all, PyString_FromString("INCLUDE_MODULE_TEMPS"));
+  PyList_Append(all, PyUnicode_FromString("MAX_BOARDS"));
+  PyList_Append(all, PyUnicode_FromString("STANDS_PER_BOARD"));
+  PyList_Append(all, PyUnicode_FromString("USE_INPUT_CURRENT"));
+  PyList_Append(all, PyUnicode_FromString("INCLUDE_MODULE_TEMPS"));
   PyModule_AddObject(m, "__all__", all);
   
-  return MOD_SUCCESS_VAL(m);
+  return m;
 }
   
