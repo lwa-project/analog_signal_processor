@@ -267,6 +267,9 @@ void loop() {
       if( nargs < MAX_CMD_LEN ) {
         Serial.readBytes(&argv[0], nargs);
       } else {
+        while( Serial.available() > 0 ) {
+          Serial.read();
+        }
         command = 0xFF;
       }
     }
@@ -289,4 +292,5 @@ void loop() {
     case 0xA3: write_sn(nargs, &argv[0]); break;
     default: invalid(nargs, &argv[0]);
   }
+  Serial.flush();
 }
