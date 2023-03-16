@@ -3,36 +3,53 @@
 std::list<std::string> atmega::find_devices() {
   std::list<std::string> devices;
   
-  for(auto const& dir_entry: std::filesystem::directory_iterator{"/dev/"}) {
-    std::string entry_name = dir_entry.path();
-    if( (   (entry_name.find("ttyUSB") == std::string::npos) 
-         && (entry_name.find("ttyACM") == std::string::npos) ) ) {
+  udev *udev = udev_new();
+  if( udev == nullptr ) {
+    return devices;
+  }
+  
+  udev_enumerate *enumerate = udev_enumerate_new(udev);
+  if( enumerate == nullptr ) {
+    udev_unref(udev);
+    return devices;
+  }
+  
+  udev_enumerate_add_match_subsystem(enumerate, "tty");
+  udev_enumerate_add_match_property(enumerate, "ID_BUS", "usb");
+  udev_enumerate_scan_devices(enumerate);
+
+  udev_list_entry *devices = udev_enumerate_get_list_entry(enumerate);
+
+  udev_list_entry *dev_list_entry;
+  udev_list_entry_foreach(dev_list_entry, devices) {
+    const char *dev_path = udev_list_entry_get_name(dev_list_entry);
+    udev_device *device = udev_device_new_from_syspath(udev, dev_path);
+    if( device == nullptr ) {
       continue;
     }
     
-    std::string udev_lookup = std::string("udevadm info --name=")+entry_name;
-    std::unique_ptr<FILE, decltype(&::pclose)> pipe(::popen(udev_lookup.c_str(), "r"), ::pclose);
-    if( pipe == nullptr ) {
-      continue;
-    }
-    
-    char buffer[256];
     uint8_t match = 0;
-    while( fgets(buffer, 256, pipe.get()) != nullptr ) {
-      if( (   (strstr(buffer, "ID_VENDOR_ID=0403") != nullptr)
-           || (strstr(buffer, "ID_VENDOR_ID=2341") != nullptr) ) ) {
+    const char *vendor_id = udev_device_get_property_value(device, "ID_VENDOR_ID");
+    const char *product_id = udev_device_get_property_value(device, "ID_MODEL_ID");
+    if( (   (strstr(vendor_id, "0403") != nullptr)
+         || (strstr(vendor_id, "2341") != nullptr) ) ) {
         match |= 1;
-      } else if( (   (strstr(buffer, "ID_MODEL_ID=6001") != nullptr )
-                  || (strstr(buffer, "ID_MODEL_ID=0001") ) ) ) {
+    }
+    if( (   (strstr(product_id, "6001") != nullptr )
+         || (strstr(product_id, "0001") != nullptr ) ) ) {
         match |= 2;
-      }
     }
     
     if( match == 3 ) {
-      devices.push_back(entry_name);
+      devices.push_back(std::string(dev_path));
     }
+    
+    udev_device_unref(device);
   }
-
+  
+  udev_enumerate_unref(enumerate);
+  udev_unref(udev);
+  
   return devices;
 }
 

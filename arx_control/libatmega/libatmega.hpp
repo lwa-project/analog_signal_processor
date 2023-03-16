@@ -5,12 +5,13 @@
 #include <stdexcept>
 #include <list>
 #include <filesystem>
-#include <cstdio>
 
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+
+#include <libudev.h>
 
 #define ATMEGA_MAX_BUFFER_SIZE 130
 

@@ -24,6 +24,7 @@ jobs:
             libfftw3-dev \
             libgdbm-dev \
             libusb-1.0-0-dev \
+            libudev-dev \
             pkg-config \
             software-properties-common
       - uses: actions/setup-python@v4
