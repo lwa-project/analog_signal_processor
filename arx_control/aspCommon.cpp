@@ -40,7 +40,7 @@ std::list<std::string> list_atmegas() {
       }
       resp.size = ntohs(resp.size);
       
-      if( resp.command != atmega::COMMAND_FAILURE ) {
+      if( resp.command & atmega::COMMAND_FAILURE == 0 ) {
         std::string sn;
         for(int i=0; i<resp.size; i++) {
           sn.append((char*) &(resp.buffer[i]));
@@ -78,7 +78,7 @@ bool ATmega::open() {
       cmd.size = htons(0);
       
       this->_send(&cmd, &resp);
-      if( resp.command != atmega::COMMAND_FAILURE ) {
+      if( resp.command & atmega::COMMAND_FAILURE == 0 ) {
         std::string sn;
         for(int i=0; i<resp.size; i++) {
           sn.append((char*) &(resp.buffer[i]));
@@ -113,7 +113,7 @@ std::string ATmega::get_version() {
   cmd.size = 0;
   
   this->_send(&cmd, &resp);
-  if( resp.command == atmega::COMMAND_FAILURE ) {
+  if( resp.command & atmega::COMMAND_FAILURE ) {
     return version;
   }
   
@@ -135,7 +135,7 @@ bool ATmega::transfer_spi(const char* inputs, char* outputs, int size) {
   ::memcpy(&(cmd.buffer[0]), inputs, size);
   
   this->_send(&cmd, &resp);
-  if( resp.command == atmega::COMMAND_FAILURE ) {
+  if( resp.command & atmega::COMMAND_FAILURE ) {
     return false;
   }
   
@@ -154,7 +154,7 @@ std::list<uint8_t> ATmega::list_i2c_devices() {
   cmd.size = 0;
   
   this->_send(&cmd, &resp);
-  if( resp.command == atmega::COMMAND_FAILURE ) {
+  if( resp.command & atmega::COMMAND_FAILURE ) {
     return i2c_addresses_list;
   }
   
@@ -175,7 +175,7 @@ bool ATmega::read_i2c(uint8_t addr, uint8_t reg, char* data, int size) {
   cmd.size = htons(size);
   
   this->_send(&cmd, &resp);
-  if( resp.command == atmega::COMMAND_FAILURE ) {
+  if( resp.command & atmega::COMMAND_FAILURE ) {
     return false;
   }
   
@@ -194,7 +194,7 @@ bool ATmega::write_i2c(uint8_t addr, uint8_t reg, const char* data, int size) {
   ::memcpy(&(cmd.buffer[0]), data, size);
   
   this->_send(&cmd, &resp);
-  if( resp.command == atmega::COMMAND_FAILURE ) {
+  if( resp.command & atmega::COMMAND_FAILURE ) {
     return false;
   }
   
@@ -213,7 +213,7 @@ std::list<float> ATmega::read_adcs() {
   cmd.size = htons(0);
   
   this->_send(&cmd, &resp);
-  if( resp.command == atmega::COMMAND_FAILURE ) {
+  if( resp.command & atmega::COMMAND_FAILURE ) {
     return values;
   }
   

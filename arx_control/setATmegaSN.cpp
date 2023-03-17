@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
   cmd.command = atmega::COMMAND_UNLOCK;
   cmd.size = htons(0);
   atmega::send_command(fd, &cmd, &resp);
-  if( resp.command == atmega::COMMAND_FAILURE ) {
+  if( resp.command & atmega::COMMAND_FAILURE ) {
     atmega::close(fd);
     std::cerr << "setATmegaSN - Failed to unlock device" << std::endl;
     std::exit(EXIT_FAILURE);
@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
   cmd.size = htons(device_name.size());
   ::memcpy(&(cmd.buffer[0]), device_name.c_str(), device_name.size());
   atmega::send_command(fd, &cmd, &resp);
-  if( resp.command == atmega::COMMAND_FAILURE ) {
+  if( resp.command & atmega::COMMAND_FAILURE ) {
     atmega::close(fd);
     std::cerr << "setATmegaSN - Failed to write serial number to device" << std::endl;
     std::exit(EXIT_FAILURE);
@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
   cmd.command = atmega::COMMAND_LOCK;
   cmd.size = htons(0);
   atmega::send_command(fd, &cmd, &resp);
-  if( resp.command == atmega::COMMAND_FAILURE ) {
+  if( resp.command & atmega::COMMAND_FAILURE ) {
     atmega::close(fd);
     std::cerr << "setATmegaSN - Failed to lock device" << std::endl;
     std::exit(EXIT_FAILURE);

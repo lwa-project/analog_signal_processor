@@ -33,7 +33,11 @@ namespace atmega {
     COMMAND_LOCK         = 0xA1,
     COMMAND_UNLOCK       = 0xA2,
     COMMAND_WRITE_SN     = 0xA3,
-    COMMAND_FAILURE      = 0xFF
+    COMMAND_FAILURE      = 0xF0,
+    COMMAND_FAILURE_ARG  = 0xFA,
+    COMMAND_FAILURE_STA  = 0xFB,
+    COMMAND_FAILURE_BUS  = 0xFC,
+    COMMAND_FAILURE_CMD  = 0xFF
   } Command;
   
   // Command/response data structure
