@@ -38,7 +38,25 @@ void serial_write32(uint32_t value) {
   Serial.write((uint8_t*) &value, sizeof(uint32_t));
 }
 
-void invalid(uint16_t nargs, uint8_t* argv) {
+void invalid_arguments(uint16_t nargs, uint8_t* argv) {
+  // Invalid argument count
+  Serial.write((uint8_t) 0xFA);
+  serial_write16(0);
+}
+
+void invalid_state(uint16_t nargs, uint8_t* argv) {
+  // Invalid device state
+  Serial.write((uint8_t) 0xFB);
+  serial_write16(0);
+}
+
+void invalid_bus_error(uint16_t nargs, uint8_t* argv) {
+  // Invalid or not data received over the bus
+  Serial.write((uint8_t) 0xFC);
+  serial_write16(0);
+}
+
+void invalid_command(uint16_t nargs, uint8_t* argv) {
   // Invalid command
   Serial.write((uint8_t) 0xFF);
   serial_write16(0);
@@ -48,32 +66,44 @@ void read_sn(uint16_t nargs, uint8_t* argv) {
   // Read the MAX_SN_LEN character device serial number from EEPROM and return it
   //   Input: 0 arguments
   //   Ouput: MAX_SN_LEN char
-  for(i=0; i<MAX_SN_LEN; i++) {
-    device_sn[i] = (char) EEPROM.read(i);
+  if( nargs > 0) {
+    invalid_arguments(nargs, argv);
+  } else {
+    for(i=0; i<MAX_SN_LEN; i++) {
+      device_sn[i] = (char) EEPROM.read(i);
+    }
+    Serial.write((uint8_t) 0);
+    serial_write16(MAX_SN_LEN);
+    Serial.write((uint8_t*) &device_sn[0], MAX_SN_LEN);
   }
-  Serial.write((uint8_t) 0);
-  serial_write16(MAX_SN_LEN);
-  Serial.write((uint8_t*) &device_sn[0], MAX_SN_LEN);
 }
 
 void read_version(uint16_t nargs, uint8_t* argv) {
   // Return the version string for this firmware
   //   Input: 0 arguments
   //   Output: strlen(VERSION) characters
-  const char* version = VERSION;
-  Serial.write((uint8_t) 0);
-  serial_write16(strlen(VERSION));
-  Serial.write((uint8_t*) &version[0], strlen(VERSION));
+  if( nargs > 0) {
+    invalid_arguments(nargs, argv);
+  } else {
+    const char* version = VERSION;
+    Serial.write((uint8_t) 0);
+    serial_write16(strlen(VERSION));
+    Serial.write((uint8_t*) &version[0], strlen(VERSION));
+  }
 }
 
 void read_max_cmd_len(uint16_t nargs, uint8_t* argv) {
   // Return the maximum payload size for a command
   //   Input: 0 arguments
   //   Output: uint16_t of maximum command length
-  uint16_t value = MAX_CMD_LEN;
-  Serial.write((uint8_t) 0);
-  serial_write16(sizeof(uint16_t));
-  serial_write16(value);
+  if( nargs > 0) {
+    invalid_arguments(nargs, argv);
+  } else {
+    uint16_t value = MAX_CMD_LEN;
+    Serial.write((uint8_t) 0);
+    serial_write16(sizeof(uint16_t));
+    serial_write16(value);
+  }
 }
   
 void echo(uint16_t nargs, uint8_t* argv) {
@@ -90,7 +120,7 @@ void transfer_spi(uint16_t nargs, uint8_t* argv) {
   //   Input: N arguments (N >= 1)
   //   Output: N responses from the SPI transfer
   if( nargs == 0 ) {
-    invalid(nargs, argv);
+    invalid_arguments(nargs, argv);
   } else {
     SPI.beginTransaction(SPISettings(500000, MSBFIRST, SPI_MODE3));
     digitalWrite(SPI_SS_PIN, LOW);
@@ -109,17 +139,21 @@ void read_adcs(uint16_t nargs, uint8_t* argv) {
   //   Input: 0 arguments
   //   Output: Four uint32_t values in the order of A0, A1, A2, and A3
   uint32_t value[4] = {0};
-  value[0] = analogRead(A0);
-  value[1] = analogRead(A1);
-  value[2] = analogRead(A2);
-  value[3] = analogRead(A3);
-  
-  Serial.write((uint8_t) 0);
-  serial_write16(4*sizeof(uint32_t));
-  serial_write32(value[0]);
-  serial_write32(value[1]);
-  serial_write32(value[2]);
-  serial_write32(value[3]);
+  if( nargs > 0) {
+    invalid_arguments(nargs, argv);
+  } else {
+    value[0] = analogRead(A0);
+    value[1] = analogRead(A1);
+    value[2] = analogRead(A2);
+    value[3] = analogRead(A3);
+    
+    Serial.write((uint8_t) 0);
+    serial_write16(4*sizeof(uint32_t));
+    serial_write32(value[0]);
+    serial_write32(value[1]);
+    serial_write32(value[2]);
+    serial_write32(value[3]);
+  }
 }
 
 void scan_i2c(uint16_t nargs, uint8_t* argv) {
@@ -129,19 +163,23 @@ void scan_i2c(uint16_t nargs, uint8_t* argv) {
   int ndevice = 0;
   byte addr, err;
   byte found_addr[128];
-  for(addr=0; addr<127; addr++) {
-    Wire.beginTransmission(addr);
-    err = Wire.endTransmission();
-    if( err == 0 ) {
-      found_addr[ndevice] = addr;
-      ndevice++;
+  if( nargs > 0) {
+    invalid_arguments(nargs, argv);
+  } else {
+    for(addr=0; addr<127; addr++) {
+      Wire.beginTransmission(addr);
+      err = Wire.endTransmission();
+      if( err == 0 ) {
+        found_addr[ndevice] = addr;
+        ndevice++;
+      }
     }
-  }
 
-  Serial.write((uint8_t) 0);
-  serial_write16(ndevice);
-  if( ndevice > 0 ) {
-    Serial.write((uint8_t*) &found_addr, ndevice*sizeof(byte));
+    Serial.write((uint8_t) 0);
+    serial_write16(ndevice);
+    if( ndevice > 0 ) {
+      Serial.write((uint8_t*) &found_addr, ndevice*sizeof(byte));
+    }
   }
 }
 
@@ -153,7 +191,7 @@ void read_i2c(uint16_t nargs, uint8_t* argv) {
   byte reg = argv[1];
   byte size = argv[2];
   if( nargs < 3 ) {
-    invalid(nargs, argv);
+    invalid_arguments(nargs, argv);
   } else {
     byte err;
     Wire.beginTransmission(addr);  
@@ -170,7 +208,7 @@ void read_i2c(uint16_t nargs, uint8_t* argv) {
       serial_write16(size);
       Serial.write(argv, size);
     } else {
-      invalid(nargs, argv);
+      invalid_bus_error(nargs, argv);
     }
   }
 }
@@ -183,7 +221,7 @@ void write_i2c(uint16_t nargs, uint8_t* argv) {
   byte reg = argv[1];
   uint16_t size = nargs - 2;
   if( nargs < 3 ) {
-    invalid(nargs, argv);
+    invalid_arguments(nargs, argv);
   } else {
     byte err;
     Wire.beginTransmission(addr);
@@ -199,7 +237,7 @@ void write_i2c(uint16_t nargs, uint8_t* argv) {
       serial_write16(size);
       Serial.write((uint8_t*) argv, size);
     } else {
-      invalid(nargs, argv);
+      invalid_bus_error(nargs, argv);
     }
   }
 }
@@ -210,8 +248,12 @@ void unlock_sn(uint16_t nargs, uint8_t* argv) {
   //   Output:  0 values
   locked = 0;
 
-  Serial.write((uint8_t) 0);
-  serial_write16(0);
+  if( nargs > 0) {
+    invalid_arguments(nargs, argv);
+  } else {
+    Serial.write((uint8_t) 0);
+    serial_write16(0);
+  }
 }
 
 void lock_sn(uint16_t nargs, uint8_t* argv) {
@@ -219,17 +261,23 @@ void lock_sn(uint16_t nargs, uint8_t* argv) {
   //   Input: 0 arguments
   //   Output:  0 values
   locked = 1;
-
-  Serial.write((uint8_t) 0);
-  serial_write16(0);
+  
+  if( nargs > 0) {
+    invalid_arguments(nargs, argv);
+  } else {
+    Serial.write((uint8_t) 0);
+    serial_write16(0);
+  }
 }
 
 void write_sn(uint16_t nargs, uint8_t* argv) {
   // Write the at most MAX_SN_LEN character device serial number to EEPROM and return it
   //   Input: N char (0 < N <= MAX_SN_LEN)
   //   Output: MAX_SN_LEN char (see read_sn)
-  if( (nargs == 0) || (locked == 1) ) {
-    invalid(nargs, argv);
+  if( nargs == 0) {
+    invalid_arguments(nargs, argv);
+  } else if( locked == 1 ) {
+    invalid_state(nargs, argv);
   } else {
     for(i=0; i<MAX_SN_LEN; i++) {
       if(i < nargs) {
@@ -290,7 +338,7 @@ void loop() {
     case 0xA1: lock_sn(nargs, &argv[0]); break;
     case 0xA2: unlock_sn(nargs, &argv[0]); break;
     case 0xA3: write_sn(nargs, &argv[0]); break;
-    default: invalid(nargs, &argv[0]);
+    default: invalid_command(nargs, &argv[0]);
   }
   Serial.flush();
 }
