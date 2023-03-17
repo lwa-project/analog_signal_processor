@@ -36,7 +36,7 @@ CXXFLAGS  := -O2 -Wall -std=c++17
 #------------------------------------------------------------------------------
 LDFLAGS := -latmega -Llibatmega
 CXXFLAGS += -Ilibatmega
-LDFLAGS += -lm
+LDFLAGS += -lm -ludev
 
 #------------------------------------------------------------------------------
 # Common rules
