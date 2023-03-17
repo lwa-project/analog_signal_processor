@@ -24,7 +24,7 @@ std::list<std::string> atmega::find_devices() {
   udev_list_entry_foreach(udev_list_entry, udevices) {
     const char *dev_path = udev_list_entry_get_name(udev_list_entry);
     udev_device *udevice = udev_device_new_from_syspath(udev, dev_path);
-    if( device == nullptr ) {
+    if( udevice == nullptr ) {
       continue;
     }
     
