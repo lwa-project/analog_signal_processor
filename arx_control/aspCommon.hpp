@@ -13,7 +13,6 @@
 #include <thread>
 #include <cstring>
 #include <stdexcept>
-#include <arpa/inet.h>
 
 #include "libatmega.hpp"
 
@@ -52,16 +51,6 @@ private:
   std::string    _sn;
   atmega::handle _fd;
   
-  inline void _send(const atmega::buffer* cmd, atmega::buffer* resp) {
-    int open_attempts = 0;
-    int n = atmega::send_command(_fd, cmd, resp);
-    while( (n == 0) && (open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS) ) {
-      open_attempts++;
-      std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
-      n = atmega::send_command(_fd, cmd, resp);
-    }
-    resp->size = ntohs(resp->size);
-  }
 public:
   ATmega(std::string sn): _sn(""), _fd(-1) {
     _sn = sn;

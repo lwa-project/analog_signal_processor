@@ -17,7 +17,6 @@ Options:
 #include <chrono>
 #include <thread>
 #include <cstdio>
-#include <arpa/inet.h>
 
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
@@ -158,7 +157,7 @@ udev_unref(udev);
 	*************************/
   atmega::buffer cmd, resp;
   cmd.command = atmega::COMMAND_UNLOCK;
-  cmd.size = htons(0);
+  cmd.size = 0;
   
   open_attempts = 0;
   int n = 0;
@@ -172,7 +171,6 @@ udev_unref(udev);
       n = atmega::send_command(fd, &cmd, &resp);
     } catch(const std::exception& e) {}
   }
-  resp.size = ntohs(resp.size);
   std::cout << "unlock: " << std::hex << (int32_t) resp.command << std::dec << " with " << (int32_t) resp.size << std::endl;
   
   if( resp.command & atmega::COMMAND_FAILURE ) {
@@ -182,7 +180,7 @@ udev_unref(udev);
   }
   
   cmd.command = atmega::COMMAND_WRITE_SN;
-  cmd.size = htons(device_sn.size());
+  cmd.size = device_sn.size();
   ::memcpy(&(cmd.buffer[0]), device_sn.c_str(), device_sn.size());
   
   open_attempts = 0;
@@ -201,7 +199,6 @@ udev_unref(udev);
       
     } catch(const std::exception& e) {}
   }
-  resp.size = ntohs(resp.size);
   
   if( resp.command & atmega::COMMAND_FAILURE ) {
     atmega::close(fd);
@@ -210,7 +207,7 @@ udev_unref(udev);
   }
   
   cmd.command = atmega::COMMAND_LOCK;
-  cmd.size = htons(0);
+  cmd.size = 0;
   
   open_attempts = 0;
   n = 0;
@@ -224,7 +221,6 @@ udev_unref(udev);
       n = atmega::send_command(fd, &cmd, &resp);
     } catch(const std::exception& e) {}
   }
-  resp.size = ntohs(resp.size);
   
   if( resp.command & atmega::COMMAND_FAILURE ) {
     atmega::close(fd);
