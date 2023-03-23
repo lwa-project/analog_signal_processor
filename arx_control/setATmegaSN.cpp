@@ -90,39 +90,39 @@ int main(int argc, char* argv[]) {
   IOObjectRelease(uiter);
   
 #else
-udev *udev = udev_new();
-if( udev == nullptr ) {
-  return devices;
-}
-
-udev_enumerate *enumerate = udev_enumerate_new(udev);
-if( enumerate == nullptr ) {
-  udev_unref(udev);
-  return devices;
-}
-
-udev_enumerate_add_match_subsystem(enumerate, "tty");
-udev_enumerate_add_match_property(enumerate, "ID_BUS", "usb");
-udev_enumerate_scan_devices(enumerate);
-
-udev_list_entry *udevices = udev_enumerate_get_list_entry(enumerate);
-
-udev_list_entry *udev_list_entry;
-udev_list_entry_foreach(udev_list_entry, udevices) {
-  const char *dev_path = udev_list_entry_get_name(udev_list_entry);
-  udev_device *udevice = udev_device_new_from_syspath(udev, dev_path);
-  if( udevice == nullptr ) {
-    continue;
+  udev *udev = udev_new();
+  if( udev == nullptr ) {
+    std::exit(EXIT_FAILURE);
   }
-  
-  const char *dev_sn = udev_device_get_property_value(udevice, "ID_SERIAL_SHORT");
-  device_sn = std::string(dev_sn);
-  
-  udev_device_unref(udevice);
-}
 
-udev_enumerate_unref(enumerate);
-udev_unref(udev);
+  udev_enumerate *enumerate = udev_enumerate_new(udev);
+  if( enumerate == nullptr ) {
+    udev_unref(udev);
+    std::exit(EXIT_FAILURE);
+  }
+
+  udev_enumerate_add_match_subsystem(enumerate, "tty");
+  udev_enumerate_add_match_property(enumerate, "ID_BUS", "usb");
+  udev_enumerate_scan_devices(enumerate);
+
+  udev_list_entry *udevices = udev_enumerate_get_list_entry(enumerate);
+
+  udev_list_entry *udev_list_entry;
+  udev_list_entry_foreach(udev_list_entry, udevices) {
+    const char *dev_path = udev_list_entry_get_name(udev_list_entry);
+    udev_device *udevice = udev_device_new_from_syspath(udev, dev_path);
+    if( udevice == nullptr ) {
+      continue;
+    }
+    
+    const char *dev_sn = udev_device_get_property_value(udevice, "ID_SERIAL_SHORT");
+    device_sn = std::string(dev_sn);
+    
+    udev_device_unref(udevice);
+  }
+
+  udev_enumerate_unref(enumerate);
+  udev_unref(udev);
 #endif
   
   if( device_sn.size() == 0 ) {
