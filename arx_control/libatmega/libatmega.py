@@ -35,7 +35,7 @@ class Command(IntEnum):
     COMMAND_FAILURE_CMD = 0xFF
 
 
-class Buffer(ctypes.BigEndianStructure):
+class Buffer(ctypes.LittleEndianStructure):
     """
     ATmega command/response data structure.
     """
@@ -43,7 +43,7 @@ class Buffer(ctypes.BigEndianStructure):
     _pack_ = 1  # Pack the structure tightly
     _fields_ = [("command", ctypes.c_uint8),
                 ("size",    ctypes.c_uint16),
-                ("buffer",  ctypes.c_char * 130)]
+                ("buffer",  ctypes.c_char * 530)]
 
 
 def find_devices() -> List[str]:
@@ -77,16 +77,24 @@ def open(device: str) -> serial.Serial:
     Open an ATmega device and get it ready for command processing.
     """
     
-    return serial.Serial(device, baudrate=9600, bytesize=8, parity='N', stopbits=1, timeout=0.1)
+    return serial.Serial(device, baudrate=115200, bytesize=8, parity='N', stopbits=1, timeout=0.1)
 
 
-def send_command(handle: serial.Serial, command: Buffer) -> Buffer:
+def send_command(handle: serial.Serial, command: Buffer, max_retry: int=0, retry_wait_ms: int=50) -> Buffer:
     """
     Send a command buffer to an ATmega device and return the response.
     """
     
-    handle.write(bytes(command)[:3+command.size])
-    return Buffer.from_buffer_copy(resp)
+    # Send the command with the <<< and >>> command markers
+    nsend = handle.write(bytes('<<<'))
+    nsend += handle.write(bytes(command)[:3+command.size])
+    nsend += handle.write(bytes('>>>'))
+    
+    # Read in the response
+    handle.read(3)
+    resp = handle.read_all()
+    
+    return Buffer.from_buffer_copy(resp[:-3])
 
 
 def close(handle: serial.Serial) -> None:
