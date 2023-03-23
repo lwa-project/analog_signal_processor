@@ -10,9 +10,21 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 
+#if defined(__APPLE__) && __APPLE__
+
+#include <IOKit/IOKitLib.h>
+#include <IOKit/usb/IOUSBLib.h>
+#include <CoreFoundation/CoreFoundation.h>
+#include <IOKit/IOCFPlugIn.h>
+#include <IOKit/serial/IOSerialKeys.h>
+
+#else
+
 #include <libudev.h>
 
-#define ATMEGA_MAX_BUFFER_SIZE 130
+#endif
+
+#define ATMEGA_MAX_BUFFER_SIZE 530
 
 namespace atmega {
   // Device file handle
