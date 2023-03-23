@@ -32,8 +32,7 @@ std::list<std::string> list_atmegas() {
       cmd.size = 0;
       
       int n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
-      
-      if( (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
+      if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
         std::string sn;
         for(int i=0; i<std::min((uint16_t) 8, (uint16_t) resp.size); i++) {
           sn.push_back((char) resp.buffer[i]);
@@ -72,7 +71,7 @@ bool ATmega::open() {
       cmd.size = 0;
       
       int n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
-      if( (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
+      if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
         std::string sn;
         for(int i=0; i<resp.size; i++) {
           sn.push_back((char) resp.buffer[i]);
@@ -110,7 +109,7 @@ std::string ATmega::get_version() {
   cmd.size = 0;
   
   int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
-  if( resp.command & atmega::COMMAND_FAILURE ) {
+  if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
     return version;
   }
   
@@ -132,7 +131,7 @@ bool ATmega::transfer_spi(const char* inputs, char* outputs, int size) {
   ::memcpy(&(cmd.buffer[0]), inputs, std::min(size, (int) sizeof(cmd.buffer)));
   
   int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
-  if( resp.command & atmega::COMMAND_FAILURE ) {
+  if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
     return false;
   }
   
@@ -151,7 +150,7 @@ std::list<uint8_t> ATmega::list_i2c_devices() {
   cmd.size = 0;
   
   int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
-  if( resp.command & atmega::COMMAND_FAILURE ) {
+  if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
     return i2c_addresses_list;
   }
   
@@ -172,7 +171,7 @@ bool ATmega::read_i2c(uint8_t addr, uint8_t reg, char* data, int size) {
   cmd.size = size;
   
   int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
-  if( resp.command & atmega::COMMAND_FAILURE ) {
+  if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
     return false;
   }
   
@@ -191,7 +190,7 @@ bool ATmega::write_i2c(uint8_t addr, uint8_t reg, const char* data, int size) {
   ::memcpy(&(cmd.buffer[0]), data, size);
   
   int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
-  if( resp.command & atmega::COMMAND_FAILURE ) {
+  if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
     return false;
   }
   
@@ -210,7 +209,7 @@ std::list<float> ATmega::read_adcs() {
   cmd.size = 0;
   
   int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
-  if( resp.command & atmega::COMMAND_FAILURE ) {
+  if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
     return values;
   }
   
