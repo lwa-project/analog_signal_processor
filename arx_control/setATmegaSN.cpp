@@ -129,8 +129,7 @@ int main(int argc, char* argv[]) {
     std::cerr << "setATmegaSN - Failed to find a serial number for " << device_name << std::endl;
     std::exit(EXIT_FAILURE);
   }
-  std::cout << "SN: " << device_sn << std::endl;
-  std::exit(EXIT_SUCCESS);
+  std::cout << device_name << " -> " << device_sn << std::endl;
   
   /******************************************
 	* ATmega device selection and programming *
@@ -142,7 +141,6 @@ int main(int argc, char* argv[]) {
       fd = atmega::open(device_name);
       break;
     } catch(const std::exception& e) {
-      std::cout << "sleep @ " << open_attempts << " with " << e.what() << std::endl;
       open_attempts++;
       std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
     }
@@ -155,25 +153,13 @@ int main(int argc, char* argv[]) {
   /************************
 	* Set the serial number *
 	*************************/
+  int n = 0;
   atmega::buffer cmd, resp;
   cmd.command = atmega::COMMAND_UNLOCK;
   cmd.size = 0;
   
-  open_attempts = 0;
-  int n = 0;
-  try {
-    n = atmega::send_command(fd, &cmd, &resp);
-  } catch(const std::exception& e) {}
-  while( (n == 0) && (open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS) ) {
-    open_attempts++;
-    std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
-    try {
-      n = atmega::send_command(fd, &cmd, &resp);
-    } catch(const std::exception& e) {}
-  }
-  std::cout << "unlock: " << std::hex << (int32_t) resp.command << std::dec << " with " << (int32_t) resp.size << std::endl;
-  
-  if( resp.command & atmega::COMMAND_FAILURE ) {
+  n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+  if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
     atmega::close(fd);
     std::cerr << "setATmegaSN - Failed to unlock device" << std::endl;
     std::exit(EXIT_FAILURE);
@@ -183,24 +169,8 @@ int main(int argc, char* argv[]) {
   cmd.size = device_sn.size();
   ::memcpy(&(cmd.buffer[0]), device_sn.c_str(), device_sn.size());
   
-  open_attempts = 0;
-  n = 0;
-  try {
-    n = atmega::send_command(fd, &cmd, &resp);
-    std::cout << "write: " << std::hex << (int32_t) resp.command << std::dec << " with " << (int32_t) resp.size << std::endl;
-    
-  } catch(const std::exception& e) {}
-  while( (n == 0) && (open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS) ) {
-    open_attempts++;
-    std::this_thread::sleep_for(std::chrono::milliseconds(10*ATMEGA_OPEN_WAIT_MS));
-    try {
-      n = atmega::send_command(fd, &cmd, &resp);
-      std::cout << "write: " << std::hex << (int32_t) resp.command << std::dec << " with " << (int32_t) resp.size << std::endl;
-      
-    } catch(const std::exception& e) {}
-  }
-  
-  if( resp.command & atmega::COMMAND_FAILURE ) {
+  n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+  if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
     atmega::close(fd);
     std::cerr << "setATmegaSN - Failed to write serial number to device" << std::endl;
     std::exit(EXIT_FAILURE);
@@ -209,20 +179,8 @@ int main(int argc, char* argv[]) {
   cmd.command = atmega::COMMAND_LOCK;
   cmd.size = 0;
   
-  open_attempts = 0;
-  n = 0;
-  try {
-    n = atmega::send_command(fd, &cmd, &resp);
-  } catch(const std::exception& e) {}
-  while( (n == 0) && (open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS) ) {
-    open_attempts++;
-    std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
-    try {
-      n = atmega::send_command(fd, &cmd, &resp);
-    } catch(const std::exception& e) {}
-  }
-  
-  if( resp.command & atmega::COMMAND_FAILURE ) {
+  n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+  if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
     atmega::close(fd);
     std::cerr << "setATmegaSN - Failed to lock device" << std::endl;
     std::exit(EXIT_FAILURE);
