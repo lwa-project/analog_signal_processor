@@ -212,7 +212,7 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
   ::memset(response, 0, sizeof(buffer));
   response->command = atmega::COMMAND_FAILURE;
   
-  ssize_t nsend, nrecv;
+  ssize_t nsend = 0, nrecv = 0;
   const char start[3] = {'<', '<', '<'};
   const char stop[3] = {'>', '>', '>'};
   for(int i=0; i<max_retry+1; i++) {
