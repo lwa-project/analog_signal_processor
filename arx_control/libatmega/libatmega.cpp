@@ -170,8 +170,8 @@ atmega::handle atmega::open(std::string device_name, bool exclusive_access) {
   tty.c_cc[VMIN] = 0;
   
   // Speed
-  ::cfsetispeed(&tty, B9600);
-  ::cfsetospeed(&tty, B9600);
+  ::cfsetispeed(&tty, B115200);
+  ::cfsetospeed(&tty, B115200);
   
   if( ::tcsetattr(fd, TCSANOW, &tty) != 0 ) {
     throw(std::runtime_error(std::string("Failed to set attributes: ") \
@@ -206,33 +206,47 @@ atmega::handle atmega::open(std::string device_name, bool exclusive_access) {
   return fd;
 }
 
-ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, atmega::buffer* response) {
+ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, atmega::buffer* response,
+                             int max_retry, int retry_wait_ms) {
   // Empty the response and set the command value to 0xFF
   ::memset(response, 0, sizeof(buffer));
   response->command = atmega::COMMAND_FAILURE;
   
-  // Send the command
+  ssize_t nsend, nrecv;
   const char start[3] = {'<', '<', '<'};
   const char stop[3] = {'>', '>', '>'};
-  ssize_t n = ::write(fd, &(start[0]), sizeof(start));
-  n += ::write(fd, command, 3+ntohs(command->size));
-  n += ::write(fd, &(stop[0]), sizeof(stop));
-  std::cout << "write n: " << n << std::endl;
-  if( n < 9 ) {
+  for(int i=0; i<max_retry+1; i++) {
+    if( i > 0 ) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(retry_wait_ms));
+    }
+    
+    // Send the command
+    nsend = ::write(fd, &(start[0]), sizeof(start));
+    nsend += ::write(fd, command, 3+command->size);
+    nsend += ::write(fd, &(stop[0]), sizeof(stop));
+    
+    // Wait
+    int cmd_wait_ms = 5;
+    if( (   (command->command == atmega::COMMAND_READ_SN)
+         || (command->command == atmega::COMMAND_WRITE_SN)) ) {
+      // EEPROM operations are slow
+      cmd_wait_ms = 100;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(cmd_wait_ms));
+    
+    // Receive the reply
+    nrecv = ::read(fd, (uint8_t*) response, 3);
+    nrecv += ::read(fd, (uint8_t*) response, sizeof(buffer));
+    if( nsend >= 9 && nrecv >= 9 ) {
+      break;
+    }
+  }
+  
+  if( nsend < 9 || nrecv < 9 ) {
     throw(std::runtime_error(std::string("Failed to send command")));
   }
   
-  std::this_thread::sleep_for(std::chrono::milliseconds(250));
-  
-  // Receive the reply
-  n = ::read(fd, (uint8_t*) response, 3);
-  n += ::read(fd, (uint8_t*) response, sizeof(buffer));
-  std::cout << "read n: " << n << std::endl;
-  if( n < 9 ) {
-    throw(std::runtime_error(std::string("Failed to receive command response")));
-  }
-  
-  return n;
+  return nrecv;
 }
 
 void atmega::close(atmega::handle fd) {

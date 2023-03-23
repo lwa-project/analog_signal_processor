@@ -55,7 +55,7 @@ namespace atmega {
   // Command/response data structure
   typedef struct __attribute__((packed)) buffer_ {
     Command  command;
-    uint16_t size;    // NOTE: big endian
+    uint16_t size;    // NOTE: little endian
     uint8_t  buffer[ATMEGA_MAX_BUFFER_SIZE];
   } buffer;
   
@@ -66,7 +66,8 @@ namespace atmega {
   handle open(std::string device_name, bool exclusive_access=true);
   
   // Send a command, return the number of bytes received
-  ssize_t send_command(handle fd, const buffer* command, buffer* response);
+  ssize_t send_command(handle fd, const buffer* command, buffer* response, 
+                       int max_retry=0, int retry_wait_ms=50);
   
   // Close an open device
   void close(handle fd);
