@@ -32,28 +32,6 @@ uint16_t i;
 uint8_t locked = 1;
 char device_sn[MAX_SN_LEN] = {'\0'};
 
-uint16_t bswap16(uint16_t v) {
-  // Helper function to byte swap a unsigned short value
-  return ((v & 0xFF) << 8) | ((v >> 8) & 0xFF);
-}
-
-uint32_t bswap32(uint32_t v) {
-  // Helper function to byte swap a unsigned int value
-  return ((v & 0xFF) << 24) | (((v >> 8) & 0xFF) << 16) | (((v >> 16) & 0xFF) << 8) | ((v >> 24) & 0xFF);
-}
-
-void serial_write16(uint16_t value) {
-  // Helper function byte swap and write a unsigned short value to Serial
-  value = bswap16(value);
-  Serial.write((uint8_t*) &value, sizeof(uint16_t));
-}
-
-void serial_write32(uint32_t value) {
-  // Helper function byte swap and write a unsigned int value to Serial
-  value = bswap32(value);
-  Serial.write((uint8_t*) &value, sizeof(uint32_t));
-}
-
 void serial_sendresp(uint8_t status, uint16_t size, uint8_t *data) {
   // Send a response to a command
   /* Preamble */
@@ -63,7 +41,7 @@ void serial_sendresp(uint8_t status, uint16_t size, uint8_t *data) {
   /* Status code */
   Serial.write(status);
   /* Message size */
-  serial_write16(size);
+  Serial.write((uint8_t*) &size, sizeof(uint16_t));
   /* Message body */
   if( data != NULL && size > 0 ) {
     Serial.write((uint8_t*) data, size);
@@ -130,8 +108,7 @@ void read_max_cmd_len(uint16_t nargs, uint8_t* argv) {
     invalid_arguments(nargs, argv);
   } else {
     uint16_t value = MAX_CMD_LEN;
-    value = bswap16(value);
-
+    
     serial_sendresp(0, sizeof(uint16_t), (uint8_t*) &value);
   }
 }
@@ -173,10 +150,7 @@ void read_adcs(uint16_t nargs, uint8_t* argv) {
     value[1] = analogRead(A1);
     value[2] = analogRead(A2);
     value[3] = analogRead(A3);
-    for(i=0; i<4; i++) {
-      value[i] = bswap32(value[i]);
-    }
-
+    
     serial_sendresp(0, 4*sizeof(uint32_t), (uint8_t*) &value[0]);
   }
 }
@@ -311,7 +285,7 @@ void write_sn(uint16_t nargs, uint8_t* argv) {
 
 void setup() {
   // Serial setup
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   // SPI setup
   pinMode(SPI_SS_PIN, OUTPUT);
@@ -350,7 +324,7 @@ void loop() {
   if( is_ready ) {
     // Load the command
     command = buffer[0];
-    nargs = (buffer[1] << 8) | buffer[2];
+    nargs = (buffer[2] << 8) | buffer[1];
     
     // Process the command
     switch(command) {
