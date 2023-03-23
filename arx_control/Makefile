@@ -108,5 +108,5 @@ install:
 
 clean:
 	rm -f *.o *.out *.err *.exe *.a *.so
-	rm -f sendARXDevice countBoards countPSUs countThermometers readPSU readThermometers onoffPSU configPSU readARXDevice
+	rm -f sendARXDevice countBoards countPSUs countThermometers readPSU readThermometers onoffPSU configPSU readARXDevice setATmegaSN
 	make -C libatmega clean
