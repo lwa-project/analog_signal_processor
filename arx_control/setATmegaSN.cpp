@@ -20,6 +20,7 @@ Options:
 #include <arpa/inet.h>
 
 #include "libatmega.hpp"
+#include "aspCommon.hpp"
 
 
 int main(int argc, char* argv[]) {
@@ -37,26 +38,116 @@ int main(int argc, char* argv[]) {
   /***************************************
   * Find the serial number using udevadm *
   ****************************************/
-  std::string device_sn = "";
-  std::string udev_lookup = std::string("udevadm info --name=")+device_name;
-  std::unique_ptr<FILE, decltype(&::pclose)> pipe(::popen(udev_lookup.c_str(), "r"), ::pclose);
-  if( pipe != nullptr ) {
-    char buffer[256];
-    while( fgets(buffer, 256, pipe.get()) != nullptr ) {
-      if( strstr(buffer, "ID_SERIAL_SHORT=") != nullptr) {
-        device_sn = std::string(&(buffer[16]));
+  std::string device_sn;
+#if defined(__APPLE__) && __APPLE__
+  CFMutableDictionaryRef matchingDict;
+  io_iterator_t uiter;
+  kern_return_t kr;
+  io_service_t udevice;
+
+  matchingDict = IOServiceMatching(kIOSerialBSDServiceValue);
+  if( matchingDict == nullptr ) {
+      std::exit(EXIT_FAILURE);
+  }
+
+  kr = IOServiceGetMatchingServices(kIOMainPortDefault, matchingDict, &uiter);
+  if( kr != KERN_SUCCESS ) {
+      std::exit(EXIT_FAILURE);
+  }
+
+  while( (udevice = IOIteratorNext(uiter)) ) {
+    char *dev_path;
+    char *dev_sn;
+    CFStringRef devpathRef = (CFStringRef) IORegistryEntrySearchCFProperty(udevice,
+                                                                           kIOServicePlane,
+                                                                           CFSTR(kIOCalloutDeviceKey),
+                                                                           kCFAllocatorDefault,
+                                                                           kIORegistryIterateRecursively | kIORegistryIterateParents);
+    dev_path = nullptr;
+    dev_sn = nullptr;
+    CFStringRef devsnRef = nullptr;
+    if( devpathRef ) {
+      dev_path = (char*) CFStringGetCStringPtr(devpathRef, kCFStringEncodingUTF8);
+      if( strcmp(device_name.c_str(), dev_path) == 0 ) {
+        devsnRef = (CFStringRef) IORegistryEntrySearchCFProperty(udevice,
+                                                                 kIOServicePlane,
+                                                                 CFSTR(kUSBSerialNumberString),
+                                                                 kCFAllocatorDefault,
+                                                                 kIORegistryIterateRecursively | kIORegistryIterateParents);
+        if( devsnRef ) {
+          dev_sn = (char*) CFStringGetCStringPtr(devsnRef, kCFStringEncodingUTF8);
+          device_sn = std::string(dev_sn);
+        }
       }
     }
+    
+    CFRelease(devpathRef);
+    if( devsnRef != nullptr ) {
+      CFRelease(devsnRef);
+    }
+    IOObjectRelease(udevice);
   }
+  
+  IOObjectRelease(uiter);
+  
+#else
+udev *udev = udev_new();
+if( udev == nullptr ) {
+  return devices;
+}
+
+udev_enumerate *enumerate = udev_enumerate_new(udev);
+if( enumerate == nullptr ) {
+  udev_unref(udev);
+  return devices;
+}
+
+udev_enumerate_add_match_subsystem(enumerate, "tty");
+udev_enumerate_add_match_property(enumerate, "ID_BUS", "usb");
+udev_enumerate_scan_devices(enumerate);
+
+udev_list_entry *udevices = udev_enumerate_get_list_entry(enumerate);
+
+udev_list_entry *udev_list_entry;
+udev_list_entry_foreach(udev_list_entry, udevices) {
+  const char *dev_path = udev_list_entry_get_name(udev_list_entry);
+  udev_device *udevice = udev_device_new_from_syspath(udev, dev_path);
+  if( udevice == nullptr ) {
+    continue;
+  }
+  
+  const char *dev_sn = udev_device_get_property_value(udevice, "ID_SERIAL_SHORT");
+  device_sn = std::string(dev_sn);
+  
+  udev_device_unref(udevice);
+}
+
+udev_enumerate_unref(enumerate);
+udev_unref(udev);
+#endif
+  
   if( device_sn.size() == 0 ) {
     std::cerr << "setATmegaSN - Failed to find a serial number for " << device_name << std::endl;
     std::exit(EXIT_FAILURE);
   }
+  std::cout << "SN: " << device_sn << std::endl;
+  std::exit(EXIT_SUCCESS);
   
   /******************************************
 	* ATmega device selection and programming *
 	*******************************************/
-  atmega::handle fd = atmega::open(device_name);
+  int open_attempts = 0;
+  atmega::handle fd = -1;
+  while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
+    try {
+      fd = atmega::open(device_name);
+      break;
+    } catch(const std::exception& e) {
+      std::cout << "sleep @ " << open_attempts << " with " << e.what() << std::endl;
+      open_attempts++;
+      std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
+    }
+  }
   if( fd < 0 ) {
     std::cerr << "setATmegaSN - Failed to open device" << std::endl;
     std::exit(EXIT_FAILURE);
@@ -68,7 +159,22 @@ int main(int argc, char* argv[]) {
   atmega::buffer cmd, resp;
   cmd.command = atmega::COMMAND_UNLOCK;
   cmd.size = htons(0);
-  atmega::send_command(fd, &cmd, &resp);
+  
+  open_attempts = 0;
+  int n = 0;
+  try {
+    n = atmega::send_command(fd, &cmd, &resp);
+  } catch(const std::exception& e) {}
+  while( (n == 0) && (open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS) ) {
+    open_attempts++;
+    std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
+    try {
+      n = atmega::send_command(fd, &cmd, &resp);
+    } catch(const std::exception& e) {}
+  }
+  resp.size = ntohs(resp.size);
+  std::cout << "unlock: " << std::hex << (int32_t) resp.command << std::dec << " with " << (int32_t) resp.size << std::endl;
+  
   if( resp.command & atmega::COMMAND_FAILURE ) {
     atmega::close(fd);
     std::cerr << "setATmegaSN - Failed to unlock device" << std::endl;
@@ -76,9 +182,27 @@ int main(int argc, char* argv[]) {
   }
   
   cmd.command = atmega::COMMAND_WRITE_SN;
-  cmd.size = htons(device_name.size());
-  ::memcpy(&(cmd.buffer[0]), device_name.c_str(), device_name.size());
-  atmega::send_command(fd, &cmd, &resp);
+  cmd.size = htons(device_sn.size());
+  ::memcpy(&(cmd.buffer[0]), device_sn.c_str(), device_sn.size());
+  
+  open_attempts = 0;
+  n = 0;
+  try {
+    n = atmega::send_command(fd, &cmd, &resp);
+    std::cout << "write: " << std::hex << (int32_t) resp.command << std::dec << " with " << (int32_t) resp.size << std::endl;
+    
+  } catch(const std::exception& e) {}
+  while( (n == 0) && (open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS) ) {
+    open_attempts++;
+    std::this_thread::sleep_for(std::chrono::milliseconds(10*ATMEGA_OPEN_WAIT_MS));
+    try {
+      n = atmega::send_command(fd, &cmd, &resp);
+      std::cout << "write: " << std::hex << (int32_t) resp.command << std::dec << " with " << (int32_t) resp.size << std::endl;
+      
+    } catch(const std::exception& e) {}
+  }
+  resp.size = ntohs(resp.size);
+  
   if( resp.command & atmega::COMMAND_FAILURE ) {
     atmega::close(fd);
     std::cerr << "setATmegaSN - Failed to write serial number to device" << std::endl;
@@ -87,7 +211,21 @@ int main(int argc, char* argv[]) {
   
   cmd.command = atmega::COMMAND_LOCK;
   cmd.size = htons(0);
-  atmega::send_command(fd, &cmd, &resp);
+  
+  open_attempts = 0;
+  n = 0;
+  try {
+    n = atmega::send_command(fd, &cmd, &resp);
+  } catch(const std::exception& e) {}
+  while( (n == 0) && (open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS) ) {
+    open_attempts++;
+    std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
+    try {
+      n = atmega::send_command(fd, &cmd, &resp);
+    } catch(const std::exception& e) {}
+  }
+  resp.size = ntohs(resp.size);
+  
   if( resp.command & atmega::COMMAND_FAILURE ) {
     atmega::close(fd);
     std::cerr << "setATmegaSN - Failed to lock device" << std::endl;
