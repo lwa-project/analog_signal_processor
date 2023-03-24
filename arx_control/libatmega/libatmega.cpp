@@ -215,6 +215,8 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
   ssize_t nsend = 0, nrecv = 0;
   const char start[3] = {'<', '<', '<'};
   const char stop[3] = {'>', '>', '>'};
+  char *temp;
+  temp = (char*) ::calloc(1, 6+sizeof(buffer));
   for(int i=0; i<max_retry+1; i++) {
     if( i > 0 ) {
       std::this_thread::sleep_for(std::chrono::milliseconds(retry_wait_ms));
@@ -227,20 +229,28 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
     
     // Wait
     int cmd_wait_ms = 5;
-    if( (   (command->command == atmega::COMMAND_READ_SN)
-         || (command->command == atmega::COMMAND_WRITE_SN)) ) {
-      // EEPROM operations are slow
+    if( (   (command->command == atmega::COMMAND_READ_I2C)
+         || (command->command == atmega::COMMAND_WRITE_I2C)) ) {
+      // I2C operations are slow
+      cmd_wait_ms = 50;
+    } else if( (   (command->command == atmega::COMMAND_READ_SN)
+                || (command->command == atmega::COMMAND_WRITE_SN)) ) {
+      // EEPROM operations are really slow
       cmd_wait_ms = 100;
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(cmd_wait_ms));
     
     // Receive the reply
-    nrecv = ::read(fd, (uint8_t*) response, 3);
-    nrecv += ::read(fd, (uint8_t*) response, sizeof(buffer));
+    nrecv = ::read(fd, (uint8_t*) temp, 6+sizeof(buffer));
     if( nsend >= 9 && nrecv >= 9 ) {
-      break;
+      if( temp[0] == '<' && temp[1] == '<' && temp[2] == '<' ) {
+        ::memcpy((uint8_t*) response, temp+3, nrecv-6);
+        break;
+      }
     }
   }
+  
+  ::free(temp);
   
   if( nsend < 9 || nrecv < 9 ) {
     throw(std::runtime_error(std::string("Failed to send command")));

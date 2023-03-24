@@ -32,7 +32,7 @@ uint16_t i;
 uint8_t locked = 1;
 char device_sn[MAX_SN_LEN] = {'\0'};
 
-void serial_sendresp(uint8_t status, uint16_t size, uint8_t *data) {
+void serial_sendresp(uint8_t status, uint16_t sze, uint8_t *data) {
   // Send a response to a command
   /* Preamble */
   Serial.write((uint8_t) 60);
@@ -41,10 +41,10 @@ void serial_sendresp(uint8_t status, uint16_t size, uint8_t *data) {
   /* Status code */
   Serial.write(status);
   /* Message size */
-  Serial.write((uint8_t*) &size, sizeof(uint16_t));
+  Serial.write((uint8_t*) &sze, sizeof(uint16_t));
   /* Message body */
-  if( data != NULL && size > 0 ) {
-    Serial.write((uint8_t*) data, size);
+  if( data != NULL && sze > 0 ) {
+    Serial.write((uint8_t*) data, sze);
   }
   /* Postamble */
   Serial.write((uint8_t) 62);
@@ -165,12 +165,11 @@ void scan_i2c(uint16_t nargs, uint8_t* argv) {
   if( nargs > 0) {
     invalid_arguments(nargs, argv);
   } else {
-    for(addr=0; addr<127; addr++) {
+    for(addr=1; addr<127; addr++) {
       Wire.beginTransmission(addr);
       err = Wire.endTransmission();
       if( err == 0 ) {
-        found_addr[ndevice] = addr;
-        ndevice++;
+        found_addr[ndevice++] = addr;
       }
     }
 
@@ -184,22 +183,27 @@ void read_i2c(uint16_t nargs, uint8_t* argv) {
   //   Output: "size" uint8_t values from the register
   byte addr = argv[0];
   byte reg = argv[1];
-  byte size = argv[2];
+  byte sze = argv[2];
   if( nargs < 3 ) {
     invalid_arguments(nargs, argv);
   } else {
+    for(i=0; i<3; i++) {
+      argv[i] = 0;
+    }
+    
     byte err;
     Wire.beginTransmission(addr);  
     Wire.write(reg);
-    Wire.endTransmission(false);
+    Wire.endTransmission();
 
-    delay(5);
-    
-    Wire.requestFrom(addr, size);
-    Wire.readBytes(argv, size);
+    Wire.requestFrom(addr, sze);
+    while( Wire.available() < sze ) {
+      delay(1);
+    }
+    Wire.readBytes(argv, sze);
     err = Wire.endTransmission(); 
     if( err == 0 ) {
-      serial_sendresp(0, size, argv);
+      serial_sendresp(0, sze, argv);
     } else {
       invalid_bus_error(nargs, argv);
     }
@@ -219,14 +223,10 @@ void write_i2c(uint16_t nargs, uint8_t* argv) {
     byte err;
     Wire.beginTransmission(addr);
     Wire.write(reg);
-    Wire.endTransmission(false);
-
-    delay(5);
-    
     Wire.write((uint8_t*) &(argv[2]), size);
     err = Wire.endTransmission();
     if( err == 0 ) {
-      serial_sendresp(0, size, argv);
+      serial_sendresp(0, 0, argv);
     } else {
       invalid_bus_error(nargs, argv);
     }
@@ -292,6 +292,7 @@ void setup() {
   SPI.begin();
 
   // I2C setup
+  Wire.setClock(10000);
   Wire.begin();
 }
 
