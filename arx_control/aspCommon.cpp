@@ -168,14 +168,17 @@ bool ATmega::read_i2c(uint8_t addr, uint8_t reg, char* data, int size) {
   
   atmega::buffer cmd, resp;
   cmd.command = atmega::COMMAND_READ_I2C;
-  cmd.size = size;
+  cmd.size = 3;
+  cmd.buffer[0] = addr;
+  cmd.buffer[1] = reg;
+  cmd.buffer[2] = size;
   
   int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
   if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
     return false;
   }
   
-  ::memcpy(data, &(resp.buffer[0]), resp.size);
+  ::memcpy(data, &(resp.buffer[0]), size);
   return true;
 }
 
@@ -186,8 +189,10 @@ bool ATmega::write_i2c(uint8_t addr, uint8_t reg, const char* data, int size) {
   
   atmega::buffer cmd, resp;
   cmd.command = atmega::COMMAND_WRITE_I2C;
-  cmd.size = size;
-  ::memcpy(&(cmd.buffer[0]), data, size);
+  cmd.size = 2 + size;
+  cmd.buffer[0] = addr;
+  cmd.buffer[1] = reg;
+  ::memcpy(&(cmd.buffer[2]), data, size);
   
   int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
   if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
