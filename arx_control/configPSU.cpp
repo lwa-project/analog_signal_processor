@@ -303,7 +303,7 @@ int main(int argc, char** argv) {
 	delete atm;
 	
   if( !found ) {
-		std::cerr << "configPSU - Cannot find device at address " << std::uppercase << std::hex << "0x%" << i2c_device << std::endl;
+		std::cerr << "configPSU - Cannot find device at address " << std::uppercase << std::hex << "0x" << i2c_device << std::endl;
 		std::exit(EXIT_FAILURE);
 	}
   
