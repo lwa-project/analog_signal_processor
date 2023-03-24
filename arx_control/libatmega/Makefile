@@ -8,6 +8,20 @@ all: LIBATMEGA
 #------------------------------------------------------------------------------
 OS=$(shell uname)
 
+ifeq ($(OS),Linux)
+  SO_EXT      = .so
+  SHARED_FLAG = -shared
+  SONAME_FLAG = -soname
+else ifeq ($(OS),Darwin)
+  SO_EXT      = .dylib
+  SHARED_FLAG = -dynamiclib
+  SONAME_FLAG = -install_name
+else
+  $(error Unsupported OS)
+endif
+
+LIBATMEGA_SO         = libatmega$(SO_EXT)
+	
 #------------------------------------------------------------------------------
 # Compiler
 #------------------------------------------------------------------------------
@@ -19,7 +33,11 @@ CXX     := $(CROSS)g++
 #------------------------------------------------------------------------------
 # Inc && Lib 
 #------------------------------------------------------------------------------
-LDLIB   := -ludev
+ifeq ($(OS),Linux)
+  LDLIB += -ludev
+else ifeq ($(OS),Darwin)
+  LDLIB += -framework IOKit -framework CoreFoundation
+endif
 
 #------------------------------------------------------------------------------
 # Compiler Flags 
@@ -30,6 +48,11 @@ CXXFLAGS  := -O2 -Wall -std=c++17 -Werror -g -fPIC -I.
 # Linker Flags 
 #------------------------------------------------------------------------------
 LFLAGS  := -fPIC
+ifeq ($(OS),Linux)
+  LFLAGS += -ludev
+else ifeq ($(OS),Darwin)
+  LFLAGS += -framework IOKit -framework CoreFoundation
+endif
 
 
 #------------------------------------------------------------------------------
@@ -43,12 +66,12 @@ LFLAGS  := -fPIC
 # Target Builds
 # 
 #------------------------------------------------------------------------------
-LIBATMEGA : libatmega.a #libatmega.so
+LIBATMEGA : libatmega.a $(LIBATMEGA_SO)
 libatmega.a : libatmega.o
 	ar -rcsv $@ $^
-libatmega.so: libatmega.o
-	$(CXX) -shared -Wl,-soname,$@ -o $@ libatmega.o
+$(LIBATMEGA_SO): libatmega.o
+	$(CXX) -Wl $(SHARED_FLAG) $(SONAME_FLAG) $@ libatmega.o $(LFLAGS)
 
 clean:
 	@echo $(OS) Clean
-	rm -f *.o *.a *.so
+	rm -f *.o *.a *.so *.dylib

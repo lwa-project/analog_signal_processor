@@ -36,7 +36,12 @@ CXXFLAGS  := -O2 -Wall -std=c++17
 #------------------------------------------------------------------------------
 LDFLAGS := -latmega -Llibatmega
 CXXFLAGS += -Ilibatmega
-LDFLAGS += -lm -ludev
+LDFLAGS += -lm
+ifeq ($(OS),Linux)
+  LDFLAGS += -ludev
+else ifeq ($(OS),Darwin)
+  LDFLAGS += -framework IOKit -framework CoreFoundation
+endif
 
 #------------------------------------------------------------------------------
 # Common rules
@@ -107,6 +112,6 @@ install:
                  /usr/local/bin/readARXDevice
 
 clean:
-	rm -f *.o *.out *.err *.exe *.a *.so
+	rm -f *.o *.out *.err *.exe *.a *.so *.dylib
 	rm -f sendARXDevice countBoards countPSUs countThermometers readPSU readThermometers onoffPSU configPSU readARXDevice setATmegaSN
 	make -C libatmega clean
