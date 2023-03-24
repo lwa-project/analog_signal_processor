@@ -54,6 +54,7 @@ else ifeq ($(OS),Darwin)
   LFLAGS += -framework IOKit -framework CoreFoundation
 endif
 
+WLFLAGS ?= $(SONAME_FLAG),$(LIBATMEGA_SO)
 
 #------------------------------------------------------------------------------
 # Common rules
@@ -70,7 +71,7 @@ LIBATMEGA : libatmega.a $(LIBATMEGA_SO)
 libatmega.a : libatmega.o
 	ar -rcsv $@ $^
 $(LIBATMEGA_SO): libatmega.o
-	$(CXX) -Wl $(SHARED_FLAG) $(SONAME_FLAG) $@ libatmega.o $(LFLAGS)
+	$(CXX) $(SHARED_FLAG) -Wl,$(WLFLAGS) -o $@ libatmega.o $(LFLAGS)
 
 clean:
 	@echo $(OS) Clean
