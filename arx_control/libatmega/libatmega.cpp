@@ -194,7 +194,7 @@ atmega::handle atmega::open(std::string device_name, bool exclusive_access) {
   // Ready the port
   int ctl = TIOCM_DTR;
   if( ::ioctl(fd, TIOCMBIS, &ctl) != 0 ) {
-    throw(std::runtime_error(std::string("Failed to assert DTS: ") \
+    throw(std::runtime_error(std::string("Failed to assert DTR: ") \
                              +std::string(strerror(errno))));
   };
   ctl = TIOCM_RTS;
@@ -213,8 +213,8 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
   response->command = atmega::COMMAND_FAILURE;
   
   ssize_t nsend = 0, nrecv = 0;
-  const char start[3] = {'<', '<', '<'};
-  const char stop[3] = {'>', '>', '>'};
+  const char *start = "<<<";
+  const char *stop = ">>>";
   char *temp;
   temp = (char*) ::calloc(1, 6+sizeof(buffer));
   for(int i=0; i<max_retry+1; i++) {
@@ -223,9 +223,9 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
     }
     
     // Send the command
-    nsend = ::write(fd, &(start[0]), sizeof(start));
+    nsend = ::write(fd, start, 3);
     nsend += ::write(fd, command, 3+command->size);
-    nsend += ::write(fd, &(stop[0]), sizeof(stop));
+    nsend += ::write(fd, stop, 3);
     
     // Wait
     int cmd_wait_ms = 5;
