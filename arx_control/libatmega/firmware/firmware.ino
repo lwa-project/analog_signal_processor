@@ -17,6 +17,12 @@
 // Version string
 #define VERSION "v0.0.1"
 
+// Fault LED pin
+#define FAULT_PIN 6
+
+// Locate LED pin
+#define LOCATE_PIN 7
+
 // Command input buffer
 long int last_char = -1;
 boolean in_progress = false, is_ready = false;
@@ -31,6 +37,8 @@ uint16_t nargs = 0;
 uint16_t i;
 uint8_t locked = 1;
 char device_sn[MAX_SN_LEN] = {'\0'};
+uint8_t locate = 0;
+uint8_t lstate = 0;
 
 void serial_sendresp(uint8_t status, uint16_t sze, uint8_t *data) {
   // Send a response to a command
@@ -205,6 +213,7 @@ void read_i2c(uint16_t nargs, uint8_t* argv) {
     if( err == 0 ) {
       serial_sendresp(0, sze, argv);
     } else {
+      digitalWrite(FAULT_PIN, HIGH);
       invalid_bus_error(nargs, argv);
     }
   }
@@ -228,6 +237,7 @@ void write_i2c(uint16_t nargs, uint8_t* argv) {
     if( err == 0 ) {
       serial_sendresp(0, 0, argv);
     } else {
+      digitalWrite(FAULT_PIN, HIGH);
       invalid_bus_error(nargs, argv);
     }
   }
@@ -237,7 +247,6 @@ void unlock_sn(uint16_t nargs, uint8_t* argv) {
   // Unlock the write_sn function
   //   Input: 0 arguments
   //   Output:  0 values
-
   if( nargs > 0) {
     invalid_arguments(nargs, argv);
   } else {
@@ -251,8 +260,6 @@ void lock_sn(uint16_t nargs, uint8_t* argv) {
   // Lock the write_sn function
   //   Input: 0 arguments
   //   Output:  0 values
-  
-  
   if( nargs > 0) {
     invalid_arguments(nargs, argv);
   } else {
@@ -283,6 +290,36 @@ void write_sn(uint16_t nargs, uint8_t* argv) {
   }
 }
 
+void clear_fault(uint16_t nargs, uint8_t* argv) {
+  // Clear the fault indicator
+  //   Input: 0 arguments
+  //   Output: 0 values
+  if( nargs > 0) {
+    invalid_arguments(nargs, argv);
+  } else {
+    digitalWrite(FAULT_PIN, LOW);
+    
+    serial_sendresp(0, 0, NULL);
+  }
+}
+
+void toggle_locate(uint16_t nargs, uint8_t* argv) {
+  // Set/unset the locate LED
+  //   Input: 0 arguments
+  //   Output: 0 values
+  if( nargs > 0) {
+    invalid_arguments(nargs, argv);
+  } else {
+    locate ^= 1;
+    digitalWrite(LOCATE_PIN, locate ? HIGH : LOW);
+    lstate = locate;
+    
+    serial_sendresp(0, 0, NULL);
+  }
+}
+
+void(* reset) (void) = 0; //declare reset function @ address 0
+
 void setup() {
   // Serial setup
   Serial.begin(115200);
@@ -292,8 +329,12 @@ void setup() {
   SPI.begin();
 
   // I2C setup
-  Wire.setClock(10000);
+  Wire.setClock(100000);
   Wire.begin();
+
+  // LEDs
+  pinMode(FAULT_PIN, OUTPUT);   // Fault
+  pinMode(LOCATE_PIN, OUTPUT);   // Locate
 }
 
 void loop() {
@@ -342,17 +383,38 @@ void loop() {
       case 0xA1: lock_sn(nargs, &buffer[3]); break;
       case 0xA2: unlock_sn(nargs, &buffer[3]); break;
       case 0xA3: write_sn(nargs, &buffer[3]); break;
+      case 0xA4: clear_fault(nargs, &buffer[3]); break;
+      case 0xA5: toggle_locate(nargs, &buffer[3]); break;
+      case 0xAF: reset(); break;
       default: invalid_command(nargs, &buffer[3]);
     }
-    
+
+    in_progress = false;
     is_ready = false;
     idx = 0;
-    buffer[0] = buffer[1] = buffer[2] = 0;
+    buffer[0] = buffer[1] = buffer[2] = buffer[3] = 0;
     
   } else if( in_progress && millis() - last_char > CMD_TIMEOUT_MS ) {
     // Reset the command buffer
     in_progress = false;
     is_ready = false;
     idx = 0;
+    buffer[0] = buffer[1] = buffer[2] = buffer[3] = 0;
   }
+
+  // Blink the locate LED if locate is requested
+  if( locate ) {
+    if( ((millis() / 800) % 2) == 0 ) {
+      if( lstate == 0 ) {
+        digitalWrite(LOCATE_PIN, HIGH);
+        lstate = 1;
+      }
+    } else {
+      if( lstate == 1 ) {
+        digitalWrite(LOCATE_PIN, LOW);
+        lstate = 0;
+      }
+    }
+  }
+  
 }
