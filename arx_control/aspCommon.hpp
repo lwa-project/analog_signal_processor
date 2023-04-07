@@ -65,6 +65,9 @@ public:
   bool read_i2c(uint8_t addr, uint8_t reg, char* data, int size);
   bool write_i2c(uint8_t addr, uint8_t reg, const char* data, int size);
   std::list<float> read_adcs();
+  bool clear_fault();
+  bool locate();
+  bool reset();
 };
 
 

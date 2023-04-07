@@ -173,8 +173,12 @@ bool ATmega::read_i2c(uint8_t addr, uint8_t reg, char* data, int size) {
   cmd.buffer[1] = reg;
   cmd.buffer[2] = size;
   
-  int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
-  if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+  try {
+    int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+    if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+      return false;
+    }
+  } catch(const std::exception& e) {
     return false;
   }
   
@@ -194,8 +198,12 @@ bool ATmega::write_i2c(uint8_t addr, uint8_t reg, const char* data, int size) {
   cmd.buffer[1] = reg;
   ::memcpy(&(cmd.buffer[2]), data, size);
   
-  int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
-  if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+  try {
+    int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+    if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+      return false;
+    }
+  } catch(const std::exception& e) {
     return false;
   }
   
@@ -225,4 +233,54 @@ std::list<float> ATmega::read_adcs() {
   }
   
   return values;
+}
+
+bool ATmega::clear_fault() {
+  if( _fd < 0 ) {
+    return false;
+  }
+  
+  atmega::buffer cmd, resp;
+  cmd.command = atmega::COMMAND_CLR_FAULT;
+  cmd.size = 0;
+  
+  int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+  if( resp.command & atmega::COMMAND_FAILURE ) {
+    return false;
+  }
+  
+  return true;
+}
+
+bool ATmega::locate() {
+  if( _fd < 0 ) {
+    return false;
+  }
+  
+  atmega::buffer cmd, resp;
+  cmd.command = atmega::COMMAND_LOCATE;
+  cmd.size = 0;
+  
+  int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+  if( resp.command & atmega::COMMAND_FAILURE ) {
+    return false;
+  }
+  
+  return true;
+}
+
+bool ATmega::reset() {
+  if( _fd < 0 ) {
+    return false;
+  }
+  
+  atmega::buffer cmd, resp;
+  cmd.command = atmega::COMMAND_RESET;
+  cmd.size = 0;
+  
+  int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+  
+  std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
+  
+  return true;
 }
