@@ -428,7 +428,7 @@ class AnalogProcessor(object):
         if stand < 0 or stand > self.num_stands:
             self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x02])
             return False, 0x02
-        if attenSetting < 0 or attenSetting > MAX_ATTEN:
+        if attenSetting < 0 or attenSetting > self.config['max_atten']:
             self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x05])
             return False, 0x05
             
