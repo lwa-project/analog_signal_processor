@@ -14,7 +14,7 @@ from aspI2C import *
 from aspThreads import *
 
 
-__version__ = '0.5'
+__version__ = '0.6'
 __all__ = ['modeDict', 'commandExitCodes', 'AnaloglProcessor']
 
 
@@ -748,6 +748,18 @@ class AnalogProcessor(object):
                 
             fees = self.currentState['chassisThreads'][0].getFEECurrent(stand)
             return True, tuple(fees)
+        else:
+            self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
+            return False, ()
+            
+    def getRFPower(self, stand):
+        if stand > 0 and stand <= self.num_stands:
+            if self.currentState['chassisThreads'] is None:
+                self.currentState['lastLog'] = 'RFPWR: Monitoring processes are not running'
+                return False, ()
+                
+            rf_power = self.currentState['chassisThreads'][0].getRFPower(stand)
+            return True, tuple(rf_power)
         else:
             self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
             return False, ()

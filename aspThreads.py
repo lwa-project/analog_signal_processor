@@ -19,7 +19,7 @@ from lwainflux import LWAInfluxClient
 from aspRS485 import rs485Check, rs485Get, rs485Power, rs485Temperature
 
 
-__version__ = '0.7'
+__version__ = '0.8'
 __all__ = ['BackendService', 'TemperatureSensors', 'ChassisStatus']
 
 
@@ -380,6 +380,7 @@ class ChassisStatus(object):
         self.configured = False
         self.board_currents = []
         self.fee_currents = []
+        self.rf_power = []
         
         # Setup the callback
         self.ASPCallbackInstance = ASPCallbackInstance
@@ -496,6 +497,13 @@ class ChassisStatus(object):
                     except Exception as e:
                         aspThreadsLogger.error("%s: monitorThread failed to update FEE power log - %s", type(self).__name__, str(e))
                         
+                ## And the square law detector power
+                status, rf_power = rs485Power(self.antennaMapping,
+                                                  maxRetry=self.maxRetry,
+                                                  waitRetry=self.waitRetry)
+                if status:
+                    self.rf_power = rf_power
+                    
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread failed with: %s at line %i", type(self).__name__, str(e), exc_traceback.tb_lineno)
@@ -549,5 +557,16 @@ class ChassisStatus(object):
         
         try:
             return self.fee_currents[2*(stand-1):2*(stand-1)+2]
+        except IndexError:
+            return (None, None)
+            
+    def getRFPower(self, stand):
+        """
+        Convenience function to get the RF power from the square law detector in
+        Watts.
+        """
+        
+        try:
+            return self.rf_power[2*(stand-1):2*(stand-1)+2]
         except IndexError:
             return (None, None)

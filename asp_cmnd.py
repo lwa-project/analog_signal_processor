@@ -32,7 +32,7 @@ from MCS import *
 from aspFunctions import  AnalogProcessor
 
 
-__version__ = '0.4'
+__version__ = '0.5'
 __all__ = ['DEFAULTS_FILENAME', 'MCSCommunicate']
 
 
@@ -164,6 +164,18 @@ class MCSCommunicate(Communicate):
                     status, current = self.SubSystemInstance.getFEECurrentDraw(stand)
                     if status:
                         packed_data = "%.1f" % current[pol]
+                    else:
+                        packed_data = self.SubSystemInstance.currentState['lastLog']
+                        
+                    self.logger.debug('%s = exited with status %s', data, str(status))
+                    
+                ## Analog gain state - square law detector power
+            elif data[0:6] == 'RFPWR_':
+                    stand = int(data[6:])
+                    
+                    status, rf_power = self.SubSystemInstance.getSQLPower(stand)
+                    if status:
+                        packed_data = "%.3f %.3f" % (rf_power[0]*1000, rf_power[1]*1000)
                     else:
                         packed_data = self.SubSystemInstance.currentState['lastLog']
                         
