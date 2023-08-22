@@ -213,12 +213,12 @@ def rs485RFPower(antennaMapping, maxRetry=0, waitRetry=0.2):
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    new_rf_powers = _ARX.get_all_chan_power(board & 0xFF)
-                    rf_powers.extend(new_rf_powers)
+                    new_rf_power = _ARX.get_all_chan_power(board & 0xFF)
+                    rf_powers.extend(new_rf_power)
                     board_success = True
                     break
                 except Exception as e:
-                    aspRS485Logger.warning("Could not get power info. for board %s: %s", board_key, str(e))
+                    aspRS485Logger.warning("Could not get RF power info. for board %s: %s", board_key, str(e))
                     time.sleep(waitRetry)
             success &= board_success
             

@@ -498,9 +498,9 @@ class ChassisStatus(object):
                         aspThreadsLogger.error("%s: monitorThread failed to update FEE power log - %s", type(self).__name__, str(e))
                         
                 ## And the square law detector power
-                status, rf_power = rs485Power(self.antennaMapping,
-                                                  maxRetry=self.maxRetry,
-                                                  waitRetry=self.waitRetry)
+                status, rf_power = rs485RFPower(self.antennaMapping,
+                                                maxRetry=self.maxRetry,
+                                                waitRetry=self.waitRetry)
                 if status:
                     self.rf_power = rf_power
                     
