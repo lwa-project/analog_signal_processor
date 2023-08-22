@@ -170,7 +170,7 @@ class MCSCommunicate(Communicate):
                     self.logger.debug('%s = exited with status %s', data, str(status))
                     
                 ## Analog gain state - square law detector power
-            elif data[0:6] == 'RFPWR_':
+                elif data[0:6] == 'RFPWR_':
                     stand = int(data[6:])
                     
                     status, rf_power = self.SubSystemInstance.getSQLPower(stand)
