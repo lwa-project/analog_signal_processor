@@ -173,7 +173,7 @@ class MCSCommunicate(Communicate):
                 elif data[0:6] == 'RFPWR_':
                     stand = int(data[6:])
                     
-                    status, rf_power = self.SubSystemInstance.getSQLPower(stand)
+                    status, rf_power = self.SubSystemInstance.getRFPower(stand)
                     if status:
                         packed_data = "%.3f %.3f" % (rf_power[0]*1000, rf_power[1]*1000)
                     else:
