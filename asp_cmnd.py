@@ -169,7 +169,7 @@ class MCSCommunicate(Communicate):
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
                     
-                ## Analog gain state - RMS RF power into a 50 Ohm load
+                ## Analog gain state - RMS RF power into a 50 Ohm load in uW
                 elif data[0:6] == 'RFPWR_':
                     stand = int(data[6:])
                     
