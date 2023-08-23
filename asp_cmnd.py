@@ -156,14 +156,14 @@ class MCSCommunicate(Communicate):
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
                     
-                ## Analog gain state - FEE current draw
+                ## Analog gain state - FEE current draw in mA
                 elif data[0:11] in ('FEEPOL1CUR_', 'FEEPOL2CUR_'):
                     stand = int(data[11:])
                     pol = int(data[6]) - 1
                     
                     status, current = self.SubSystemInstance.getFEECurrentDraw(stand)
                     if status:
-                        packed_data = "%.1f" % current[pol]
+                        packed_data = "%.1f" % (current[pol]*1e3,)
                     else:
                         packed_data = self.SubSystemInstance.currentState['lastLog']
                         
