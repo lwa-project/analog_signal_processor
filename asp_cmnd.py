@@ -169,13 +169,13 @@ class MCSCommunicate(Communicate):
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
                     
-                ## Analog gain state - square law detector power
+                ## Analog gain state - RMS RF power into a 50 Ohm load
                 elif data[0:6] == 'RFPWR_':
                     stand = int(data[6:])
                     
                     status, rf_power = self.SubSystemInstance.getRFPower(stand)
                     if status:
-                        packed_data = "%.3f %.3f" % (rf_power[0]*1000, rf_power[1]*1000)
+                        packed_data = "%.3f %.3f" % (rf_power[0]*1e6, rf_power[1]*1e6)
                     else:
                         packed_data = self.SubSystemInstance.currentState['lastLog']
                         
