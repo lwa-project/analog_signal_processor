@@ -175,7 +175,7 @@ class MCSCommunicate(Communicate):
                     
                     status, rf_power = self.SubSystemInstance.getRFPower(stand)
                     if status:
-                        packed_data = "%.3f %.3f" % (rf_power[0]*1e6, rf_power[1]*1e6)
+                        packed_data = "%.1f %.1f" % (rf_power[0]*1e6, rf_power[1]*1e6)
                     else:
                         packed_data = self.SubSystemInstance.currentState['lastLog']
                         
