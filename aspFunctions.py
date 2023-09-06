@@ -283,6 +283,17 @@ class AnalogProcessor(object):
         self.currentState['activeProcess'].append('SHT')
         self.currentState['ready'] = False
         
+        # Turn off the FEEs
+        self.__fpwProcess(0, 1, 0, internal=True)
+        self.__fpwProcess(0, 2, 0, internal=True)
+        
+        # Turn off the signal paths
+        self.__filProcess(0, 3, internal=True)
+        
+        # Maximum attenuation
+        self.__atnProcess(1, 0, self.config['max_atten'], internal=True)
+        self.__atnProcess(2, 0, self.config['max_atten'], internal=True)
+        
         # Stop all threads except for the service thread.
         if self.currentState['tempThread'] is not None:
             self.currentState['tempThread'].stop()
@@ -345,7 +356,7 @@ class AnalogProcessor(object):
         
         return True, 0
         
-    def __filProcess(self, stand, filterCode):
+    def __filProcess(self, stand, filterCode, internal=False):
         """
         Background process for FIL commands so that other commands can keep on running.
         """
@@ -383,26 +394,29 @@ class AnalogProcessor(object):
                            waitRetry=self.config['wait_rs485_retry'])
         
         if status:
-            self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
-            aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
-        
+            if not internal:
+                self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
+                aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
+                
             if stand == 0:
                 self.currentState['config'] = config
             else:
                 self.currentState['config'][2*(stand-1)+0] = config[0]
                 self.currentState['config'][2*(stand-1)+1] = config[1]
         else:
-            # Something failed, report
-            self.currentState['lastLog'] = 'FIL: Failed to set filter to %02i for stand %i' % (filterCode, stand)
-            aspFunctionsLogger.error('FIL - Failed to set filter to %02i for stand %i', filterCode, stand)
-            
-            self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], self.config['max_rs485_retry'])
-            self.currentState['ready'] = False
-            
+            if not internal:
+                # Something failed, report
+                self.currentState['lastLog'] = 'FIL: Failed to set filter to %02i for stand %i' % (filterCode, stand)
+                aspFunctionsLogger.error('FIL - Failed to set filter to %02i for stand %i', filterCode, stand)
+                
+                self.currentState['status'] = 'ERROR'
+                self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], self.config['max_rs485_retry'])
+                self.currentState['ready'] = False
+                
         # Cleanup and save the state of FIL
-        self.currentState['activeProcess'].remove('FIL')
-        
+        if not internal:
+            self.currentState['activeProcess'].remove('FIL')
+            
         return True, 0
         
     def setAttenuator(self, mode, stand, attenSetting):
@@ -442,7 +456,7 @@ class AnalogProcessor(object):
         
         return True, 0
     
-    def __atnProcess(self, mode, stand, attenSetting):
+    def __atnProcess(self, mode, stand, attenSetting, internal=False):
         """
         Background process for AT1/AT2/ATS commands so that other commands can keep on running.
         """
@@ -464,26 +478,29 @@ class AnalogProcessor(object):
                            waitRetry=self.config['wait_rs485_retry'])
         
         if status:
-            self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
-            aspFunctionsLogger.debug('%s - Set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
-            
+            if not internal:
+                self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
+                aspFunctionsLogger.debug('%s - Set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
+                
             if stand == 0:
                 self.currentState['config'] = config
             else:
                 self.currentState['config'][2*(stand-1)+0] = config[0]
                 self.currentState['config'][2*(stand-1)+1] = config[1]
         else:
-            # Something failed, report
-            self.currentState['lastLog'] = '%s: Failed to set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
-            aspFunctionsLogger.error('%s - Failed to set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
-            
-            self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], self.config['max_rs485_retry'])
-            self.currentState['ready'] = False
-            
+            if not internal:
+                # Something failed, report
+                self.currentState['lastLog'] = '%s: Failed to set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
+                aspFunctionsLogger.error('%s - Failed to set attenuator to %02i for stand %i', modeDict[mode], attenSetting, stand)
+                
+                self.currentState['status'] = 'ERROR'
+                self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], self.config['max_rs485_retry'])
+                self.currentState['ready'] = False
+                
         # Cleanup
-        self.currentState['activeProcess'].remove('ATN')
-        
+        if not internal:
+            self.currentState['activeProcess'].remove('ATN')
+            
         return True, 0
         
     def setFEEPowerState(self, stand, pol, state):
@@ -520,7 +537,7 @@ class AnalogProcessor(object):
         
         return True, 0
         
-    def __fpwProcess(self, stand, pol, state):
+    def __fpwProcess(self, stand, pol, state, internal=False):
         """
         Background process for FPW commands so that other commands can keep on running.
         """
@@ -540,26 +557,29 @@ class AnalogProcessor(object):
                            waitRetry=self.config['wait_rs485_retry'])
         
         if status:
-            self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
-            aspFunctionsLogger.debug('FPW - Set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
-        
+            if not internal:
+                self.currentState['lastLog'] = 'FPW: Set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
+                aspFunctionsLogger.debug('FPW - Set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
+                
             if stand == 0:
                 self.currentState['config'] = config
             else:
                 self.currentState['config'][2*(stand-1)+0] = config[0]
                 self.currentState['config'][2*(stand-1)+1] = config[1]
         else:
-            # Something failed, report
-            self.currentState['lastLog'] = 'FPW: Failed to set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
-            aspFunctionsLogger.error('FPW - Failed to set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
-            
-            self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], self.config['max_rs485_retry'])
-            self.currentState['ready'] = False
-            
+            if not internal:
+                # Something failed, report
+                self.currentState['lastLog'] = 'FPW: Failed to set FEE power to %02i for stand %i, pol. %i' % (state, stand, pol)
+                aspFunctionsLogger.error('FPW - Failed to set FEE power to %02i for stand %i, pol. %i', state, stand, pol)
+                
+                self.currentState['status'] = 'ERROR'
+                self.currentState['info'] = 'SUMMARY! 0x%02X %s - Failed after %i attempts' % (0x07, subsystemErrorCodes[0x07], self.config['max_rs485_retry'])
+                self.currentState['ready'] = False
+                
         # Cleanup
-        self.currentState['activeProcess'].remove('FPW')
-        
+        if not internal:
+            self.currentState['activeProcess'].remove('FPW')
+            
         return True, 0
         
     def setARXPowerState(self, state):
