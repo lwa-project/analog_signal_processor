@@ -14,8 +14,6 @@ try:
     from cStringIO import StringIO
 except ImportError:
     from io import StringIO
-    
-import run
 
 
 __version__ = '0.6'
