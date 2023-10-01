@@ -17,8 +17,6 @@ except ImportError:
     
 from lwainflux import LWAInfluxClient
 
-import run
-
 
 __version__ = '0.6'
 __all__ = ['SUB20_LOCKS', 'TemperatureSensors', 'PowerStatus', 'ChassisStatus']
