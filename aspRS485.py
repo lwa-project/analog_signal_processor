@@ -239,7 +239,7 @@ def rs485Temperature(antennaMapping, maxRetry=0, waitRetry=0.2):
                     board_success = True
                     break
                 except Exception as e:
-                    aspRS485Logger.warning("Could not get temperature info. for board %s: %s", board_kety, str(e))
+                    aspRS485Logger.warning("Could not get temperature info. for board %s: %s", board_key, str(e))
                     time.sleep(waitRetry)
             success &= board_success
             
