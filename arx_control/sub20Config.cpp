@@ -44,7 +44,7 @@ static PyModuleDef_Slot sub20config_slots[] = {
 
 static PyModuleDef sub20config_def = {
     PyModuleDef_HEAD_INIT,    /* m_base */
-    "sub20config",                 /* m_name */
+    "sub20Config",                 /* m_name */
     sub20config_doc,               /* m_doc */
     0,                        /* m_size */
     sub20config_methods,           /* m_methods */
