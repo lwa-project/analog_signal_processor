@@ -1025,7 +1025,7 @@ class AnalogProcessor(object):
             
         return True
         
-    def processCriticalTemperature(self, high=False, low=False):
+    def processCriticalTemperature(self, high=False, low=False, clear=False):
         """
         Function to set ASP to ERROR and turn off the power supplies if there is a 
         temperature problem.
@@ -1043,6 +1043,12 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'ASP under temperature'
             self.currentState['ready'] = False
             
+        elif clear:
+            if self.currentState['status'] == 'ERROR' and self.currentState['info'].startswith('TEMP-STATUS!'):
+                self.currentState['status'] = 'WARNING'
+                self.currentState['info'] = 'Temperature error condition cleared, dropping back to warning'
+                self.currentState['ready'] = True   # TODO: Is this a good idea?
+                
         return True
         
     def processUnconfiguredChassis(self, antennas):

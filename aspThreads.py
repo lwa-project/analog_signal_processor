@@ -241,17 +241,21 @@ class TemperatureSensors(object):
                     pass
                     
                 # Check the temperatures against the acceptable range
+                initial_hot_count = self.hotCount*1
                 if max(self.temp) > self.maxTemp:
                     self.hotCount += 1
                     aspThreadsLogger.warning('%s: monitorThread max. temperature of %.1f C is above the acceptable range (hot count is %i)', type(self).__name__, max(self.temp), self.hotCount)
                 else:
-                    self.hotCount = 0
+                    self.hotCount -= 1
+                    self.hotCount = max([0, self.hotCount])
                     
+                initial_cold_count = self.coldCount*1
                 if min(self.temp) < self.minTemp:
                     self.coldCount += 1
                     aspThreadsLogger.warning('%s: monitorThread min. temperature of %.1f C is below the acceptable range (cold count is %i)', type(self).__name__, max(self.temp), self.coldCount)
                 else:
-                    self.coldCount = 0
+                    self.coldCount -= 1
+                    self.coldCount = max([0, self.coldCount])
                     
                 # Issue a warning if we need to
                 if max(self.temp) <= self.maxTemp and max(self.temp) > self.warnTemp:
@@ -268,6 +272,11 @@ class TemperatureSensors(object):
                         aspThreadsLogger.critical('%s: monitorThread min. temperature is %.1f C, notifying the system', type(self).__name__, min(self.temp))
                         
                         self.ASPCallbackInstance.processCriticalTemperature(low=True)
+                        
+                    if (self.hotCount == 0 and initial_hot_count > 0) or (self.coldCount == 0 and initial_cold_count > 0):
+                        spThreadsLogger.info('%s: monitorThread: temperature error condition cleared (DeltaH = %i; DeltaC = %i)', type(self).__name__, self.hotCount-initial_hot_count, self.coldCount-initial_cold_count)
+                        
+                        self.ASPCallbackInstance.processCriticalTemperature(clear=True)
                         
                     if max(self.temp) > self.warnTemp:
                         self.ASPCallbackInstance.processWarningTemperature()
