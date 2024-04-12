@@ -274,7 +274,7 @@ class TemperatureSensors(object):
                         self.ASPCallbackInstance.processCriticalTemperature(low=True)
                         
                     if (self.hotCount == 0 and initial_hot_count > 0) or (self.coldCount == 0 and initial_cold_count > 0):
-                        spThreadsLogger.info('%s: monitorThread: temperature error condition cleared (DeltaH = %i; DeltaC = %i)', type(self).__name__, self.hotCount-initial_hot_count, self.coldCount-initial_cold_count)
+                        aspThreadsLogger.info('%s: monitorThread: temperature error condition cleared (DeltaH = %i; DeltaC = %i)', type(self).__name__, self.hotCount-initial_hot_count, self.coldCount-initial_cold_count)
                         
                         self.ASPCallbackInstance.processCriticalTemperature(clear=True)
                         
