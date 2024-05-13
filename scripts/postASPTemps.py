@@ -25,7 +25,7 @@ except ValueError:
     junk = []
 lastUpdated = float(lastUpdated)
 if time.time() > lastUpdated + 300:
-    test = "%.2f,%s" % (time.time(), ','.join(["NaN" for i in range(4)]))
+    test = "%.2f,%s" % (time.time(), ','.join(["NaN" for i in range(24)]))
 
 # Send the update to lwalab
 f = signed_post(LWA_AUTH_KEYS.get('asp', kind='private'), URL,
