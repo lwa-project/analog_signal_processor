@@ -203,9 +203,9 @@ class TemperatureSensors(object):
                         self.ASPCallbackInstance.processCriticalTemperature(temp=min(self.temp), low=True)
                         
                     if max(self.temp) > self.warnTemp:
-                        self.ASPCallbackInstance.processWarningTemperature()
+                        self.ASPCallbackInstance.processWarningTemperature(temp=max(self.temp))
                     else:
-                        self.ASPCallbackInstance.processWarningTemperature(temp=max(self.temp), clear=True)
+                        self.ASPCallbackInstance.processWarningTemperature(clear=True)
                         
                     json = [{"measurement": "temperature",
                              "tags": {"subsystem": "asp",
