@@ -1022,9 +1022,9 @@ class AnalogProcessor(object):
             if self.currentState['status'] in ('NORMAL', 'WARNING'):
                 self.currentState['status'] = 'WARNING'
                 self.currentState['info'] = 'TEMP-STATUS! 0x%02X %s' % (0x0D, subsystemErrorCodes[0x0D])
-                 if temp is not None:
-                     self.currentState['info'] += 'at %.1f C' % temp
-                     
+                if temp is not None:
+                    self.currentState['info'] += 'at %.1f C' % temp
+                    
         return True
         
     def processCriticalTemperature(self, temp=None, high=False, low=False, clear=False):
