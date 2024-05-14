@@ -195,17 +195,17 @@ class TemperatureSensors(object):
                     if self.hotCount >= 3:
                         aspThreadsLogger.critical('%s: monitorThread max. temperature is %.1f C, notifying the system', type(self).__name__, max(self.temp))
                         
-                        self.ASPCallbackInstance.processCriticalTemperature(high=True)
+                        self.ASPCallbackInstance.processCriticalTemperature(temp=max(self.temp), high=True)
                         
                     if self.coldCount >= 3:
                         aspThreadsLogger.critical('%s: monitorThread min. temperature is %.1f C, notifying the system', type(self).__name__, min(self.temp))
                         
-                        self.ASPCallbackInstance.processCriticalTemperature(low=True)
+                        self.ASPCallbackInstance.processCriticalTemperature(temp=min(self.temp), low=True)
                         
                     if max(self.temp) > self.warnTemp:
                         self.ASPCallbackInstance.processWarningTemperature()
                     else:
-                        self.ASPCallbackInstance.processWarningTemperature(clear=True)
+                        self.ASPCallbackInstance.processWarningTemperature(temp=max(self.temp), clear=True)
                         
                     json = [{"measurement": "temperature",
                              "tags": {"subsystem": "asp",

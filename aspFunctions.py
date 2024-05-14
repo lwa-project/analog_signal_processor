@@ -1018,7 +1018,7 @@ class AnalogProcessor(object):
                 self.currentState['lastLog'] = 'SENSOR-NAME-%i: Invalid temperature sensor' % sensorNumb
                 return False, 0.0
                 
-    def processWarningTemperature(self, clear=False):
+    def processWarningTemperature(self, temp=None, clear=False):
         """
         Function to set ASP to WARNING if the temperature is creeping up.  This 
         function also clears the WARNING condition if things have returned to 
@@ -1034,10 +1034,12 @@ class AnalogProcessor(object):
             if self.currentState['status'] in ('NORMAL', 'WARNING'):
                 self.currentState['status'] = 'WARNING'
                 self.currentState['info'] = 'TEMP-STATUS! 0x%02X %s' % (0x0D, subsystemErrorCodes[0x0D])
-            
+                if temp is not None:
+                    self.currentState['info'] += 'at %.1f C' % temp
+                    
         return True
         
-    def processCriticalTemperature(self, high=False, low=False):
+    def processCriticalTemperature(self, temp=None, high=False, low=False):
         """
         Function to set ASP to ERROR and turn off the power supplies if there is a 
         temperature problem.
@@ -1052,12 +1054,16 @@ class AnalogProcessor(object):
             
             self.currentState['status'] = 'ERROR'
             self.currentState['info'] = 'TEMP-STATUS! 0x%02X %s' % (0x0A, subsystemErrorCodes[0x0A])
+            if temp is not None:
+                self.currentState['info'] += 'at %.1f C' % temp
             self.currentState['lastLog'] = 'ASP over temperature - turning off power supplies'
             self.currentState['ready'] = False
             
         elif low:
             self.currentState['status'] = 'ERROR'
             self.currentState['info'] = 'TEMP-STATUS! 0x%02X %s' % (0x0B, subsystemErrorCodes[0x0B])
+            if temp is not None:
+                self.currentState['info'] += 'at %.1f C' % temp
             self.currentState['lastLog'] = 'ASP under temperature'
             self.currentState['ready'] = False
             
