@@ -1023,7 +1023,7 @@ class AnalogProcessor(object):
                 self.currentState['status'] = 'WARNING'
                 self.currentState['info'] = 'TEMP-STATUS! 0x%02X %s' % (0x0D, subsystemErrorCodes[0x0D])
                 if temp is not None:
-                    self.currentState['info'] += 'at %.1f C' % temp
+                    self.currentState['info'] += ' at %.1f C' % temp
                     
         return True
         
@@ -1037,7 +1037,7 @@ class AnalogProcessor(object):
             self.currentState['status'] = 'ERROR'
             self.currentState['info'] = 'TEMP-STATUS! 0x%02X %s' % (0x0A, subsystemErrorCodes[0x0A])
             if temp is not None:
-                self.currentState['info'] += 'at %.1f C' % temp
+                self.currentState['info'] += ' at %.1f C' % temp
             self.currentState['lastLog'] = 'ASP over temperature'
             self.currentState['ready'] = False
             
@@ -1045,7 +1045,7 @@ class AnalogProcessor(object):
             self.currentState['status'] = 'ERROR'
             self.currentState['info'] = 'TEMP-STATUS! 0x%02X %s' % (0x0B, subsystemErrorCodes[0x0B])
             if temp is not None:
-                self.currentState['info'] += 'at %.1f C' % temp
+                self.currentState['info'] += ' at %.1f C' % temp
             self.currentState['lastLog'] = 'ASP under temperature'
             self.currentState['ready'] = False
             
