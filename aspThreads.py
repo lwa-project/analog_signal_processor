@@ -223,12 +223,14 @@ class TemperatureSensors(object):
             try:
                 # Poll the boards
                 status, temps = rs485Temperature(self.antennaMapping)
-                if status:
-                    for i,t in enumerate(temps):
-                        board_key = board_keys[i//3]
-                        self.description[i] = '%s %s' % (board_key, (i%3)+1)
-                        self.temp[i] = t
-                        
+                if not status:
+                    raise RuntimeError("status != True")
+                    
+                for i,t in enumerate(temps):
+                    board_key = board_keys[i//3]
+                    self.description[i] = '%s %s' % (board_key, (i%3)+1)
+                    self.temp[i] = t
+                    
                 # Open the log file and save the temps
                 try:
                     log = open(self.logfile, 'a+')
@@ -306,7 +308,7 @@ class TemperatureSensors(object):
                 for line in tbString.split('\n'):
                     aspThreadsLogger.debug("%s", line)
                 
-                self.temp = None
+                self.temp = [None for temp in self.temp]
                 self.lastError = str(e)
                 
             # Stop time
