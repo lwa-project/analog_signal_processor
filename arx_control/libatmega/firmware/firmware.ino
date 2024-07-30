@@ -1,9 +1,9 @@
 #include <SPI.h>
-#include <EEPROM.h>
 #include <Wire.h>
+#include <FlashStorage_SAMD.h>
 
 // Chip select pin for SPI operations
-#define SPI_SS_PIN 10
+#define SPI_SS_PIN D3
 
 // Maximum command length
 #define MAX_CMD_LEN 530
@@ -18,10 +18,10 @@
 #define VERSION "v0.0.1"
 
 // Fault LED pin
-#define FAULT_PIN 6
+#define FAULT_PIN D0
 
 // Locate LED pin
-#define LOCATE_PIN 7
+#define LOCATE_PIN D1
 
 // Command input buffer
 long int last_char = -1;
