@@ -54,6 +54,7 @@ endif
 # Target Builds
 # 
 #------------------------------------------------------------------------------
+.PHONY: LIBATMEGA
 LIBATMEGA: 
 	make -C libatmega
 
