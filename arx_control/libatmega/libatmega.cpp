@@ -47,7 +47,7 @@ std::list<std::string> atmega::find_devices() {
         CFNumberGetValue(vendorRef, kCFNumberSInt16Type, &vendor_id);
         CFRelease(vendorRef);
         
-        if( (vendor_id == 0x0403) || (vendor_id == 0x2341) ) {
+        if( (vendor_id == 0x0403) || (vendor_id == 0x2341) || (vendor_id == 0x2886) ) {
           match |= 1;
         }
     }
@@ -62,7 +62,7 @@ std::list<std::string> atmega::find_devices() {
         CFNumberGetValue(productRef, kCFNumberSInt16Type, &product_id);
         CFRelease(productRef);
         
-        if( (product_id == 0x6001) || (product_id == 0x0001) ) {
+        if( (product_id == 0x6001) || (product_id == 0x0001) || (product_id == 0x802f) ) {
           match |= 2;
         }
     }
