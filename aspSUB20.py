@@ -4,6 +4,7 @@ Module for storing the various SUB-20 function calls
 """
 
 import time
+import inspect
 import logging
 import threading
 import subprocess
@@ -104,7 +105,8 @@ def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY
                     pass
                     
                 if p.returncode == 0:
-                    aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
+                    fname = inspect.stack()[0][3]
+                    aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", fname, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
                     status = False
                 else:
                     nBoards += p.returncode
