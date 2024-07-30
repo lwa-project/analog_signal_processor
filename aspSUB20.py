@@ -106,7 +106,7 @@ def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY
                     
                 if p.returncode == 0:
                     fname = inspect.stack()[0][3]
-                    aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", fname, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
+                    aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", fname, sub20SN, attempt, maxRetry, p.returncode, output, output2)
                     status = False
                 else:
                     nBoards += p.returncode
