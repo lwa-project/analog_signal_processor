@@ -237,6 +237,10 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
                 || (command->command == atmega::COMMAND_WRITE_SN)) ) {
       // EEPROM operations are really slow
       cmd_wait_ms = 100;
+    } else if( (   (command->command == atmega::COMMAND_READ_RS485)
+                || (command->command == atmega::COMMAND_WRITE_RS485)) ) {
+      // RS485 has a 500 ms timeout
+      cmd_wait_ms = 550;
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(cmd_wait_ms));
     

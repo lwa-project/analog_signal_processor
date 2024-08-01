@@ -146,20 +146,46 @@ void transfer_spi(uint16_t nargs, uint8_t* argv) {
   }
 }
 
-void read_adcs(uint16_t nargs, uint8_t* argv) {
-  // Read the first four ADCs and return the unintepretted values in the range of [0,1023]
-  //   Input: 0 arguments
-  //   Output: Four uint32_t values in the order of A0, A1, A2, and A3
-  uint32_t value[4] = {0};
-  if( nargs > 0) {
+void read_rs485(uint16_t nargs, uint8_t* argv) {
+  // Read from the ARX board address until we get a \r or a timeout
+  //  Input: 0 arguments
+  //  Output: N uint8_t bytes
+  byte response[64] = {0};
+  if( nargs > 0 ) {
     invalid_arguments(nargs, argv);
   } else {
-    value[0] = analogRead(A0);
-    value[1] = analogRead(A1);
-    value[2] = analogRead(A2);
-    value[3] = analogRead(A3);
+    int i = 0;
+    long t_start = millis();
+    while( (millis() - t_start) < 500 ) {
+      if( Serial1.available() ) {
+        response[i] = Serial1.read();
+        i++;
+        if( response[i-1] == 13 ) {
+          break;
+        }
+      } else {
+        delay(1);
+      }
+    }
     
-    serial_sendresp(0, 4*sizeof(uint32_t), (uint8_t*) &value[0]);
+    serial_sendresp(0, i, (uint8_t*) &response[0]);
+  }
+}
+
+void write_rs485(uint16_t nargs, uint8_t* argv) {
+  // Write the given number of bytes to the provided ARX board address
+  //   Input: 2+ arguments - address (uint8_t), value (N uint8_t)
+  //   Output: Value written as N uint8_t
+  byte addr = argv[0];
+  uint16_t size = nargs - 1;
+  if( nargs < 2 ) {
+    invalid_arguments(nargs, argv);
+  } else {
+    Serial1.flush();
+    
+    Serial1.write(0x80 + addr);
+    Serial1.write((uint8_t*) &(argv[1]), size);
+    Serial1.write(13);
   }
 }
 
@@ -324,6 +350,9 @@ void setup() {
   // Serial setup
   Serial.begin(115200);
 
+  // RS485 setup
+  Serial1.begin(19200);
+  
   // SPI setup
   pinMode(SPI_SS_PIN, OUTPUT);
   SPI.begin();
@@ -376,7 +405,8 @@ void loop() {
       case 0x03: read_max_cmd_len(nargs, &buffer[3]); break; 
       case 0x04: echo(nargs, &buffer[3]); break;
       case 0x11: transfer_spi(nargs, &buffer[3]); break;
-      case 0x21: read_adcs(nargs, &buffer[3]); break;
+      case 0x21: read_rs485(nargs, &buffer[3]); break;
+      case 0x22: write_rs485(nargs, &buffer[3]); break;
       case 0x31: scan_i2c(nargs, &buffer[3]); break;
       case 0x32: read_i2c(nargs, &buffer[3]); break;
       case 0x33: write_i2c(nargs, &buffer[3]); break;
