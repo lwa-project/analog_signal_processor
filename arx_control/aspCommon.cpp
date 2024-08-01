@@ -139,6 +139,54 @@ bool ATmega::transfer_spi(const char* inputs, char* outputs, int size) {
   return true;
 }
 
+
+bool ATmega::read_rs485(uint8_t addr, char* data, int* size) {
+  if( _fd < 0 ) {
+    return false;
+  }
+  
+  atmega::buffer cmd, resp;
+  cmd.command = atmega::COMMAND_READ_RS485;
+  cmd.size = 0;
+  
+  try {
+    int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+    if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+      return false;
+    }
+  } catch(const std::exception& e) {
+    return false;
+  }
+  
+  *size = n;
+  ::memcpy(data, &(resp.buffer[0]), n);
+  return true;
+}
+
+bool ATmega::write_rs485(uint8_t addr, const char* data, int size) {
+  if( _fd < 0 ) {
+    return false;
+  }
+  
+  atmega::buffer cmd, resp;
+  cmd.command = atmega::COMMAND_WRITE_RS485;
+  cmd.size = 1 + size;
+  cmd.buffer[0] = addr;
+  ::memcpy(&(cmd.buffer[1]), data, size);
+  
+  try {
+    int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+    if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+      return false;
+    }
+  } catch(const std::exception& e) {
+    return false;
+  }
+  
+  return true;
+}
+
+
 std::list<uint8_t> ATmega::list_i2c_devices() {
   std::list<uint8_t> i2c_addresses_list;
   if( _fd < 0 ) {
@@ -159,7 +207,6 @@ std::list<uint8_t> ATmega::list_i2c_devices() {
   }
   return i2c_addresses_list;
 }
-  
 
 bool ATmega::read_i2c(uint8_t addr, uint8_t reg, char* data, int size) {
   if( _fd < 0 ) {
@@ -211,30 +258,6 @@ bool ATmega::write_i2c(uint8_t addr, uint8_t reg, const char* data, int size) {
 }
 
 
-std::list<float> ATmega::read_adcs() {
-  std::list<float> values;
-  if( _fd < 0 ) {
-    return values;
-  }
-  
-  atmega::buffer cmd, resp;
-  cmd.command = atmega::COMMAND_READ_ADCS;
-  cmd.size = 0;
-  
-  int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
-  if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
-    return values;
-  }
-  
-  float value = 0.0;
-  for(int i=0; i<resp.size; i+=sizeof(int)) {
-    ::memcpy(&value, &(resp.buffer[i]), sizeof(int));
-    values.push_back(value/1023.*5);
-  }
-  
-  return values;
-}
-
 bool ATmega::clear_fault() {
   if( _fd < 0 ) {
     return false;
@@ -252,6 +275,7 @@ bool ATmega::clear_fault() {
   return true;
 }
 
+
 bool ATmega::locate() {
   if( _fd < 0 ) {
     return false;
@@ -268,6 +292,7 @@ bool ATmega::locate() {
   
   return true;
 }
+
 
 bool ATmega::reset() {
   if( _fd < 0 ) {

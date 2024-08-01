@@ -61,10 +61,11 @@ public:
   bool open();
   std::string get_version();
   bool transfer_spi(const char* inputs, char* outputs, int size);
+  bool read_rs485(uint8_t addr, char* data, int* size);
+  bool write_rs485(uint8_t addr, const char* data, int size);
   std::list<uint8_t> list_i2c_devices();
   bool read_i2c(uint8_t addr, uint8_t reg, char* data, int size);
   bool write_i2c(uint8_t addr, uint8_t reg, const char* data, int size);
-  std::list<float> read_adcs();
   bool clear_fault();
   bool locate();
   bool reset();
