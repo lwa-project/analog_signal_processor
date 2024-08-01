@@ -77,6 +77,11 @@ void invalid_bus_error(uint16_t nargs, uint8_t* argv) {
   serial_sendresp(0xFC, 0, NULL);
 }
 
+void invalid_rs485_command(uint16_t nargs, uint8_t* argv) {
+  // Invalid RS485 ARX board command
+  serial_sendresp(0xFD, 0, NULL);
+}
+
 void invalid_command(uint16_t nargs, uint8_t* argv) {
   // Invalid command
   serial_sendresp(0xFF, 0, NULL);
@@ -146,6 +151,36 @@ void transfer_spi(uint16_t nargs, uint8_t* argv) {
   }
 }
 
+void scan_rs485(uint16_t nargs, uint8_t* argv) {
+  // Scan the RS485 bus to look for ARX boards and return all of
+  // the valid addresses found
+  //   Input: 0 arguments
+  //   Output: N uint8_t values for device addressed (N >= 0)
+  int ndevice = 0;
+  byte addr;
+  char cmd[8] = "ECHOAAA";
+  byte found_addr[128];
+  if( nargs > 0) {
+    invalid_arguments(nargs, argv);
+  } else {
+    for(addr=1; addr<127; addr++) {
+      Serial1.flush();
+      
+      Serial1.write(0x80 + addr);
+      Serial1.write((uint8_t*) &(cmd[0]), 7);
+      Serial1.write(13);
+
+      delay(10);
+
+      if( Serial1.available() ) {
+        found_addr[ndevice++] = addr;
+      }
+    }
+
+    serial_sendresp(0, ndevice, (uint8_t*) &found_addr[0]);
+  }
+}
+
 void read_rs485(uint16_t nargs, uint8_t* argv) {
   // Read from the ARX board address until we get a \r or a timeout
   //  Input: 0 arguments
@@ -167,15 +202,19 @@ void read_rs485(uint16_t nargs, uint8_t* argv) {
         delay(1);
       }
     }
-    
-    serial_sendresp(0, i, (uint8_t*) &response[0]);
+
+    if( i > 0 && response[0] != 0x06 ) {
+      invalid_rs485_command(nargs, argv);
+    } else {
+      serial_sendresp(0, i, (uint8_t*) &response[0]);
+    }
   }
 }
 
 void write_rs485(uint16_t nargs, uint8_t* argv) {
   // Write the given number of bytes to the provided ARX board address
   //   Input: 2+ arguments - address (uint8_t), value (N uint8_t)
-  //   Output: Value written as N uint8_t
+  //   Output: Value written as N uint8_t (N >= 0)
   byte addr = argv[0];
   uint16_t size = nargs - 1;
   if( nargs < 2 ) {
@@ -405,8 +444,9 @@ void loop() {
       case 0x03: read_max_cmd_len(nargs, &buffer[3]); break; 
       case 0x04: echo(nargs, &buffer[3]); break;
       case 0x11: transfer_spi(nargs, &buffer[3]); break;
-      case 0x21: read_rs485(nargs, &buffer[3]); break;
-      case 0x22: write_rs485(nargs, &buffer[3]); break;
+      case 0x21: scan_rs485(nargs, &buffer[3]); break;
+      case 0x22: read_rs485(nargs, &buffer[3]); break;
+      case 0x23: write_rs485(nargs, &buffer[3]); break;
       case 0x31: scan_i2c(nargs, &buffer[3]); break;
       case 0x32: read_i2c(nargs, &buffer[3]); break;
       case 0x33: write_i2c(nargs, &buffer[3]); break;

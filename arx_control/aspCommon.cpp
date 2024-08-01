@@ -140,6 +140,27 @@ bool ATmega::transfer_spi(const char* inputs, char* outputs, int size) {
 }
 
 
+std::list<uint8_t> ATmega::list_rs485_devices() {
+  std::list<uint8_t> rs485_addresses_list;
+  if( _fd < 0 ) {
+    return rs485_addresses_list;
+  }
+  
+  atmega::buffer cmd, resp;
+  cmd.command = atmega::COMMAND_SCAN_RS485;
+  cmd.size = 0;
+  
+  int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+  if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+    return rs485_addresses_list;
+  }
+  
+  for(int i=0; i<resp.size; i++) {
+    rs485_addresses_list.push_back(resp.buffer[i]);
+  }
+  return rs485_addresses_list;
+}
+
 bool ATmega::read_rs485(uint8_t addr, char* data, int* size) {
   if( _fd < 0 ) {
     return false;
