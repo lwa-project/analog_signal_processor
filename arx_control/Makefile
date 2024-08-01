@@ -5,7 +5,7 @@ all: LIBATMEGA sendARXDevice \
      countBoards countPSUs countThermometers \
      readPSU readThermometers \
      onoffPSU configPSU \
-     readARXDevice setATmegaSN \
+     readARXDevice setATmegaSN listATmegaSN \
 		 atmegaConfig
 
 #------------------------------------------------------------------------------
@@ -87,7 +87,13 @@ readARXDevice: readARXDevice.o aspCommon.o
 
 setATmegaSN: setATmegaSN.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
-	
+
+listATmegaSN: listATmegaSN.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
+
+locateATmega: locateATmega.o aspCommon.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
+		
 atmegaConfig: atmegaConfig.cpp
 	python3 setup.py build_ext --inplace
 
@@ -114,5 +120,5 @@ install:
 
 clean:
 	rm -f *.o *.out *.err *.exe *.a *.so *.dylib
-	rm -f sendARXDevice countBoards countPSUs countThermometers readPSU readThermometers onoffPSU configPSU readARXDevice setATmegaSN
+	rm -f sendARXDevice countBoards countPSUs countThermometers readPSU readThermometers onoffPSU configPSU readARXDevice setATmegaSN listATmegaSN
 	make -C libatmega clean
