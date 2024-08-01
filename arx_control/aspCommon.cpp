@@ -149,8 +149,9 @@ bool ATmega::read_rs485(uint8_t addr, char* data, int* size) {
   cmd.command = atmega::COMMAND_READ_RS485;
   cmd.size = 0;
   
+  int n = 0;
   try {
-    int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+    n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
     if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
       return false;
     }
