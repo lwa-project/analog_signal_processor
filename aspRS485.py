@@ -71,25 +71,25 @@ def _raw_to_config(raw):
               'second_atten': 0.0,
               'sig_on': False,
               'dc_on': False}
-              
+    
     raw = int(raw, 16)
-    config['narrow_hpf'] = ((raw >> 15) & 1) == 1
-    config['sig_on'] = ((raw >> 14) & 1) == 1
-    config['narrow_lpf'] = ((raw >> 13) & 1) == 1
-    config['first_atten'] = ((raw >> 7) & 0x3F) * 0.5
-    config['second_atten'] = ((raw >> 1) & 0x3F) * 0.5
-    config['dc_on'] = (raw & 1) == 1
+    config['narrow_hpf'] = (raw & 1) == 1
+    config['sig_on'] = ((raw >> 1) & 1) == 1
+    config['narrow_lpf'] = ((raw >> 2) & 1) == 1
+    config['first_atten'] = (((raw ^ 0xFFFF) >> 3) & 0x3F) * 0.5
+    config['second_atten'] = (((raw ^ 0xFFFF) >> 9) & 0x3F) * 0.5
+    config['dc_on'] = ((raw >> 15) & 1) == 1
     return config
 
 
 def _config_to_raw(config):
     raw = 0
-    raw |= (int(config['narrow_hpf']) << 15)
-    raw |= (int(config['sig_on']) << 14)
-    raw |= (int(config['narrow_lpf']) << 13)
-    raw |= ((int(round(config['first_atten']*2)) & 0x3F) << 7)
-    raw |= ((int(round(config['second_atten']*2)) & 0x3F) << 1)
-    raw |= int(config['dc_on'])
+    raw |= int(config['narrow_hpf'])
+    raw |= (int(config['sig_on']) << 1)
+    raw |= (int(config['narrow_lpf']) << 2)
+    raw |= (((int(round(config['first_atten']*2)) ^ 0xFFFF) & 0x3F) << 3)
+    raw |= (((int(round(config['second_atten']*2)) ^ 0xFFFF) & 0x3F) << 9)
+    raw |= (int(config['dc_on']) << 15)
     
     return "%04X" % raw
 
