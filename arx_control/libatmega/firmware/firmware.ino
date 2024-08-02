@@ -185,7 +185,7 @@ void read_rs485(uint16_t nargs, uint8_t* argv) {
   // Read from the ARX board address until we get a \r or a timeout
   //  Input: 0 arguments
   //  Output: N uint8_t bytes
-  byte response[82] = {0};
+  byte response[80] = {0};
   if( nargs > 0 ) {
     invalid_arguments(nargs, argv);
   } else {
