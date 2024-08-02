@@ -228,13 +228,13 @@ class AnalogProcessor(object):
                 aspFunctionsLogger.critical("INI failed; found %i boards, expected %i", boardsFound, nBoards)
                 
         else:
-            # Oops, the SUB-20 is missing...
+            # Oops, the RS485 adapter is missing...
             self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - SUB-20 device not found' % (0x07, subsystemErrorCodes[0x07])
+            self.currentState['info'] = 'SUMMARY! 0x%02X %s - RS485 device not found' % (0x07, subsystemErrorCodes[0x07])
             self.currentState['lastLog'] = 'INI: finished with error'
             self.currentState['ready'] = False
             
-            aspFunctionsLogger.critical("INI failed due to missing SUB-20 device(s)")
+            aspFunctionsLogger.critical("INI failed due to missing RS485 device(s)")
         
         # Update the current state
         aspFunctionsLogger.info("Finished the INI process in %.3f s", time.time() - tStart)
