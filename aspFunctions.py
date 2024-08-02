@@ -14,7 +14,7 @@ from aspI2C import *
 from aspThreads import *
 
 
-__version__ = '0.6'
+__version__ = '0.7'
 __all__ = ['modeDict', 'commandExitCodes', 'AnaloglProcessor']
 
 
@@ -83,7 +83,6 @@ class AnalogProcessor(object):
         self.currentState['config']  = [{} for i in range(2*self.config['max_boards']*self.config['stands_per_board'])]
         
         ## Monitoring and background threads
-        self.currentState['serviceThread'] = None
         self.currentState['tempThread'] = None
         self.currentState['chassisThreads'] = None
         
@@ -158,15 +157,6 @@ class AnalogProcessor(object):
         self.currentState['info'] = 'Running INI sequence'
         self.currentState['activeProcess'].append('INI')
         
-        # Stop the backend service thread.  If it doesn't exist create it
-        if self.currentState['serviceThread'] is not None:
-            self.currentState['serviceThread'].stop()
-        else:
-            self.currentState['serviceThread'] = BackendService(ASPCallbackInstance=self)
-            
-        # Start the backend service thread
-        self.currentState['serviceThread'].start()
-        
         # Make sure the RS485 is present
         if os.system('lsusb -d 10c4: >/dev/null') == 0:
             # Good, we can continue
@@ -185,7 +175,7 @@ class AnalogProcessor(object):
                 self.num_chpairs = nBoards * self.config['stands_per_board']
                 aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
                     
-                # Stop the non-service threads.  If the don't exist yet, create them.
+                # Stop the background threads.  If the don't exist yet, create them.
                 if self.currentState['tempThread'] is not None:
                     self.currentState['tempThread'].stop()
                     self.currentState['tempThread'].updateConfig(self.config)
@@ -211,7 +201,7 @@ class AnalogProcessor(object):
                                                        maxRetry=self.config['max_rs485_retry'],
                                                        waitRetry=self.config['wait_rs485_retry'])
                 
-                # Start the non-service threads
+                # Start the background threads
                 self.currentState['tempThread'].start()
                 for t in self.currentState['chassisThreads']:
                     t.start()
@@ -297,7 +287,7 @@ class AnalogProcessor(object):
         self.__atnProcess(1, 0, self.config['max_atten'], internal=True)
         self.__atnProcess(2, 0, self.config['max_atten'], internal=True)
         
-        # Stop all threads except for the service thread.
+        # Stop all threads.
         if self.currentState['tempThread'] is not None:
             self.currentState['tempThread'].stop()
         if self.currentState['chassisThreads'] is not None:
@@ -317,10 +307,6 @@ class AnalogProcessor(object):
             self.currentState['ready'] = False
             
             aspFunctionsLogger.critical("SHT failed sending SPI bus commands after %i attempts", self.config['max_rs485_retry'])
-        
-        # Stop the service thread
-        if self.currentState['serviceThread'] is not None:
-            self.currentState['serviceThread'].stop()
             
         # Update the current state
         aspFunctionsLogger.info("Finished the SHT process in %.3f s", time.time() - tStart)
@@ -998,20 +984,6 @@ class AnalogProcessor(object):
                 self.currentState['lastLog'] = 'SENSOR-NAME-%i: Invalid temperature sensor' % sensorNumb
                 return False, 0.0
                 
-    def processNoBackendService(self, running):
-        """
-        Function to set ASP to ERROR if the backend service is not running when
-        it should be.
-        """
-        
-        if not running:
-            self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s' % (0x07, subsystemErrorCodes[0x07])
-            self.currentState['lastLog'] = 'ASP backend service not running'
-            self.currentState['ready'] = False
-            
-        return True
-        
     def processWarningTemperature(self, temp=None, clear=False):
         """
         Function to set ASP to WARNING if the temperature is creeping up.  This 
