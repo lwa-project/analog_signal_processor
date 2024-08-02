@@ -22,7 +22,7 @@ aspRS485Logger = logging.getLogger('__main__')
 RS485_LOCK = threading.Semaphore(1)
 
 
- @contextlib.contextmanager
+@contextlib.contextmanager
 def _open_port(portName, timeout=1.0):
     return serial.Serial(port=portName, baudrate=19200, parity=serial.PARITY_NONE,
                          stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS,
