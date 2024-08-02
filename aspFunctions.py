@@ -457,8 +457,6 @@ class AnalogProcessor(object):
         key = 'first_atten'
         if mode == 2:
             key = 'second_atten'
-        else:
-            key = 'split_atten'
             
         config = self.__getStandConfig(stand)
         for c in config:
