@@ -167,6 +167,7 @@ class TemperatureSensors(object):
         if config is None:
             return True
             
+        self.portName = config['rs485_port']
         self.antennaMapping = config['antenna_mapping']
         self.monitorPeriod = config['temp_period']
         self.minTemp  = config['temp_min']
@@ -222,7 +223,7 @@ class TemperatureSensors(object):
             
             try:
                 # Poll the boards
-                status, temps = rs485Temperature(self.antennaMapping)
+                status, temps = rs485Temperature(self.portName, self.antennaMapping)
                 if not status:
                     raise RuntimeError("status != True")
                     
@@ -407,6 +408,7 @@ class ChassisStatus(object):
         if config is None:
             return True
             
+        self.portName = config['rs485_port']
         self.antennaMapping = config['antenna_mapping']
         self.maxRetry = config['max_rs485_retry']
         self.waitRetry = config['wait_rs485_retry']
@@ -450,7 +452,8 @@ class ChassisStatus(object):
             tStart = time.time()
             
             try:
-                self.configured, failed = rs485Check(self.antennaMapping,
+                self.configured, failed = rs485Check(self.portName,
+                                                     self.antennaMapping,
                                                      maxRetry=self.maxRetry,
                                                      waitRetry=self.waitRetry)
                 if self.ASPCallbackInstance is not None:
@@ -465,7 +468,7 @@ class ChassisStatus(object):
                         ### Configuration from ASP-MCS
                         req_config = self.ASPCallbackInstance.currentState['config'][2*(stand-1):2*(stand-1)+2]
                         ### Configuration from the board itself
-                        act_config = rs485Get(stand, self.antennaMapping)
+                        act_config = rs485Get(stand, self.portName, self.antennaMapping)
                         for pol in (0, 1):
                             for key in act_config[pol].keys():
                                 if act_config[pol][key] != req_config[pol][key]:
@@ -485,7 +488,8 @@ class ChassisStatus(object):
                         self.ASPCallbackInstance.processUnconfiguredChassis([[1, 8],])
                         
                 ## Record the power consumption while we are at it
-                status, boards, fees = rs485Power(self.antennaMapping,
+                status, boards, fees = rs485Power(self.portName,
+                                                  self.antennaMapping,
                                                   maxRetry=self.maxRetry,
                                                   waitRetry=self.waitRetry)
                 if status:
@@ -509,7 +513,8 @@ class ChassisStatus(object):
                         aspThreadsLogger.error("%s: monitorThread failed to update FEE power log - %s", type(self).__name__, str(e))
                         
                 ## And the square law detector power
-                status, rf_power = rs485RFPower(self.antennaMapping,
+                status, rf_power = rs485RFPower(self.portName,
+                                                self.antennaMapping,
                                                 maxRetry=self.maxRetry,
                                                 waitRetry=self.waitRetry)
                 if status:

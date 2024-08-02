@@ -4,14 +4,14 @@ Module for storing the various RS485 function calls
 """
 
 import time
+import serial
 import logging
 import threading
 import subprocess
+import contextlib
 
-from lwautils import lwa_arx
-_ARX = lwa_arx.ARX()
 
-__version__ = '0.3'
+__version__ = '0.4'
 __all__ = ['rs485CountBoards', 'rs485Reset', 'rs485Check', 'rs485Get',
            'rs485Send', 'rs485Power', 'rs485RFPower', 'rs485Temperature']
 
@@ -20,6 +20,78 @@ aspRS485Logger = logging.getLogger('__main__')
 
 
 RS485_LOCK = threading.Semaphore(1)
+
+
+ @contextlib.contextmanager
+def _open_port(portName, timeout=1.0):
+    return serial.Serial(port=portname, baudrate=19200, parity=serial.PARITY_NONE,
+                         stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS,
+                         timeout=timeout, writeTimeout=0)
+
+
+def _send_command(portName, addr, cmd, data=None):
+    addr = 0x80 + (addr & 0xFF)
+    if not isinstance(cmd, bytes):
+        cmd = cmd.encode('utf-8')
+    if data is None:
+        data = ''
+    if not isinstance(data, bytes):
+        data = data.encode('utf-8')
+        
+    msg = bytes(addr) + cmd + data + bytes(13)
+    
+    with _open_port(portName) as port:
+        port.write(msg)
+        resp = port.read_until(b'\r', 80)
+        if cmd == 'RSET':
+            return b''
+            
+        else:
+            if len(resp) > 0:
+                status = resp[0] == bytes(0x06)
+                resp = resp[1:]
+                if not status:
+                    errcode = {b'\x01': 'command code was not recognized ',
+                               b'\x02': 'command was too long',
+                               b'\x03': 'command failed'}[resp[1]]
+                    
+            else:
+                errcode = 'timeout'
+                
+            if not status:
+                raise RuntimeError("Command '%s' failed: %s" % (cmd, errcode))
+                
+        return resp
+
+
+def _raw_to_config(raw):
+    config = {'narrow_lpf': False,
+              'narrow_hpf': False,
+              'first_atten': 0.0,
+              'second_atten': 0.0,
+              'sig_on': False,
+              'dc_on': False}
+              
+    raw = int(raw, 16)
+    config['narrow_hpf'] = ((raw >> 15) & 1) == 1
+    config['sig_on'] = ((raw >> 14) & 1) == 1
+    config['narrow_lpf'] = ((raw >> 13) & 1) == 1
+    config['first_atten'] = ((raw >> 7) & 0x3F) * 0.5
+    config['second_atten'] = ((raw >> 1) & 0x3F) * 0.5
+    config['dc_on'] = (raw & 1) == 1
+    return config
+
+
+def _config_to_raw(config):
+    raw = 0
+    raw |= (int(config['narrow_hpf']) << 15)
+    raw |= (int(config['sig_on']) << 14)
+    raw |= (int(config['narrow_lpf']) << 13)
+    raw |= ((int(round(config['first_atten']*2)) & 0x3F) << 7)
+    raw |= ((int(round(config['second_atten']*2)) & 0x3F) << 1)
+    raw |= int(config['dc_on'])
+    
+    return "%04X" % raw
 
 
 def _stand_to_board_chans(stand, antennaMapping):
@@ -35,14 +107,14 @@ def _stand_to_board_chans(stand, antennaMapping):
     return board, chan0, chan1
 
 
-def rs485CountBoards(antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485CountBoards(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
     found = 0
     with RS485_LOCK:
         for board_key in antennaMapping.keys():
             board = int(board_key)
             for attempt in range(maxRetry+1):
                 try:
-                    _ARX.get_board_info(board & 0xFF)
+                    _send_command(portName, board, 'ARXN')
                     found += 1
                     break
                 except Exception as e:
@@ -51,7 +123,7 @@ def rs485CountBoards(antennaMapping, maxRetry=0, waitRetry=0.2):
     return found
 
 
-def rs485Reset(antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485Reset(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
     success = True
     with RS485_LOCK:
         for board_key in antennaMapping.keys():
@@ -59,7 +131,7 @@ def rs485Reset(antennaMapping, maxRetry=0, waitRetry=0.2):
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    _ARX.reset(board & 0xFF)
+                    _send_command(portName, board, 'RSET')
                     board_success = True
                     break
                 except Exception as e:
@@ -75,7 +147,7 @@ def rs485Reset(antennaMapping, maxRetry=0, waitRetry=0.2):
     return success
 
 
-def rs485Check(antennaMapping, maxRetry=0, waitRetry=0.2, verbose=False):
+def rs485Check(portName, antennaMapping, maxRetry=0, waitRetry=0.2, verbose=False):
     data = "check_for_me"
     
     success = True
@@ -86,7 +158,7 @@ def rs485Check(antennaMapping, maxRetry=0, waitRetry=0.2, verbose=False):
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    echo_data = _ARX.echo(board & 0xFF, data)
+                    echo_data = _send_command(portName, 'ECHO', data=data)
                     board_success = True
                     break
                 except Exception as e:
@@ -100,7 +172,7 @@ def rs485Check(antennaMapping, maxRetry=0, waitRetry=0.2, verbose=False):
     return success, failed
 
 
-def rs485Get(stand, antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485Get(stand, portName, antennaMapping, maxRetry=0, waitRetry=0.2):
     config = []
     if stand == 0:
         with RS485_LOCK:
@@ -108,8 +180,9 @@ def rs485Get(stand, antennaMapping, maxRetry=0, waitRetry=0.2):
                 board = int(board_key)
                 for attempt in range(maxRetry+1):
                     try:
-                        board_config = _ARX.get_all_chan_cfg(board & 0xFF)
-                        config.extend(board_config)
+                        raw_board_config = _send_command(portName, board, 'GETA')
+                        for i in range(16):
+                            config.append(_raw_to_config(raw_board_config[2*i:2*i+2]))
                         break
                     except Exception as e:
                         aspRS485Logger.warning("Could not get channel info. for board %s: %s", board_key, str(e))
@@ -123,10 +196,10 @@ def rs485Get(stand, antennaMapping, maxRetry=0, waitRetry=0.2):
         with RS485_LOCK:
             for attempt in range(maxRetry+1):
                 try:
-                    chan_config0 = _ARX.get_chan_cfg(board & 0xFF, chan0)
-                    chan_config1 = _ARX.get_chan_cfg(board & 0xFF, chan1)
-                    config.append(chan_config0)
-                    config.append(chan_config1)
+                    raw_chan_config0 = _send_command(portName, board, 'GETC', data="%X" % chan0)
+                    raw_chan_config1 = _send_command(portName, board, 'GETC', data="%X" % chan1)
+                    config.append(_raw_to_config(raw_chan_config0))
+                    config.append(_raw_to_config(raw_chan_config1))
                     break
                 except Exception as e:
                     aspRS485Logger.warning("Could not get channel config. for board %s: %s", board, str(e))
@@ -135,7 +208,7 @@ def rs485Get(stand, antennaMapping, maxRetry=0, waitRetry=0.2):
     return config
 
 
-def rs485Send(stand, config, antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485Send(stand, config, portName, antennaMapping, maxRetry=0, waitRetry=0.2):
     success = True
     if stand == 0:
         with RS485_LOCK:
@@ -144,13 +217,14 @@ def rs485Send(stand, config, antennaMapping, maxRetry=0, waitRetry=0.2):
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
-                        # THIS IS ALL DEBUG GARBAGE
                         config_start = 2*(antennaMapping[board_key][0]-1)
                         config_end = 2*(antennaMapping[board_key][1])
                         subconfig = config[config_start:config_end]
-                        for i,c in enumerate(subconfig):
-                             _ARX.set_chan_cfg(board & 0xFF, i, c)
-                        #_ARX.set_all_different_chan_cfg(board & 0xFF, subconfig)
+                        
+                        raw_config = b''
+                        for sc in sub_config:
+                            raw_config += _config_to_raw(sc)
+                        _send_command(portName, board, 'SETA', data=raw_config)
                         board_success = True
                         break
                     except Exception as e:
@@ -168,8 +242,8 @@ def rs485Send(stand, config, antennaMapping, maxRetry=0, waitRetry=0.2):
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    _ARX.set_chan_cfg(board & 0xFF, chan0, config[0])
-                    _ARX.set_chan_cfg(board & 0xFF, chan1, config[1])
+                    _send_command(portName, board, "SETC%X" % chan0", _config_to_raw(config[0]))
+                    _send_command(portName, board, "SETC%X" % chan1", _config_to_raw(config[1]))
                     board_success = True
                     break
                 except Exception as e:
@@ -180,7 +254,7 @@ def rs485Send(stand, config, antennaMapping, maxRetry=0, waitRetry=0.2):
     return success
 
 
-def rs485Power(antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485Power(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
     success = True
     boards = []
     fees = []
@@ -190,10 +264,12 @@ def rs485Power(antennaMapping, maxRetry=0, waitRetry=0.2):
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    new_board = _ARX.get_board_current(board & 0xFF)
-                    new_fees = _ARX.get_all_chan_current(board & 0xFF)
-                    boards.append(new_board)
-                    fees.extend(new_fees)
+                    raw_board = _send_command(portName, board, 'CURB')
+                    raw_board = (ord(raw_board[0]) << 8) | ord(raw_board[1])
+                    boards.append(int(raw_board, 16) * 0.008)
+                    raw_fees = _send_command(portName, board, 'CURA')
+                    for i in range(16):
+                        fees.append(int(raw_fees[4*i:4*(i+1)], 16) * 0.004 * 100)
                     board_success = True
                     break
                 except Exception as e:
@@ -204,7 +280,7 @@ def rs485Power(antennaMapping, maxRetry=0, waitRetry=0.2):
     return success, boards, fees
 
 
-def rs485RFPower(antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485RFPower(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
     success = True
     rf_powers = []
     with RS485_LOCK:
@@ -213,8 +289,10 @@ def rs485RFPower(antennaMapping, maxRetry=0, waitRetry=0.2):
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    new_rf_power = _ARX.get_all_chan_power(board & 0xFF)
-                    rf_powers.extend(new_rf_power)
+                    raw_rf_power = _send_command(portName, board, 'POWA')
+                    for i in range(16):
+                        v = int(raw_rf_power[4*i:4*(i+1)], 16) * 0.004
+                        rf_powers.append((v/2.296)**2/50)
                     board_success = True
                     break
                 except Exception as e:
@@ -225,7 +303,7 @@ def rs485RFPower(antennaMapping, maxRetry=0, waitRetry=0.2):
     return success, rf_powers
 
 
-def rs485Temperature(antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485Temperature(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
     success = True
     temps = []
     with RS485_LOCK:
@@ -234,8 +312,11 @@ def rs485Temperature(antennaMapping, maxRetry=0, waitRetry=0.2):
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    new_temps = _ARX.get_1wire_temp(board & 0xFF)
-                    temps.extend(new_temps)
+                    ntemp = _send_command(portName, board, 'OWDC')
+                    ntemp = int(ntemp, 16)
+                    raw_temps = _send_command(portName, board, 'OWTE')
+                    for i in range(ntemp):
+                        temps.append(int(raw_temps[4*i:4*(i+1)], 16)/16)
                     board_success = True
                     break
                 except Exception as e:

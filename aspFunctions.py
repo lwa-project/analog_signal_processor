@@ -172,7 +172,8 @@ class AnalogProcessor(object):
             # Good, we can continue
             
             # Board check - found vs. expected from INI
-            boardsFound = rs485CountBoards(self.config['antenna_mapping'],
+            boardsFound = rs485CountBoards(self.config['rs485_port'],
+                                           self.config['antenna_mapping'],
                                            maxRetry=self.config['max_rs485_retry'],
                                            waitRetry=self.config['wait_rs485_retry'])
             if boardsFound == nBoards:
@@ -199,12 +200,14 @@ class AnalogProcessor(object):
                     self.currentState['chassisThreads'].append( ChassisStatus(self.config, ASPCallbackInstance=self) )
                     
                 # Do the RS485 bus stuff
-                status = rs485Reset(self.config['antenna_mapping'],
+                status = rs485Reset(self.config['rs485_port'],
+                                    self.config['antenna_mapping'],
                                     maxRetry=self.config['max_rs485_retry'],
                                     waitRetry=self.config['wait_rs485_retry'])
                 
                 # Update the analog signal chain state
-                self.currentState['config'] = rs485Get(0, self.config['antenna_mapping'],
+                self.currentState['config'] = rs485Get(0, self.config['rs485_port'],
+                                                       self.config['antenna_mapping'],
                                                        maxRetry=self.config['max_rs485_retry'],
                                                        waitRetry=self.config['wait_rs485_retry'])
                 
@@ -389,7 +392,8 @@ class AnalogProcessor(object):
             elif filterCode == 3:
                 # Set Filters OFF
                 c['sig_on'] = False
-        status = rs485Send(stand, config, self.config['antenna_mapping'],
+        status = rs485Send(stand, config, self.config['rs485_port'],
+                           self.config['antenna_mapping'],
                            maxRetry=self.config['max_rs485_retry'],
                            waitRetry=self.config['wait_rs485_retry'])
         
@@ -473,7 +477,8 @@ class AnalogProcessor(object):
         config = self.__getStandConfig(stand)
         for c in config:
             c[key] = setting
-        status = rs485Send(stand, config, self.config['antenna_mapping'],
+        status = rs485Send(stand, config, self.config['rs485_port'],
+                           self.config['antenna_mapping'],
                            maxRetry=self.config['max_rs485_retry'],
                            waitRetry=self.config['wait_rs485_retry'])
         
@@ -552,7 +557,8 @@ class AnalogProcessor(object):
             elif state == 0:
                 if i%2 == (pol-1):
                     c['dc_on'] = False
-        status = rs485Send(stand, config, self.config['antenna_mapping'],
+        status = rs485Send(stand, config, self.config['rs485_port'],
+                           self.config['antenna_mapping'],
                            maxRetry=self.config['max_rs485_retry'],
                            waitRetry=self.config['wait_rs485_retry'])
         
