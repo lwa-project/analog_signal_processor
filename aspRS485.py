@@ -24,7 +24,7 @@ RS485_LOCK = threading.Semaphore(1)
 
  @contextlib.contextmanager
 def _open_port(portName, timeout=1.0):
-    return serial.Serial(port=portname, baudrate=19200, parity=serial.PARITY_NONE,
+    return serial.Serial(port=portName, baudrate=19200, parity=serial.PARITY_NONE,
                          stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS,
                          timeout=timeout, writeTimeout=0)
 
@@ -38,7 +38,7 @@ def _send_command(portName, addr, cmd, data=None):
     if not isinstance(data, bytes):
         data = data.encode('utf-8')
         
-    msg = bytes(addr) + cmd + data + bytes(13)
+    msg = bytes(addr) + cmd + data + b'\r'
     
     with _open_port(portName) as port:
         port.write(msg)
