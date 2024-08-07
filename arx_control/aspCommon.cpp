@@ -182,7 +182,7 @@ bool ATmega::read_rs485(uint8_t addr, char* data, int* size) {
   
   *size = n - 9;
   if( *size > 0 ) {
-    ::memcpy(data, &(resp.buffer[0]), size);
+    ::memcpy(data, &(resp.buffer[0]), *size);
   }
   return true;
 }
