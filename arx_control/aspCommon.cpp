@@ -180,8 +180,10 @@ bool ATmega::read_rs485(uint8_t addr, char* data, int* size) {
     return false;
   }
   
-  *size = n;
-  ::memcpy(data, &(resp.buffer[0]), n);
+  *size = n - 9;
+  if( *size > 0 ) {
+    ::memcpy(data, &(resp.buffer[0]), size);
+  }
   return true;
 }
 
@@ -205,6 +207,34 @@ bool ATmega::write_rs485(uint8_t addr, const char* data, int size) {
     return false;
   }
   
+  return true;
+}
+
+bool ATmega::send_rs485(uint8_t addr, const char* in_data, int in_size, char* out_data, int* out_size) {
+  if( _fd < 0 ) {
+    return false;
+  }
+  
+  atmega::buffer cmd, resp;
+  cmd.command = atmega::COMMAND_WRITE_RS485;
+  cmd.size = 1 + in_size;
+  cmd.buffer[0] = addr;
+  ::memcpy(&(cmd.buffer[1]), in_data, in_size);
+ 
+  int n = 0; 
+  try {
+    n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+    if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+      return false;
+    }
+  } catch(const std::exception& e) {
+    return false;
+  }
+  
+  *out_size = n - 9;
+  if( *out_size > 0 ) {
+    ::memcpy(out_data, &(resp.buffer[0]), *out_size);
+  }
   return true;
 }
 
