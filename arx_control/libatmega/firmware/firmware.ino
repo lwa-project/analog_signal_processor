@@ -17,6 +17,12 @@
 // Version string
 #define VERSION "v0.0.1"
 
+// RS485 RX/TX enable pin
+#define RS485_EN D2
+
+// RS485 RX timeout in ms
+#define RS485_TIMEOUT_MS 500
+
 // Fault LED pin
 #define FAULT_PIN D0
 
@@ -80,6 +86,11 @@ void invalid_bus_error(uint16_t nargs, uint8_t* argv) {
 void invalid_rs485_command(uint16_t nargs, uint8_t* argv) {
   // Invalid RS485 ARX board command
   serial_sendresp(0xFD, 0, NULL);
+}
+
+void timeout_rs485_command(uint16_t nargs, uint8_t* argv) {
+  // Timeout of a RS485 ARX board command
+  serial_sendresp(0xFE, 0, NULL);
 }
 
 void invalid_command(uint16_t nargs, uint8_t* argv) {
@@ -159,24 +170,27 @@ void scan_rs485(uint16_t nargs, uint8_t* argv) {
   int ndevice = 0;
   byte addr;
   char cmd[8] = "ECHOAAA";
-  byte found_addr[128];
+  byte found_addr[126];
   if( nargs > 0) {
     invalid_arguments(nargs, argv);
   } else {
     for(addr=1; addr<127; addr++) {
       Serial1.flush();
       
-      Serial1.write(0x80 + addr);
-      Serial1.write((uint8_t*) &(cmd[0]), 7);
-      Serial1.write(13);
-
+      digitalWrite(RS485_EN, HIGH);
+      Serial1.write((uint8_t) (0x80 + addr) & 0xFF);
+      Serial1.write((uint8_t*) &(cmd[0]), 6);
+      Serial1.write('\r');
+      while( !Serial1.availableForWrite() );
+      
+      digitalWrite(RS485_EN, LOW);
       delay(10);
-
-      if( Serial1.available() ) {
+      
+      if( Serial1.available() > 0 ) {
         found_addr[ndevice++] = addr;
       }
     }
-
+    
     serial_sendresp(0, ndevice, (uint8_t*) &found_addr[0]);
   }
 }
@@ -189,24 +203,16 @@ void read_rs485(uint16_t nargs, uint8_t* argv) {
   if( nargs > 0 ) {
     invalid_arguments(nargs, argv);
   } else {
-    int i = 0;
-    long t_start = millis();
-    while( (millis() - t_start) < 500 ) {
-      if( Serial1.available() ) {
-        response[i] = Serial1.read();
-        i++;
-        if( response[i-1] == 13 ) {
-          break;
-        }
-      } else {
-        delay(1);
-      }
-    }
-
-    if( i > 0 && response[0] != 0x06 ) {
-      invalid_rs485_command(nargs, argv);
+    int i = Serial1.readBytesUntil('\r', &(response[0]), 80);
+    
+    if( i == 0 ) {
+      timeout_rs485_command(nargs, argv);
     } else {
-      serial_sendresp(0, i, (uint8_t*) &response[0]);
+      if( response[0] != 0x06 ) {
+        invalid_rs485_command(nargs, argv);
+      } else {
+        serial_sendresp(0, i, (uint8_t*) &(response[0]));
+      }
     }
   }
 }
@@ -214,7 +220,7 @@ void read_rs485(uint16_t nargs, uint8_t* argv) {
 void write_rs485(uint16_t nargs, uint8_t* argv) {
   // Write the given number of bytes to the provided ARX board address
   //   Input: 2+ arguments - address (uint8_t), value (N uint8_t)
-  //   Output: Value written as N uint8_t (N >= 0)
+  //   Output: 0 values
   byte addr = argv[0];
   uint16_t size = nargs - 1;
   if( nargs < 2 ) {
@@ -222,9 +228,65 @@ void write_rs485(uint16_t nargs, uint8_t* argv) {
   } else {
     Serial1.flush();
     
-    Serial1.write(0x80 + addr);
+    digitalWrite(RS485_EN, HIGH);
+    Serial1.write((uint8_t) (0x80 + addr) & 0xFF);
     Serial1.write((uint8_t*) &(argv[1]), size);
-    Serial1.write(13);
+    Serial1.write('\r');
+    
+    digitalWrite(RS485_EN, LOW);
+    serial_sendresp(0, 0, argv);
+  }
+}
+
+void send_rs485(uint16_t nargs, uint8_t* argv) {
+  // Write the given number of bytes to the provided ARX board address
+  //   Input: 2+ arguments - address (uint8_t), value (N uint8_t)
+  //   Output: Value written as N uint8_t (N >= 0)
+  byte addr = argv[0];
+  uint16_t size = nargs - 1;
+  byte response[80] = {0};
+  if( nargs < 2 ) {
+    invalid_arguments(nargs, argv);
+  } else {
+    Serial1.flush();
+    
+    digitalWrite(RS485_EN, HIGH);
+    Serial1.write((uint8_t) (0x80 + addr) & 0xFF);
+    Serial1.write((uint8_t*) &(argv[1]), size);
+    Serial1.write('\r');
+    while( !Serial1.availableForWrite() );
+
+    digitalWrite(RS485_EN, LOW);
+    int i = Serial1.readBytesUntil('\r', &(response[0]), 80);
+    
+    if( i == 0 ) {
+      if( size == 1) {
+         if( argv[1] == 'W' ) {
+          // Don't expect anything from W(AKE)
+          serial_sendresp(0, 0, (uint8_t*) &(response[0]));
+        } else {
+          timeout_rs485_command(nargs, argv);
+        }
+      } else if( size == 4 ) {
+        if( (argv[1] == 'R') && (argv[2] == 'S') && (argv[3] == 'E') && (argv[4] == 'T') ) {
+          // Don't expect anything from RSET
+          serial_sendresp(0, 0, (uint8_t*) &(response[0]));
+        } else if( (argv[1] == 'S') && (argv[2] == 'L') && (argv[3] == 'E') && (argv[4] == 'P') ) {
+          // Don't expect anything from SLEP
+          serial_sendresp(0, 0, (uint8_t*) &(response[0]));
+        } else {
+          timeout_rs485_command(nargs, argv);
+        }
+      } else {
+        timeout_rs485_command(nargs, argv);
+      }
+    } else {
+      if( response[0] != 0x06 ) {
+        invalid_rs485_command(nargs, argv);
+      } else {
+        serial_sendresp(0, i, (uint8_t*) &(response[0]));
+      }
+    }
   }
 }
 
@@ -388,9 +450,12 @@ void(* reset) (void) = 0; //declare reset function @ address 0
 void setup() {
   // Serial setup
   Serial.begin(115200);
-
+  
   // RS485 setup
   Serial1.begin(19200);
+  Serial1.setTimeout(RS485_TIMEOUT_MS);
+  pinMode(RS485_EN, OUTPUT);
+  digitalWrite(RS485_EN, LOW);
   
   // SPI setup
   pinMode(SPI_SS_PIN, OUTPUT);
@@ -447,6 +512,7 @@ void loop() {
       case 0x21: scan_rs485(nargs, &buffer[3]); break;
       case 0x22: read_rs485(nargs, &buffer[3]); break;
       case 0x23: write_rs485(nargs, &buffer[3]); break;
+      case 0x24: send_rs485(nargs, &buffer[3]); break;
       case 0x31: scan_i2c(nargs, &buffer[3]); break;
       case 0x32: read_i2c(nargs, &buffer[3]); break;
       case 0x33: write_i2c(nargs, &buffer[3]); break;
