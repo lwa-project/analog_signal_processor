@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # Main Targets
 #------------------------------------------------------------------------------
-all: LIBATMEGA sendARXDevice \
+all: LIBATMEGA sendARXDevice sendPICDevice \
      countBoards countPSUs countThermometers \
      readPSU readThermometers \
      onoffPSU configPSU \
@@ -61,6 +61,9 @@ LIBATMEGA:
 sendARXDevice: sendARXDevice.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
+sendPICDevice: sendPICDevice.o aspCommon.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
+		
 countBoards: countBoards.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
