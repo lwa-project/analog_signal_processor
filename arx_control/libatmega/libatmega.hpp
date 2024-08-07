@@ -41,6 +41,7 @@ namespace atmega {
     COMMAND_SCAN_RS485    = 0x21,
     COMMAND_READ_RS485    = 0x22,
     COMMAND_WRITE_RS485   = 0x23,
+    COMMAND_SEND_RS485    = 0x24,
     COMMAND_SCAN_I2C      = 0x31,
     COMMAND_READ_I2C      = 0x32,
     COMMAND_WRITE_I2C     = 0x33,
