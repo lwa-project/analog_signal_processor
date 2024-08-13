@@ -242,6 +242,9 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
                 || (command->command == atmega::COMMAND_SEND_RS485) ) ) {
       // RS485 has a 500 ms timeout
       cmd_wait_ms = 550;
+    } else if( command ->command == atmega::COMMAND_SCAN_RS485 ) {
+      // RS485 scan has a 2 *s* timeout
+      cmd_wait_ms = 2000;
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(cmd_wait_ms));
     
