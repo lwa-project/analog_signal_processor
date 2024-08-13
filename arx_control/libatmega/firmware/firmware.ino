@@ -232,7 +232,7 @@ void read_rs485(uint16_t nargs, uint8_t* argv) {
       if( response[1] != 0x06 ) {
         invalid_rs485_command(nargs, argv);
       } else {
-        serial_sendresp(0, i, (uint8_t*) &(response[1]));
+        serial_sendresp(0, i-1, (uint8_t*) &(response[1]));
       }
     }
   }
@@ -322,7 +322,7 @@ void send_rs485(uint16_t nargs, uint8_t* argv) {
       if( response[1] != 0x06 ) {
         invalid_rs485_command(nargs, argv);
       } else {
-        serial_sendresp(0, i, (uint8_t*) &(response[1]));
+        serial_sendresp(0, i-1, (uint8_t*) &(response[1]));
       }
     }
   }
