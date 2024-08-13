@@ -180,10 +180,8 @@ bool ATmega::read_rs485(uint8_t addr, char* data, int* size) {
     return false;
   }
   
-  *size = n - 9;
-  if( *size > 0 ) {
-    ::memcpy(data, &(resp.buffer[0]), *size);
-  }
+  *size = resp.size;
+  ::memcpy(data, &(resp.buffer[0]), resp.size);
   return true;
 }
 
@@ -216,7 +214,7 @@ bool ATmega::send_rs485(uint8_t addr, const char* in_data, int in_size, char* ou
   }
   
   atmega::buffer cmd, resp;
-  cmd.command = atmega::COMMAND_WRITE_RS485;
+  cmd.command = atmega::COMMAND_SEND_RS485;
   cmd.size = 1 + in_size;
   cmd.buffer[0] = addr;
   ::memcpy(&(cmd.buffer[1]), in_data, in_size);
@@ -231,10 +229,8 @@ bool ATmega::send_rs485(uint8_t addr, const char* in_data, int in_size, char* ou
     return false;
   }
   
-  *out_size = n - 9;
-  if( *out_size > 0 ) {
-    ::memcpy(out_data, &(resp.buffer[0]), *out_size);
-  }
+  *out_size = resp.size;
+  ::memcpy(out_data, &(resp.buffer[0]), resp.size);
   return true;
 }
 
