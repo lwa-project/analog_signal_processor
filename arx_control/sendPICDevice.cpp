@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
   
   bool success = atm->open();
   if( !success ) {
-    std::cerr << "sendARXDevice - failed to open " << requestedSN << std::endl;
+    std::cerr << "sendPICDevice - failed to open " << requestedSN << std::endl;
 	  std::exit(EXIT_FAILURE);
   }
   
@@ -52,26 +52,20 @@ int main(int argc, char** argv) {
 	* Send the command and get the response *
 	****************************************/
   // Process the commands
-  // std::list<std::uint8_t> addrs = atm->list_rs485_devices();
-  // std::cout << "Found " << addrs.size() << " board(s)" << std::endl;
-  // for(std::uint8_t& addr: addrs) {
-  //   std::cout << " " << (uint32_t) addr;
-  //   if( addr == (device_addr & 0xFF) ) {
-  //     std::cout << " (this is us)";
-  //   }
-  //   std::cout << std::endl;
-  // }
-  
-  int size = 1;
+  int size = 0;
   char buf[80] = {'\0'};
-  std::cout << "Command is '" << command.c_str() << "' of size " << command.size() << std::endl;
   if( command == std::string("WAKE") ) {
     command = std::string("W");
   }
-  bool status = atm->send_rs485(device_addr & 0xFF, command.c_str(), command.size(), &(buf[0]), &size);
-  std::cout << "Send? " << (int32_t) status << std::endl;
-  std::cout << "Received: " << size << std::endl;
-  std::cout << "-> '" << std::string(buf) << "'" << std::endl;
+  bool status = atm->send_rs485(device_addr, command.c_str(), command.size(), &(buf[0]), &size);
+  if( !success ) {
+    std::cerr << "sendPICDevice - send failed " << std::endl;
+    delete atm;
+	  std::exit(EXIT_FAILURE);
+  }
+  
+  std::cout << "Received: " << size << "B" << std::endl;
+  std::cout << "'" << std::string(&(buf[1])) << "'" << std::endl;
   
 	/*******************
 	* Cleanup and exit *
