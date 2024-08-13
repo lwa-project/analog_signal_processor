@@ -188,25 +188,25 @@ int main(int argc, char** argv) {
       } else if( command == "CURA" ) {
         for(int i=0; i<size/4; i++) {
           float value = std::stoi(std::string("0x") + temp.substr(4*i, 4), nullptr, 16);
-#if defined(PIC_IS_REVH) && PIC_IS_REVH
-          value *= 0.004;
-          value *= 100;
-#else
-          value *= 3.3 / 1024 / 2.38;
-          value *= 1000;
-#endif
+          #if defined(PIC_IS_REVH) && PIC_IS_REVH
+            value *= 0.004;
+            value *= 100;
+          #else
+            value *= 3.3 / 1024 / 2.38;
+            value *= 1000;
+          #endif
           std::cout << i+1 << ": " << std::fixed << std::setprecision(1) << value << " mA" << std::endl;
         }
       
       } else if( (command.substr(0,4) == "CURC") ) {
         float value = std::stoi(std::string("0x") + temp, nullptr, 16);
-#if defined(PIC_IS_REVH) && PIC_IS_REVH
-        value *= 0.004;
-        value *= 100;
-#else
-        value *= 3.3 / 1024 / 2.38;
-        value *= 1000;
-#endif
+        #if defined(PIC_IS_REVH) && PIC_IS_REVH
+          value *= 0.004;
+          value *= 100;
+        #else
+          value *= 3.3 / 1024 / 2.38;
+          value *= 1000;
+        #endif
         std::cout << std::fixed << std::setprecision(1) << value << " mA" << std::endl;
         
       } else if( command == "POWA" ) {
