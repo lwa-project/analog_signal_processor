@@ -226,7 +226,7 @@ void read_rs485(uint16_t nargs, uint8_t* argv) {
       }
     }
     
-    if( i == 0 ) {
+    if( i <= 1 ) {
       timeout_rs485_command(nargs, argv);
     } else {
       if( response[1] != 0x06 ) {
@@ -297,7 +297,7 @@ void send_rs485(uint16_t nargs, uint8_t* argv) {
       }
     }
 
-    if( i == 0 ) {
+    if( i <= 1 ) {
       if( size == 1) {
          if( argv[1] == 'W' ) {
           // Don't expect anything from W(AKE)
