@@ -183,17 +183,21 @@ void scan_rs485(uint16_t nargs, uint8_t* argv) {
       digitalWrite(RS485_EN, HIGH);
       delayMicroseconds(250);
       SoftSerial1.write((uint8_t) (0x80 + addr) & 0xFF);
-      SoftSerial1.write((uint8_t*) &(cmd[0]), 6);
+      SoftSerial1.write((uint8_t*) &(cmd[0]), 7);
       SoftSerial1.write('\r');
       SoftSerial1.flush();
       
       digitalWrite(RS485_EN, LOW);
-      
-      delay(10);
-      
-      if( SoftSerial1.available() > 0 ) {
-        found_addr[ndevice++] = addr;
+
+      unsigned long t_start = millis();
+      while( (millis() - t_start) < 10 ) {
+        if( SoftSerial1.available() > 4 ) {
+          found_addr[ndevice++] = addr;
+          break;
+        }
       }
+
+      delay(5);
     }
     
     serial_sendresp(0, ndevice, (uint8_t*) &found_addr[0]);
@@ -214,6 +218,7 @@ void read_rs485(uint16_t nargs, uint8_t* argv) {
       if( SoftSerial1.available() > 0 ) {
         response[i] = SoftSerial1.read();
         if( response[i++] == '\r' ) {
+          i--;
           break;
         }
       } else {
@@ -284,6 +289,7 @@ void send_rs485(uint16_t nargs, uint8_t* argv) {
       if( SoftSerial1.available() > 0 ) {
         response[i] = SoftSerial1.read();
         if( response[i++] == '\r' ) {
+          i--;
           break;
         }
       } else {
