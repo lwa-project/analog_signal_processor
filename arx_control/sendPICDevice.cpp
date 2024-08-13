@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
   if( command == std::string("WAKE") ) {
     command = std::string("W");
   }
-  bool success = atm->send_rs485(device_addr, command.c_str(), command.size(), &(buf[0]), &size);
+  success = atm->send_rs485(device_addr, command.c_str(), command.size(), &(buf[0]), &size);
   if( !success ) {
     std::cerr << "sendPICDevice - send failed " << std::endl;
     delete atm;
