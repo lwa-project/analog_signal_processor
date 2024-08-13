@@ -5,7 +5,7 @@ all: LIBATMEGA sendARXDevice sendPICDevice \
      countBoards countPSUs countThermometers countPICs \
      readPSU readThermometers \
      onoffPSU configPSU \
-     readARXDevice setATmegaSN listATmegaSN \
+     readARXDevice setATmegaSN listATmegaSN locateATmega \
 		 atmegaConfig
 
 #------------------------------------------------------------------------------
