@@ -4,7 +4,7 @@ PIC microcontrollers connected to the RS485.  The exit code
 contains the number of boards found.
  
 Usage:
-  countPICs <ATmega S/N>
+  countPICs [-v|--verbose] <ATmega S/N>
 
 Options:
   None
@@ -26,12 +26,26 @@ int main(int argc, char** argv) {
 	* Command line parsing   *
 	*************************/
   // Make sure we have the right number of arguments to continue
-	if( argc < 1+1 ) {
-		std::cerr << "countPICs - Need 1 argument, " << argc-1 << " provided" << std::endl;
+	std::list<std::string> arg_str;
+  bool verbose = false;
+  for(int i=1; i<argc; i++) {
+    std::string temp = std::string(argv[i]);
+    if( temp[0] != '-' ) {
+      arg_str.push_back(temp);
+    } else {
+      if( (temp == "-v") || (temp == "--verbose") ) {
+        verbose = true;
+      }
+    }
+  }
+  if( arg_str.size() != 1 ) {
+    std::cerr << "countPICs - Need 1 argument, " << arg_str.size() << " provided" << std::endl;
 		std::exit(EXIT_FAILURE);
-	}
+  }
   
-  std::string requestedSN = std::string(argv[1]);
+  // Unpack
+  std::string requestedSN = arg_str.front();
+  arg_str.pop_front();
   
   /************************************
 	* ATmega device selection and ready *
@@ -58,8 +72,11 @@ int main(int argc, char** argv) {
 	
 	// Report
 	std::cout << "Found " << num << " PICs" << std::endl;
-  for(std::uint8_t& addr: addrs) {
-    std::cout << " " << (uint32_t) addr << std::endl;
+  if( verbose ) {
+    std::cout << "Addresses found:" << std::endl;
+    for(std::uint8_t& addr: addrs) {
+      std::cout << " " << (uint32_t) addr << std::endl;
+    }
   }
   
 	return num;
