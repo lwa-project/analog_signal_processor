@@ -133,7 +133,11 @@ int main(int argc, char** argv) {
         if( temp.substr(0,1) == "b" ) {
           ctype = "broadcast";
         }
-        std::cout << "Last Command: " << std::quoted(temp.substr(1,80)) << " (" << ctype << ")" << std::endl;
+        try {
+          std::cout << "Last Command: " << std::quoted(temp.substr(1,80)) << " (" << ctype << ")" << std::endl;
+        } catch(const std::out_of_range& e) {
+          std::cout << "No commands received since board startup" << std::endl;
+        }
         
       } else if( command == "ARXN" ) {
         std::cout << "Serial Number:       " << temp.substr(0,4) << std::endl;
