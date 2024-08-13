@@ -229,11 +229,11 @@ void read_rs485(uint16_t nargs, uint8_t* argv) {
     if( i == 0 ) {
       timeout_rs485_command(nargs, argv);
     } else {
-      // if( response[0] != 0x06 ) {
-      //   invalid_rs485_command(nargs, argv);
-      // } else {
-        serial_sendresp(0, i, (uint8_t*) &(response[0]));
-      // }
+      if( response[1] != 0x06 ) {
+        invalid_rs485_command(nargs, argv);
+      } else {
+        serial_sendresp(0, i, (uint8_t*) &(response[1]));
+      }
     }
   }
 }
@@ -319,11 +319,11 @@ void send_rs485(uint16_t nargs, uint8_t* argv) {
         timeout_rs485_command(nargs, argv);
       }
     } else {
-      // if( response[0] != 0x06 ) {
-      //   invalid_rs485_command(nargs, argv);
-      // } else {
-        serial_sendresp(0, i, (uint8_t*) &(response[0]));
-      // }
+      if( response[1] != 0x06 ) {
+        invalid_rs485_command(nargs, argv);
+      } else {
+        serial_sendresp(0, i, (uint8_t*) &(response[1]));
+      }
     }
   }
 }
