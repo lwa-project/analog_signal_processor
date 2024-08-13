@@ -2,7 +2,7 @@
 # Main Targets
 #------------------------------------------------------------------------------
 all: LIBATMEGA sendARXDevice sendPICDevice \
-     countBoards countPSUs countThermometers \
+     countBoards countPSUs countThermometers countPICs \
      readPSU readThermometers \
      onoffPSU configPSU \
      readARXDevice setATmegaSN listATmegaSN \
@@ -71,6 +71,9 @@ countPSUs: countPSUs.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 countThermometers: countThermometers.o aspCommon.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
+
+countPICs: countPICs.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 readPSU: readPSU.o aspCommon.o
