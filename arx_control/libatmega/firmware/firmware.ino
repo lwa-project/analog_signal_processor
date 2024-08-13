@@ -22,7 +22,7 @@
 #define RS485_EN D2
 
 // RS485 RX timeout in ms
-#define RS485_TIMEOUT_MS 500
+#define RS485_TIMEOUT_MS 1000
 
 // Fault LED pin
 #define FAULT_PIN D0

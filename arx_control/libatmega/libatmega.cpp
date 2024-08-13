@@ -240,8 +240,8 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
     } else if( (   (command->command == atmega::COMMAND_READ_RS485)
                 || (command->command == atmega::COMMAND_WRITE_RS485)
                 || (command->command == atmega::COMMAND_SEND_RS485) ) ) {
-      // RS485 has a 500 ms timeout
-      cmd_wait_ms = 550;
+      // RS485 has a 1000 ms timeout
+      cmd_wait_ms = 1050;
     } else if( command ->command == atmega::COMMAND_SCAN_RS485 ) {
       // RS485 scan has a 2 *s* timeout
       cmd_wait_ms = 2000;
