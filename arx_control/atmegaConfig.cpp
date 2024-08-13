@@ -2,6 +2,10 @@
 
 #include "aspCommon.hpp"
 
+#ifndef PIC_IS_REVH
+#define PIC_IS_REVH 1
+#endif
+
 
 static PyMethodDef atmegaconfig_methods[] = { {NULL, NULL, 0, NULL} };
 
@@ -27,12 +31,20 @@ static int atmegaconfig_exec(PyObject *module) {
     #endif
     PyModule_AddObject(module, "INCLUDE_MODULE_TEMPS", value3);
     
+    #if defined(PIC_IS_REVH) && PIC_IS_REVH
+        PyObject* value4 = Py_True;
+    #else
+        PyObject* value4 = Py_False;
+    #endif
+    PyModule_AddObject(module, "IS_REVH", value4);
+    
     // Module listings
     PyObject* all = PyList_New(0);
     PyList_Append(all, PyUnicode_FromString("MAX_BOARDS"));
     PyList_Append(all, PyUnicode_FromString("STANDS_PER_BOARD"));
     PyList_Append(all, PyUnicode_FromString("USE_INPUT_CURRENT"));
     PyList_Append(all, PyUnicode_FromString("INCLUDE_MODULE_TEMPS"));
+    PyList_Append(all, PyUnicode_FromString("IS_REVH"));
     PyModule_AddObject(module, "__all__", all);
     return 0;
 }
