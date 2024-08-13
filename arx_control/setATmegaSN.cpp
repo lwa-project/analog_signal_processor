@@ -129,7 +129,7 @@ int main(int argc, char* argv[]) {
     std::cerr << "setATmegaSN - Failed to find a serial number for " << device_name << std::endl;
     std::exit(EXIT_FAILURE);
   }
-  std::cout << device_name << " -> " << device_sn << std::endl;
+  std::cout << device_name << " -> " << device_sn.substr(0, 8) << std::endl;
   
   /******************************************
 	* ATmega device selection and programming *
