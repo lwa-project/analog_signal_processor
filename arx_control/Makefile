@@ -105,26 +105,19 @@ atmegaConfig: atmegaConfig.cpp
 
 install:
 	cp sendARXDevice /usr/local/bin
+	cp sendPICDevice /usr/local/bin
 	cp countBoards /usr/local/bin
 	cp countPSUs /usr/local/bin
 	cp countThermometers /usr/local/bin
+	cp countPICs /usr/local/bin
 	cp readPSU /usr/local/bin
 	cp readThermometers /usr/local/bin
 	cp onoffPSU /usr/local/bin
 	cp configPSU /usr/local/bin
 	cp readARXDevice /usr/local/bin
-	chown root:root /usr/local/bin/sendARXDevice \
-                        /usr/local/bin/countBoards /usr/local/bin/countPSUs /usr/local/bin/countThermometers \
-                        /usr/local/bin/readPSU /usr/local/bin/readThermometers \
-                        /usr/local/bin/onoffPSU /usr/local/bin/configPSU \
-                        /usr/local/bin/readARXDevice
-	chmod +s /usr/local/bin/sendARXDevice \
-                 /usr/local/bin/countBoards /usr/local/bin/countPSUs /usr/local/bin/countThermometers \
-                 /usr/local/bin/readPSU /usr/local/bin/readThermometers \
-                 /usr/local/bin/onoffPSU /usr/local/bin/configPSU \
-                 /usr/local/bin/readARXDevice
+	cp locateATmega /usr/local/bin
 
 clean:
 	rm -f *.o *.out *.err *.exe *.a *.so *.dylib
-	rm -f sendARXDevice countBoards countPSUs countThermometers readPSU readThermometers onoffPSU configPSU readARXDevice setATmegaSN listATmegaSN
+	rm -f sendARXDevice sendPICDevice countBoards countPSUs countThermometers countPICs readPSU readThermometers onoffPSU configPSU readARXDevice setATmegaSN listATmegaSN locateATmega
 	make -C libatmega clean
