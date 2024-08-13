@@ -22,6 +22,11 @@ Options:
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
 
+#ifndef PIC_IS_REVH
+#define PIC_IS_REVH 1
+#endif
+
+
 typedef struct {
   int hpf;
   int lpf;
@@ -158,7 +163,7 @@ int main(int argc, char** argv) {
           std::cout << "    \t" << "SON = " << cconfig.sig_on << std::endl;
         }
         
-      } else if( command == "GETC" ) {
+      } else if( command.substr(0,4) == "GETC" ) {
         uint16_t value = std::stoi(std::string("0x") + temp, nullptr, 16);
         chan_config cconfig;
         raw_to_config(value, &cconfig);
@@ -169,13 +174,43 @@ int main(int argc, char** argv) {
         std::cout << "FEE = " << cconfig.fee_on << std::endl;
         std::cout << "SON = " << cconfig.sig_on << std::endl;
         
-      } else if( (command == "CURA") || (command == "POWA") ) {
+      } else if( command == "CURA" ) {
         for(int i=0; i<size/4; i++) {
-          std::cout << i+1 << ": " << std::stoi(std::string("0x") + temp.substr(4*i, 4), nullptr, 16) << std::endl;
+          float value = std::stoi(std::string("0x") + temp.substr(4*i, 4), nullptr, 16);
+#if defined(PIC_IS_REVH) && PIC_IS_REVH
+          value *= 0.004;
+          value *= 100;
+#else
+          value *= 3.3 / 1024 / 2.38;
+          value *= 1000;
+#endif
+          std::cout << i+1 << ": " << std::fixed << std::setprecision(1) << value << " mA" << std::endl;
         }
       
-      } else if( (command == "CURC") || (command == "POWC") ) {
-        std::cout << std::stoi(std::string("0x") + temp, nullptr, 16) << std::endl;
+      } else if( (command.substr(0,4) == "CURC") ) {
+        float value = std::stoi(std::string("0x") + temp, nullptr, 16);
+#if defined(PIC_IS_REVH) && PIC_IS_REVH
+        value *= 0.004;
+        value *= 100;
+#else
+        value *= 3.3 / 1024 / 2.38;
+        value *= 1000;
+#endif
+        std::cout << std::fixed << std::setprecision(1) << value << " mA" << std::endl;
+        
+      } else if( command == "POWA" ) {
+        for(int i=0; i<size/4; i++) {
+          float value = std::stoi(std::string("0x") + temp.substr(4*i, 4), nullptr, 16);
+          value *= 0.004;
+          value = value/2.296*value/2.296/50*1000*1000;
+          std::cout << i+1 << ": " << std::fixed << std::setprecision(1) << value << " uW" << std::endl;
+        }
+        
+      } else if( command.substr(0,4) == "POWC" ) {
+        float value = std::stoi(std::string("0x") + temp, nullptr, 16);
+        value *= 0.004;
+        value = value/2.296*value/2.296/50*1000*1000;
+        std::cout << std::fixed << std::setprecision(1) << value << " uW" << std::endl;
         
       } else if( command == "TEMP" ) {
         float value = std::stoi(std::string("0x") + temp, nullptr, 16);
