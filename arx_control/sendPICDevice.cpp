@@ -126,7 +126,14 @@ int main(int argc, char** argv) {
     if( decode ) {
       if( command == "GTIM" ) {
         uint32_t value = std::stoi(std::string("0x") + temp, nullptr, 16);
-        std::cout << "Time: " << value << " s" << std::endl;
+        std::cout << "Board Time: " << value << " s" << std::endl;
+        
+      } else if( command == "LAST" ) {
+        std::string ctype = "normal";
+        if( temp.substr(0,1) == "b" ) {
+          ctype = "broadcast";
+        }
+        std::cout << "Last Command: " << std::quoted(temp.substr(1,80)) << " (" << ctype << ")" << std::endl;
         
       } else if( command == "ARXN" ) {
         std::cout << "Serial Number:       " << temp.substr(0,4) << std::endl;
