@@ -4,7 +4,7 @@ specified device address.  An exit code of zero indicates that
 no errors were encountered.
  
 Usage:
-  sendPICDevice <ATmega S/N> <address> <command>
+  sendPICDevice [-q|--quiet] [-d|--decode] <ATmega S/N> <address> <command>
   
 Options:
   None
@@ -14,6 +14,7 @@ Options:
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <iomanip>
 #include <cstring>
 #include <chrono>
 #include <thread>
@@ -21,21 +22,69 @@ Options:
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
 
+typedef struct {
+  int hpf;
+  int lpf;
+  float at1;
+  float at2;
+  int sig_on;
+  int fee_on;
+} chan_config;
+
+
+void raw_to_config(uint16_t raw, chan_config* config) {
+  config->hpf = raw & 1;
+  config->sig_on = (raw >> 1) & 1;
+  config->lpf = (raw >> 2) & 1;
+  config->at1 = (((raw ^ 0xFFFF) >> 3) & 0x3F) * 0.5;
+  config->at2 = (((raw ^ 0xFFFF) >> 9) & 0x3F) * 0.5;
+  config->fee_on = (raw >> 15) & 1;
+}
+
+
+void config_to_raw(chan_config& config, uint16_t* raw) {
+  *raw = 0;
+  *raw |= config.hpf & 1;
+  *raw |= (config.sig_on & 1) << 1;
+  *raw |= (config.lpf & 1) << 2;
+  *raw |= ((((uint16_t) (config.at1 * 2)) ^ 0xFFFF) & 0x3F) << 3;
+  *raw |= ((((uint16_t) (config.at2 * 2)) & 0xFFFF) & 0x3F) << 9;
+  *raw |= (config.fee_on & 1) << 15;
+}
+
 
 int main(int argc, char** argv) {
 	/*************************
 	* Command line parsing   *
 	*************************/
   // Make sure we have the right number of arguments to continue
-	if( argc != 3+1 ) {
-		std::cerr << "sendPICDevice - Need at 3 arguments, " << argc-1 << " provided" << std::endl;
+	std::list<std::string> arg_str;
+  bool verbose = true;
+  bool decode = false;
+  for(int i=1; i<argc; i++) {
+    std::string temp = std::string(argv[i]);
+    if( temp[0] != '-' ) {
+      arg_str.push_back(temp);
+    } else {
+      if( (temp == "-q") || (temp == "--quiet") ) {
+        verbose = false;
+      } else if( (temp == "-d") || (temp == "--decode") ) {
+        decode = true;
+      }
+    }
+  }
+  if( arg_str.size() != 3 ) {
+		std::cerr << "sendPICDevice - Need at 3 arguments, " << arg_str.size() << " provided" << std::endl;
 		std::exit(EXIT_FAILURE);
 	}
   
-  char *endptr;
-  std::string requestedSN = std::string(argv[1]);
-  uint32_t device_addr = std::strtod(argv[2], &endptr);
-  std::string command = std::string(argv[3]);
+  // Unpack
+  std::string requestedSN = arg_str.front();
+  arg_str.pop_front();
+  uint32_t device_addr = std::stoi(arg_str.front());
+  arg_str.pop_front();
+  std::string command = arg_str.front();
+  arg_str.pop_front();
   
   /************************************
 	* ATmega device selection and ready *
@@ -64,8 +113,87 @@ int main(int argc, char** argv) {
 	  std::exit(EXIT_FAILURE);
   }
   
-  std::cout << "Received: " << size << "B" << std::endl;
-  std::cout << "'" << std::string(&(buf[1])) << "'" << std::endl;
+  if( verbose ) {
+    std::string temp = std::string(&(buf[1]));
+    std::cout << "Received: " << size << "B with status " << (uint16_t) buf[0] << std::endl;
+    std::cout << "Response: " << std::quoted(temp) << std::endl;
+    
+    if( decode ) {
+      if( command == "GTIM" ) {
+        uint32_t value = std::stoi(std::string("0x") + temp, nullptr, 16);
+        std::cout << "Time: " << value << " s" << std::endl;
+        
+      } else if( command == "ARXN" ) {
+        std::cout << "Serial Number:       " << temp.substr(0,4) << std::endl;
+        std::cout << "Software Version:    " << temp.substr(4,4) << std::endl;
+        std::cout << "Coax/Fiber Setup:    ";
+        int cf_map = std::stoi(std::string("0x") + temp.substr(8,4), nullptr, 16);
+        for(int i=0; i<16; i++) {
+          if( (cf_map >> i) & 1 ) {
+            std::cout << "F";
+          } else {
+            std::cout << "C";
+          }
+        }
+        std::cout << std::endl;
+        int temp_map = std::stoi(std::string("0x") + temp.substr(12,2), nullptr, 16);
+        std::cout << "Temperatures mapped: " << temp_map << std::endl;
+        if( temp_map > 0 ) {
+          for(int i=0; i<temp_map; i++) {
+            int chan_map = std::stoi(std::string("0x") + temp.substr(14+i,1), nullptr, 16);
+            std::cout << i+1 << ": " << chan_map << std::endl;
+          }
+        }
+        
+      } else if( command == "GETA" ) {
+        for(int i=0; i<size/4; i++) {
+          uint16_t value = std::stoi(std::string("0x") + temp.substr(4*i, 4), nullptr, 16);
+          chan_config cconfig;
+          raw_to_config(value, &cconfig);
+          std::cout << i+1 << ": \t" << "HPF = " << cconfig.hpf << std::endl;
+          std::cout << "    \t" << "LPF = " << cconfig.lpf << std::endl;
+          std::cout << "    \t" << "AT1 = " << cconfig.at1 << " dB" << std::endl;
+          std::cout << "    \t" << "AT2 = " << cconfig.at2 << " dB" << std::endl;
+          std::cout << "    \t" << "FEE = " << cconfig.fee_on << std::endl;
+          std::cout << "    \t" << "SON = " << cconfig.sig_on << std::endl;
+        }
+        
+      } else if( command == "GETC" ) {
+        uint16_t value = std::stoi(std::string("0x") + temp, nullptr, 16);
+        chan_config cconfig;
+        raw_to_config(value, &cconfig);
+        std::cout << "HPF = " << cconfig.hpf << std::endl;
+        std::cout << "LPF = " << cconfig.lpf << std::endl;
+        std::cout << "AT1 = " << cconfig.at1 << " dB" << std::endl;
+        std::cout << "AT2 = " << cconfig.at2 << " dB" << std::endl;
+        std::cout << "FEE = " << cconfig.fee_on << std::endl;
+        std::cout << "SON = " << cconfig.sig_on << std::endl;
+        
+      } else if( (command == "CURA") || (command == "POWA") ) {
+        for(int i=0; i<size/4; i++) {
+          std::cout << i+1 << ": " << std::stoi(std::string("0x") + temp.substr(4*i, 4), nullptr, 16) << std::endl;
+        }
+      
+      } else if( (command == "CURC") || (command == "POWC") ) {
+        std::cout << std::stoi(std::string("0x") + temp, nullptr, 16) << std::endl;
+        
+      } else if( command == "TEMP" ) {
+        float value = std::stoi(std::string("0x") + temp, nullptr, 16);
+        value *= 0.1;
+        std::cout << "PIC Temperature: " << std::fixed << std::setprecision(1) << value << " C" << std::endl;
+        
+      } else if( command == "OWDC" ) {
+        std::cout << "Number of Temp. Sensors: " << std::stoi(std::string("0x") + temp, nullptr, 16) << std::endl;
+        
+      } else if( command == "OWTE" ) {
+        for(int i=0; i<size/4; i++) {
+          float value = std::stoi(std::string("0x") + temp.substr(4*i, 4), nullptr, 16);
+          value *= 0.0625;
+          std::cout << i+1 << ": " << std::fixed << std::setprecision(1) << value << " C" << std::endl;
+        }
+      }
+    }
+  }
   
 	/*******************
 	* Cleanup and exit *
