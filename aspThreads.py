@@ -16,10 +16,10 @@ from io import StringIO
     
 from lwainflux import LWAInfluxClient
 
-from aspRS485 import rs485Check, rs485Get, rs485Power, rs485RFPower, rs485Temperature
+from aspRS485 import rs485Check, rs485GetTime, rs485SetTime, rs485Get, rs485Power, rs485RFPower, rs485Temperature
 
 
-__version__ = '0.9'
+__version__ = '1.0'
 __all__ = ['TemperatureSensors', 'ChassisStatus']
 
 
@@ -300,6 +300,7 @@ class ChassisStatus(object):
         if config is None:
             return True
             
+        self.standsPerBoard = config['stands_per_board']
         self.portName = config['rs485_port']
         self.antennaMapping = config['antenna_mapping']
         self.maxRetry = config['max_rs485_retry']
@@ -335,15 +336,38 @@ class ChassisStatus(object):
             
     def monitorThread(self):
         """
-        Create a monitoring thread for the temperature.
+        Create a monitoring thread for the chassis status.
         """
         
-        config_failures = 0
+        self.board_time = None
         
         while self.alive.isSet():
             tStart = time.time()
             
             try:
+                ## Check the board time for each board.  If it gets reset then
+                ## we probably have a problem
+                if self.board_time is None:
+                    _, _, board_time = rs485SetTime(self.portName,
+                                                     self.antennaMapping,
+                                                     maxRetry=self.maxRetry,
+                                                     waitRetry=self.waitRetry)
+                    self.board_time = board_time
+                    
+                else:
+                    board_times = rs485GetTime(self.portName,
+                                            self.antennaMapping,
+                                            maxRetry=self.maxRetry,
+                                            waitRetry=self.waitRetry)
+                    failed = []
+                    for i,board_time in enumerate(board_times):
+                        if board_time != self.board_time:
+                            failed.append([self.standsPerBoard*i+1,self.standsPerBoard*(i+1)])
+                    if self.ASPCallbackInstance is not None:
+                        if len(failed) > 0:
+                            self.ASPCallbackInstance.processUnconfiguredChassis(failed)
+                            
+                ## Also ping the boards with an ECHO command
                 self.configured, failed = rs485Check(self.portName,
                                                      self.antennaMapping,
                                                      maxRetry=self.maxRetry,
@@ -351,33 +375,6 @@ class ChassisStatus(object):
                 if self.ASPCallbackInstance is not None:
                     if not self.configured:
                         self.ASPCallbackInstance.processUnconfiguredChassis(failed)
-                        
-                ## Detailed configuration check for the first 8 stands - only if
-                ## we have access to the current requested configuration
-                if self.ASPCallbackInstance is not None:
-                    config_status = True
-                    for stand in range(1, 8+1):
-                        ### Configuration from ASP-MCS
-                        req_config = self.ASPCallbackInstance.currentState['config'][2*(stand-1):2*(stand-1)+2]
-                        ### Configuration from the board itself
-                        act_config = rs485Get(stand, self.portName, self.antennaMapping)
-                        for pol in (0, 1):
-                            for key in act_config[pol].keys():
-                                if act_config[pol][key] != req_config[pol][key]:
-                                    config_status = False
-                                    break
-                            if not config_status:
-                                break
-                                
-                    if config_status:
-                        config_failures = 0
-                    else:
-                        config_failures += 1
-                        
-                    ## If we have had more than two consecutive polling failures,
-                    ## it's a problem
-                    if config_failures > 1:
-                        self.ASPCallbackInstance.processUnconfiguredChassis([[1, 8],])
                         
                 ## Record the power consumption while we are at it
                 status, boards, fees = rs485Power(self.portName,

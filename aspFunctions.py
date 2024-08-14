@@ -44,7 +44,7 @@ subsystemErrorCodes = {0x00: 'Subsystem operating normally',
                        0x04: 'PS under voltage', 
                        0x05: 'PS over current', 
                        0x06: 'PS module fault error',
-                       0x07: 'Failed to process SPI commands',
+                       0x07: 'Failed to process RS485 commands',
                        0x08: 'Failed to process I2C commands', 
                        0x09: 'Board count mis-match',
                        0x0A: 'Temperature over TempMax',
@@ -80,7 +80,7 @@ class AnalogProcessor(object):
         self.currentState['activeProcess'] = []
         
         ## Operational state - ASP
-        self.currentState['config']  = [{} for i in range(2*self.config['max_boards']*self.config['stands_per_board'])]
+        self.currentState['config']  = [ChannelConfig() for i in range(2*self.config['max_boards']*self.config['stands_per_board'])]
         
         ## Monitoring and background threads
         self.currentState['tempThread'] = None
@@ -218,7 +218,7 @@ class AnalogProcessor(object):
                     self.currentState['lastLog'] = 'INI: finished with error'
                     self.currentState['ready'] = False
                     
-                    aspFunctionsLogger.critical("INI failed sending SPI bus commands after %i attempts", self.config['max_rs485_retry'])
+                    aspFunctionsLogger.critical("INI failed sending RS485 bus commands after %i attempts", self.config['max_rs485_retry'])
             else:
                 self.currentState['status'] = 'ERROR'
                 self.currentState['info'] = 'SUMMARY! 0x%02X %s - Found %i boards, expected %i' % (0x09, subsystemErrorCodes[0x09], boardsFound, nBoards)
@@ -306,7 +306,7 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'SHT: failed in %.3f s' % (time.time() - tStart,)
             self.currentState['ready'] = False
             
-            aspFunctionsLogger.critical("SHT failed sending SPI bus commands after %i attempts", self.config['max_rs485_retry'])
+            aspFunctionsLogger.critical("SHT failed sending RS485 bus commands after %i attempts", self.config['max_rs485_retry'])
             
         # Update the current state
         aspFunctionsLogger.info("Finished the SHT process in %.3f s", time.time() - tStart)
@@ -356,28 +356,28 @@ class AnalogProcessor(object):
         for c in config:
             if filterCode > 3:
                 # Set 3 MHz mode
-                c['narrow_lpf'] = True
-                c['sig_on'] = True
+                c.narrow_lpf = True
+                c.sig_on = True
             else:
                 # Set 10 MHz mode
-                c['narrow_lpf'] = False
-                c['sig_on'] = True
+                c.narrow_lpf = False
+                c.sig_on = True
                 
             if filterCode == 0 or filterCode == 4:
                 # Set Filter to Split Bandwidth
-                c['narrow_hpf'] = True
-                c['sig_on'] = True
+                c.narrow_hpf = True
+                c.sig_on = True
             elif filterCode == 1 or filterCode == 5:
                 # Set Filter to Full Bandwidth
-                c['narrow_hpf'] = False
-                c['sig_on'] = True
+                c.narrow_hpf = False
+                c.sig_on = True
             elif filterCode == 2:
                 # Set Filter to Reduced Bandwidth
-                c['narrow_hpf'] = True
-                c['sig_on'] = True
+                c.narrow_hpf = True
+                c.sig_on = True
             elif filterCode == 3:
                 # Set Filters OFF
-                c['sig_on'] = False
+                c.sig_on = False
         status = rs485Send(stand, config, self.config['rs485_port'],
                            self.config['antenna_mapping'],
                            maxRetry=self.config['max_rs485_retry'],
@@ -452,15 +452,15 @@ class AnalogProcessor(object):
         """
         
         # Do RS485 bus stuff
-        setting = 2*attenSetting
-        setting = int(round(setting*2))*0.5
-        key = 'first_atten'
+        setting = 2*attenSetting                # value -> dB
+        setting = int(round(setting*2))*0.5     # round to nearest 0.5 dB
+        key = 'at1'
         if mode == 2:
-            key = 'second_atten'
+            key = 'at2'
             
         config = self.__getStandConfig(stand)
         for c in config:
-            c[key] = setting
+            setattr(c, key, setting)
         status = rs485Send(stand, config, self.config['rs485_port'],
                            self.config['antenna_mapping'],
                            maxRetry=self.config['max_rs485_retry'],
@@ -531,16 +531,16 @@ class AnalogProcessor(object):
         Background process for FPW commands so that other commands can keep on running.
         """
         
-        # Do SPI bus stuff
+        # Do RS485 bus stuff
         status = True
         config = self.__getStandConfig(stand)
         for i,c in enumerate(config):
             if state == 11:
                 if i%2 == (pol-1):
-                    c['dc_on'] = True
+                    c.dc_on = True
             elif state == 0:
                 if i%2 == (pol-1):
-                    c['dc_on'] = False
+                    c.dc_on = False
         status = rs485Send(stand, config, self.config['rs485_port'],
                            self.config['antenna_mapping'],
                            maxRetry=self.config['max_rs485_retry'],
@@ -698,8 +698,8 @@ class AnalogProcessor(object):
         
         if stand > 0 and stand <= self.num_stands:
             config = self.currentState['config'][2*(stand-1)+0]
-            filt = 2*config['narrow_hpf'] + 3*config['narrow_lpf']
-            if not config['sig_on']:
+            filt = 2*config.narrow_hpf + 3*config.narrow_lpf
+            if not config.sig_on:
                 filt = 3
             return True, filt
             
@@ -717,8 +717,8 @@ class AnalogProcessor(object):
         
         if  stand > 0 and stand <= self.num_stands:
             config = self.currentState['config'][2*(stand-1)+0]
-            at1 = int(config['first_atten']/2)
-            at2 = int(config['second_atten']/2)
+            at1 = int(config.at1/2)
+            at2 = int(config.at2/2)
             ats = 0
             return True, (at1, at2, ats)
             
@@ -737,7 +737,7 @@ class AnalogProcessor(object):
         if stand > 0 and stand <= self.num_stands:
             config0 = self.currentState['config'][2*(stand-1)+0]
             config1 = self.currentState['config'][2*(stand-1)+1]
-            return True, tuple([config0['dc_on'], config1['dc_on']])
+            return True, tuple([config0.dc_on, config1.dc_on])
             
         else:
             self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
