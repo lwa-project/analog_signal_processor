@@ -10,7 +10,6 @@ import logging
 import threading
 
 from aspRS485 import *
-from aspI2C import *
 from aspThreads import *
 
 
