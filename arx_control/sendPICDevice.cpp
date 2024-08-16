@@ -23,7 +23,7 @@ Options:
 #include "aspCommon.hpp"
 
 #ifndef PIC_IS_REVH
-#define PIC_IS_REVH 1
+#define PIC_IS_REVH 0
 #endif
 
 
@@ -78,17 +78,13 @@ int main(int argc, char** argv) {
       }
     }
   }
-  if( arg_str.size() != 3 ) {
+  if( (arg_str.size() < 3) || (arg_str.size() % 2 == 0) ) {
 		std::cerr << "sendPICDevice - Need at 3 arguments, " << arg_str.size() << " provided" << std::endl;
 		std::exit(EXIT_FAILURE);
 	}
   
-  // Unpack
+  // Partially unpack
   std::string requestedSN = arg_str.front();
-  arg_str.pop_front();
-  uint32_t device_addr = std::stoi(arg_str.front());
-  arg_str.pop_front();
-  std::string command = arg_str.front();
   arg_str.pop_front();
   
   /************************************
@@ -106,88 +102,107 @@ int main(int argc, char** argv) {
 	* Send the command and get the response *
 	****************************************/
   // Process the commands
-  int size = 0;
-  char buf[80] = {'\0'};
-  if( command == std::string("WAKE") ) {
-    command = std::string("W");
-  }
-  success = atm->send_rs485(device_addr, command.c_str(), command.size(), &(buf[0]), &size);
-  if( !success ) {
-    std::cerr << "sendPICDevice - send failed " << std::endl;
-    delete atm;
-	  std::exit(EXIT_FAILURE);
-  }
-  
-  if( verbose ) {
-    std::string temp = std::string(&(buf[1]));
-    std::cout << "Received: " << size << "B with status " << (uint16_t) buf[0] << std::endl;
-    std::cout << "Response: " << std::quoted(temp) << std::endl;
+  while( arg_str.size() > 0 ) {
+    // Grab the next address/command pair
+    uint32_t device_addr = std::stoi(arg_str.front());
+    arg_str.pop_front();
+    std::string command = arg_str.front();
+    arg_str.pop_front();
     
-    if( decode ) {
-      if( command == "GTIM" ) {
-        uint32_t value = std::stoi(std::string("0x") + temp, nullptr, 16);
-        std::cout << "Board Time: " << value << " s" << std::endl;
-        
-      } else if( command == "LAST" ) {
-        std::string ctype = "normal";
-        if( temp.substr(0,1) == "b" ) {
-          ctype = "broadcast";
-        }
-        try {
-          std::cout << "Last Command: " << std::quoted(temp.substr(1,80)) << " (" << ctype << ")" << std::endl;
-        } catch(const std::out_of_range& e) {
-          std::cout << "No commands received since board startup" << std::endl;
-        }
-        
-      } else if( command == "ARXN" ) {
-        std::cout << "Serial Number:       " << temp.substr(0,4) << std::endl;
-        std::cout << "Software Version:    " << temp.substr(4,4) << std::endl;
-        std::cout << "Coax/Fiber Setup:    ";
-        int cf_map = std::stoi(std::string("0x") + temp.substr(8,4), nullptr, 16);
-        for(int i=0; i<16; i++) {
-          if( (cf_map >> i) & 1 ) {
-            std::cout << "F";
-          } else {
-            std::cout << "C";
+    int size = 0;
+    char buf[80] = {'\0'};
+    if( command == std::string("WAKE") ) {
+      command = std::string("W");
+    }
+    success = atm->send_rs485(device_addr, command.c_str(), command.size(), &(buf[0]), &size);
+    if( !success ) {
+      std::cerr << "sendPICDevice - send failed " << std::endl;
+      delete atm;
+  	  std::exit(EXIT_FAILURE);
+    }
+    
+    if( verbose ) {
+      std::string temp = std::string(&(buf[1]));
+      std::cout << "Received: " << size << "B with status " << (uint16_t) buf[0] << std::endl;
+      std::cout << "Response: " << std::quoted(temp) << std::endl;
+      
+      if( decode ) {
+        if( command == "GTIM" ) {
+          uint32_t value = std::stoi(std::string("0x") + temp, nullptr, 16);
+          std::cout << "Board Time: " << value << " s" << std::endl;
+          
+        } else if( command == "LAST" ) {
+          std::string ctype = "normal";
+          if( temp.substr(0,1) == "b" ) {
+            ctype = "broadcast";
           }
-        }
-        std::cout << std::endl;
-        int temp_map = std::stoi(std::string("0x") + temp.substr(12,2), nullptr, 16);
-        std::cout << "Temperatures mapped: " << temp_map << std::endl;
-        if( temp_map > 0 ) {
-          for(int i=0; i<temp_map; i++) {
-            int chan_map = std::stoi(std::string("0x") + temp.substr(14+i,1), nullptr, 16);
-            std::cout << i+1 << ": " << chan_map << std::endl;
+          try {
+            std::cout << "Last Command: " << std::quoted(temp.substr(1,80)) << " (" << ctype << ")" << std::endl;
+          } catch(const std::out_of_range& e) {
+            std::cout << "No commands received since board startup" << std::endl;
           }
-        }
-        
-      } else if( command == "GETA" ) {
-        for(int i=0; i<size/4; i++) {
-          uint16_t value = std::stoi(std::string("0x") + temp.substr(4*i, 4), nullptr, 16);
+          
+        } else if( command == "ARXN" ) {
+          std::cout << "Serial Number:       " << temp.substr(0,4) << std::endl;
+          std::cout << "Software Version:    " << temp.substr(4,4) << std::endl;
+          std::cout << "Coax/Fiber Setup:    ";
+          int cf_map = std::stoi(std::string("0x") + temp.substr(8,4), nullptr, 16);
+          for(int i=0; i<16; i++) {
+            if( (cf_map >> i) & 1 ) {
+              std::cout << "F";
+            } else {
+              std::cout << "C";
+            }
+          }
+          std::cout << std::endl;
+          int temp_map = std::stoi(std::string("0x") + temp.substr(12,2), nullptr, 16);
+          std::cout << "Temperatures mapped: " << temp_map << std::endl;
+          if( temp_map > 0 ) {
+            for(int i=0; i<temp_map; i++) {
+              int chan_map = std::stoi(std::string("0x") + temp.substr(14+i,1), nullptr, 16);
+              std::cout << i+1 << ": " << chan_map << std::endl;
+            }
+          }
+          
+        } else if( command == "GETA" ) {
+          for(int i=0; i<size/4; i++) {
+            uint16_t value = std::stoi(std::string("0x") + temp.substr(4*i, 4), nullptr, 16);
+            chan_config cconfig;
+            raw_to_config(value, &cconfig);
+            std::cout << i+1 << ": \t" << "HPF = " << cconfig.hpf << std::endl;
+            std::cout << "    \t" << "LPF = " << cconfig.lpf << std::endl;
+            std::cout << "    \t" << "AT1 = " << cconfig.at1 << " dB" << std::endl;
+            std::cout << "    \t" << "AT2 = " << cconfig.at2 << " dB" << std::endl;
+            std::cout << "    \t" << "FEE = " << cconfig.fee_on << std::endl;
+            std::cout << "    \t" << "SON = " << cconfig.sig_on << std::endl;
+          }
+          
+        } else if( command.substr(0,4) == "GETC" ) {
+          uint16_t value = std::stoi(std::string("0x") + temp, nullptr, 16);
           chan_config cconfig;
           raw_to_config(value, &cconfig);
-          std::cout << i+1 << ": \t" << "HPF = " << cconfig.hpf << std::endl;
-          std::cout << "    \t" << "LPF = " << cconfig.lpf << std::endl;
-          std::cout << "    \t" << "AT1 = " << cconfig.at1 << " dB" << std::endl;
-          std::cout << "    \t" << "AT2 = " << cconfig.at2 << " dB" << std::endl;
-          std::cout << "    \t" << "FEE = " << cconfig.fee_on << std::endl;
-          std::cout << "    \t" << "SON = " << cconfig.sig_on << std::endl;
-        }
+          std::cout << "HPF = " << cconfig.hpf << std::endl;
+          std::cout << "LPF = " << cconfig.lpf << std::endl;
+          std::cout << "AT1 = " << cconfig.at1 << " dB" << std::endl;
+          std::cout << "AT2 = " << cconfig.at2 << " dB" << std::endl;
+          std::cout << "FEE = " << cconfig.fee_on << std::endl;
+          std::cout << "SON = " << cconfig.sig_on << std::endl;
+          
+        } else if( command == "CURA" ) {
+          for(int i=0; i<size/4; i++) {
+            float value = std::stoi(std::string("0x") + temp.substr(4*i, 4), nullptr, 16);
+            #if defined(PIC_IS_REVH) && PIC_IS_REVH
+              value *= 0.004;
+              value *= 100;
+            #else
+              value *= 3.3 / 1024 / 2.38;
+              value *= 1000;
+            #endif
+            std::cout << i+1 << ": " << std::fixed << std::setprecision(1) << value << " mA" << std::endl;
+          }
         
-      } else if( command.substr(0,4) == "GETC" ) {
-        uint16_t value = std::stoi(std::string("0x") + temp, nullptr, 16);
-        chan_config cconfig;
-        raw_to_config(value, &cconfig);
-        std::cout << "HPF = " << cconfig.hpf << std::endl;
-        std::cout << "LPF = " << cconfig.lpf << std::endl;
-        std::cout << "AT1 = " << cconfig.at1 << " dB" << std::endl;
-        std::cout << "AT2 = " << cconfig.at2 << " dB" << std::endl;
-        std::cout << "FEE = " << cconfig.fee_on << std::endl;
-        std::cout << "SON = " << cconfig.sig_on << std::endl;
-        
-      } else if( command == "CURA" ) {
-        for(int i=0; i<size/4; i++) {
-          float value = std::stoi(std::string("0x") + temp.substr(4*i, 4), nullptr, 16);
+        } else if( (command.substr(0,4) == "CURC") ) {
+          float value = std::stoi(std::string("0x") + temp, nullptr, 16);
           #if defined(PIC_IS_REVH) && PIC_IS_REVH
             value *= 0.004;
             value *= 100;
@@ -195,47 +210,36 @@ int main(int argc, char** argv) {
             value *= 3.3 / 1024 / 2.38;
             value *= 1000;
           #endif
-          std::cout << i+1 << ": " << std::fixed << std::setprecision(1) << value << " mA" << std::endl;
-        }
-      
-      } else if( (command.substr(0,4) == "CURC") ) {
-        float value = std::stoi(std::string("0x") + temp, nullptr, 16);
-        #if defined(PIC_IS_REVH) && PIC_IS_REVH
-          value *= 0.004;
-          value *= 100;
-        #else
-          value *= 3.3 / 1024 / 2.38;
-          value *= 1000;
-        #endif
-        std::cout << std::fixed << std::setprecision(1) << value << " mA" << std::endl;
-        
-      } else if( command == "POWA" ) {
-        for(int i=0; i<size/4; i++) {
-          float value = std::stoi(std::string("0x") + temp.substr(4*i, 4), nullptr, 16);
+          std::cout << std::fixed << std::setprecision(1) << value << " mA" << std::endl;
+          
+        } else if( command == "POWA" ) {
+          for(int i=0; i<size/4; i++) {
+            float value = std::stoi(std::string("0x") + temp.substr(4*i, 4), nullptr, 16);
+            value *= 0.004;
+            value = value/2.296*value/2.296/50*1000*1000;
+            std::cout << i+1 << ": " << std::fixed << std::setprecision(1) << value << " uW" << std::endl;
+          }
+          
+        } else if( command.substr(0,4) == "POWC" ) {
+          float value = std::stoi(std::string("0x") + temp, nullptr, 16);
           value *= 0.004;
           value = value/2.296*value/2.296/50*1000*1000;
-          std::cout << i+1 << ": " << std::fixed << std::setprecision(1) << value << " uW" << std::endl;
-        }
-        
-      } else if( command.substr(0,4) == "POWC" ) {
-        float value = std::stoi(std::string("0x") + temp, nullptr, 16);
-        value *= 0.004;
-        value = value/2.296*value/2.296/50*1000*1000;
-        std::cout << std::fixed << std::setprecision(1) << value << " uW" << std::endl;
-        
-      } else if( command == "TEMP" ) {
-        float value = std::stoi(std::string("0x") + temp, nullptr, 16);
-        value *= 0.1;
-        std::cout << "PIC Temperature: " << std::fixed << std::setprecision(1) << value << " C" << std::endl;
-        
-      } else if( command == "OWDC" ) {
-        std::cout << "Number of Temp. Sensors: " << std::stoi(std::string("0x") + temp, nullptr, 16) << std::endl;
-        
-      } else if( command == "OWTE" ) {
-        for(int i=0; i<size/4; i++) {
-          float value = std::stoi(std::string("0x") + temp.substr(4*i, 4), nullptr, 16);
-          value *= 0.0625;
-          std::cout << i+1 << ": " << std::fixed << std::setprecision(1) << value << " C" << std::endl;
+          std::cout << std::fixed << std::setprecision(1) << value << " uW" << std::endl;
+          
+        } else if( command == "TEMP" ) {
+          float value = std::stoi(std::string("0x") + temp, nullptr, 16);
+          value *= 0.1;
+          std::cout << "PIC Temperature: " << std::fixed << std::setprecision(1) << value << " C" << std::endl;
+          
+        } else if( command == "OWDC" ) {
+          std::cout << "Number of Temp. Sensors: " << std::stoi(std::string("0x") + temp, nullptr, 16) << std::endl;
+          
+        } else if( command == "OWTE" ) {
+          for(int i=0; i<size/4; i++) {
+            float value = std::stoi(std::string("0x") + temp.substr(4*i, 4), nullptr, 16);
+            value *= 0.0625;
+            std::cout << i+1 << ": " << std::fixed << std::setprecision(1) << value << " C" << std::endl;
+          }
         }
       }
     }
