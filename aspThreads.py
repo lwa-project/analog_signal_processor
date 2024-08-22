@@ -353,6 +353,7 @@ class ChassisStatus(object):
                                                      maxRetry=self.maxRetry,
                                                      waitRetry=self.waitRetry)
                     self.board_time = board_time
+                    aspThreadsLogger.info("Setting board reference time to %s", self.board_time)
                     
                 else:
                     board_times = rs485GetTime(self.portName,
