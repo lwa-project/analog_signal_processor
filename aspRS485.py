@@ -345,7 +345,7 @@ def rs485Send(stand, config, portName, antennaMapping, maxRetry=0, waitRetry=0.2
             for attempt in range(maxRetry+1):
                 try:
                     _send_command(portName, board, "SETC%X" % chan0, config[0].raw)
-                    _send_command(portName, board, "SETC%X" % chan1, config[1].raw) _config_to_raw(config[1]))
+                    _send_command(portName, board, "SETC%X" % chan1, config[1].raw)
                     board_success = True
                     break
                 except Exception as e:
