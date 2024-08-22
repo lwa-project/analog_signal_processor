@@ -88,19 +88,22 @@ def _send_command(portName, addr, cmd, data=None, timeout=1.0):
     with serial.Serial(port=portName, baudrate=19200, parity=serial.PARITY_NONE,
                          stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS,
                          timeout=timeout, writeTimeout=0) as port:
-        port.write(bytes(addr) + cmd + data + b'\r')
-        resp = port.read_until(b'\r', 80)
+        port.flush()
+        port.write(bytes([addr]) + cmd + data + b'\r')
         if cmd in (b'RSET', b'SLEP', b'W'):
             return b''
             
         else:
-            if len(resp) > 0:
-                status = resp[0] == bytes(0x06)
-                resp = resp[1:]
+            status = False
+            resp = port.read_until(b'\r', 80)
+            
+            if len(resp) > 1:
+                status = (resp[0] == 6))
+                resp = resp[1:-1]
                 if not status:
-                    errcode = {b'\x01': 'command code was not recognized ',
-                               b'\x02': 'command was too long',
-                               b'\x03': 'command failed'}[resp[1]]
+                    errcode = {1: 'command code was not recognized ',
+                               2: 'command was too long',
+                               3: 'command failed'}[resp[0]]
                     
             else:
                 errcode = 'timeout'
@@ -167,7 +170,7 @@ def rs485Reset(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
 
     # Check for completion of reset
     time.sleep(10) # Wait a little bit
-    reset_check, failed = rs485Check(antennaMapping, verbose=False)
+    reset_check, failed = rs485Check(portName, antennaMapping, verbose=False)
     success &= reset_check
 
     return success
@@ -191,7 +194,7 @@ def rs485Check(portName, antennaMapping, maxRetry=0, waitRetry=0.2, verbose=Fals
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    echo_data = _send_command(portName, 'ECHO', data=data)
+                    echo_data = _send_command(portName, board, 'ECHO', data=data)
                     board_success = True
                     break
                 except Exception as e:
@@ -205,7 +208,7 @@ def rs485Check(portName, antennaMapping, maxRetry=0, waitRetry=0.2, verbose=Fals
     return success, failed
 
 
-def rs485SetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485SetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2, verbose=False):
     """
     Get the board time on all Rev H ARX boards connected to the RS485 bus.
     Returns a three-element tuple of:
@@ -214,7 +217,7 @@ def rs485SetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
      * the time set
     """
     
-    data = "08X" % int(time.time())
+    data = "%08X" % int(time.time())
     success = True
     failed = []
     with RS485_LOCK:
@@ -223,7 +226,7 @@ def rs485SetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    _send_command(portName, 'STIM', data=data)
+                    _send_command(portName, board, 'STIM', data=data)
                     board_success = True
                     break
                 except Exception as e:
@@ -237,7 +240,7 @@ def rs485SetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
     return success, failed, int(data, 16)
 
 
-def rs485GetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485GetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2, verbose=False):
     """
     Poll all of the Rev H ARX boards on the RS485 bus and return a list of
     board times.  Any board that failed to respond will have its time reported
@@ -251,7 +254,7 @@ def rs485GetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    gtim_data = _send_command(portName, 'GTIM')
+                    gtim_data = _send_command(portName, board, 'GTIM')
                     data.append(int(gtim_data, 16))
                     board_success = True
                     break
@@ -321,9 +324,9 @@ def rs485Send(stand, config, portName, antennaMapping, maxRetry=0, waitRetry=0.2
                     try:
                         config_start = 2*(antennaMapping[board_key][0]-1)
                         config_end = 2*(antennaMapping[board_key][1])
-                        subconfig = config[config_start:config_end]
+                        sub_config = config[config_start:config_end]
                         
-                        raw_config = b''
+                        raw_config = ''
                         for sc in sub_config:
                             raw_config += sc.raw
                         _send_command(portName, board, 'SETA', data=raw_config)
@@ -375,11 +378,11 @@ def rs485Power(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
             for attempt in range(maxRetry+1):
                 try:
                     raw_board = _send_command(portName, board, 'CURB')
-                    raw_board = (ord(raw_board[0]) << 8) | ord(raw_board[1])
-                    boards.append(int(raw_board, 16) * 0.008)
+                    raw_board = int(raw_board, 16)
+                    boards.append(raw_board * 0.008)
                     raw_fees = _send_command(portName, board, 'CURA')
                     for i in range(16):
-                        fees.append(int(raw_fees[4*i:4*(i+1)], 16) * 0.004 * 100)
+                        fees.append(int(raw_fees[4*i:4*(i+1)], 16) * 0.004)
                     board_success = True
                     break
                 except Exception as e:
