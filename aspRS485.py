@@ -98,7 +98,7 @@ def _send_command(portName, addr, cmd, data=None, timeout=1.0):
             resp = port.read_until(b'\r', 80)
             
             if len(resp) > 1:
-                status = (resp[0] == 6))
+                status = (resp[0] == 6)
                 resp = resp[1:-1]
                 if not status:
                     errcode = {1: 'command code was not recognized ',
