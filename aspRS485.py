@@ -382,7 +382,7 @@ def rs485Power(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
                     boards.append(raw_board * 0.008)
                     raw_fees = _send_command(portName, board, 'CURA')
                     for i in range(16):
-                        fees.append(int(raw_fees[4*i:4*(i+1)], 16) * 0.004)
+                        fees.append(int(raw_fees[4*i:4*(i+1)], 16) * 0.004 * 0.1)
                     board_success = True
                     break
                 except Exception as e:
