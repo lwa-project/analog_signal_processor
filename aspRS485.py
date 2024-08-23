@@ -238,11 +238,15 @@ def rs485SetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2, verbose=Fa
 
 def rs485GetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2, verbose=False):
     """
-    Poll all of the Rev H ARX boards on the RS485 bus and return a list of
-    board times.  Any board that failed to respond will have its time reported
-    as zero.
+    Poll all of the Rev H ARX boards on the RS485 bus and return a two-element
+    tuple of:
+     * True if all boards were pinged, false otherwise
+     * a list of board times.
+     
+    Any board that failed to respond will have its time reported as zero.
     """
     
+    success = True
     data = []
     for board_key in antennaMapping.keys():
         board = int(board_key)
@@ -257,10 +261,11 @@ def rs485GetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2, verbose=Fa
                 if verbose:
                     aspRS485Logger.warning("Could not get time from board %s: %s", board_key, str(e))
                 time.sleep(waitRetry)
+        success &= board_success
         if not board_success:
             data.append(0)
             
-    return data
+    return success, data
 
 
 def rs485Get(stand, portName, antennaMapping, maxRetry=0, waitRetry=0.2):
