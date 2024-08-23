@@ -350,15 +350,15 @@ class ChassisStatus(object):
                 ## Check the board time for each board.  If it gets reset then
                 ## we probably have a problem
                 if self.board_time is not None:
-                board_times = rs485GetTime(self.portName,
-                                        self.antennaMapping,
-                                        maxRetry=self.maxRetry,
-                                        waitRetry=self.waitRetry)
+                self.configured, board_times = rs485GetTime(self.portName,
+                                                            self.antennaMapping,
+                                                            maxRetry=self.maxRetry,
+                                                            waitRetry=self.waitRetry)
                 failed = []
                 for i,board_time in enumerate(board_times):
                     if board_time != self.board_time:
+                        self.configured &= False
                         failed.append([self.standsPerBoard*i+1,self.standsPerBoard*(i+1)])
-                self.configured = (len(failed) == 0)
                 if self.ASPCallbackInstance is not None:
                     if len(failed) > 0:
                         self.ASPCallbackInstance.processUnconfiguredChassis(failed)
