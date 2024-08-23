@@ -358,17 +358,9 @@ class ChassisStatus(object):
                 for i,board_time in enumerate(board_times):
                     if board_time != self.board_time:
                         failed.append([self.standsPerBoard*i+1,self.standsPerBoard*(i+1)])
+                self.configured = (len(failed) == 0)
                 if self.ASPCallbackInstance is not None:
                     if len(failed) > 0:
-                        self.ASPCallbackInstance.processUnconfiguredChassis(failed)
-                        
-                ## Also ping the boards with an ECHO command
-                self.configured, failed = rs485Check(self.portName,
-                                                     self.antennaMapping,
-                                                     maxRetry=self.maxRetry,
-                                                     waitRetry=self.waitRetry)
-                if self.ASPCallbackInstance is not None:
-                    if not self.configured:
                         self.ASPCallbackInstance.processUnconfiguredChassis(failed)
                         
                 ## Record the power consumption while we are at it
