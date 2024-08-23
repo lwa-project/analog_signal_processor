@@ -200,10 +200,21 @@ class AnalogProcessor(object):
                                                        maxRetry=self.config['max_rs485_retry'],
                                                        waitRetry=self.config['wait_rs485_retry'])
                 
+                # Set the board reference time
+                st_status, _, board_time = rs485SetTime(self.config['rs485_port'],
+                                                        self.config['antenna_mapping'],
+                                                        maxRetry=self.config['max_rs485_retry'],
+                                                        waitRetry=self.config['wait_rs485_retry'])
+                if st_status:
+                    aspFunctionsLogger.info("Set board initialization time to %s", board_time)
+                else:
+                    aspFunctionsLogger.error("Failed to set board time")
+                status &= st_status
+                
                 # Start the background threads
                 self.currentState['tempThread'].start()
                 for t in self.currentState['chassisThreads']:
-                    t.start()
+                    t.start(board_time)
                     
                 if status:
                     self.currentState['status'] = 'NORMAL'

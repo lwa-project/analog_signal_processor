@@ -281,6 +281,7 @@ class ChassisStatus(object):
     
     def __init__(self, config, ASPCallbackInstance=None):
         self.updateConfig(config)
+        self.board_time = None
         self.configured = False
         self.board_currents = []
         self.fee_currents = []
@@ -307,14 +308,16 @@ class ChassisStatus(object):
         self.waitRetry = config['wait_rs485_retry']
         self.monitorPeriod = config['chassis_period']
         
-    def start(self):
+    def start(self, board_time):
         """
-        Start the monitoring thread.
+        Set the board initalization time and start the monitoring thread.
         """
         
         if self.thread is not None:
             self.stop()
             
+        self.board_time = board_time
+        
         self.thread = threading.Thread(target=self.monitorThread)
         self.thread.setDaemon(1)
         self.alive.set()
@@ -331,6 +334,7 @@ class ChassisStatus(object):
             self.alive.clear()          #clear alive event for thread
             self.thread.join()          #wait until thread has finished
             self.thread = None
+            self.board_time = None
             self.configured = False
             self.lastError = None
             
@@ -339,35 +343,25 @@ class ChassisStatus(object):
         Create a monitoring thread for the chassis status.
         """
         
-        self.board_time = None
-        
         while self.alive.isSet():
             tStart = time.time()
             
             try:
                 ## Check the board time for each board.  If it gets reset then
                 ## we probably have a problem
-                if self.board_time is None:
-                    _, _, board_time = rs485SetTime(self.portName,
-                                                     self.antennaMapping,
-                                                     maxRetry=self.maxRetry,
-                                                     waitRetry=self.waitRetry)
-                    self.board_time = board_time
-                    aspThreadsLogger.info("Setting board reference time to %s", self.board_time)
-                    
-                else:
-                    board_times = rs485GetTime(self.portName,
-                                            self.antennaMapping,
-                                            maxRetry=self.maxRetry,
-                                            waitRetry=self.waitRetry)
-                    failed = []
-                    for i,board_time in enumerate(board_times):
-                        if board_time != self.board_time:
-                            failed.append([self.standsPerBoard*i+1,self.standsPerBoard*(i+1)])
-                    if self.ASPCallbackInstance is not None:
-                        if len(failed) > 0:
-                            self.ASPCallbackInstance.processUnconfiguredChassis(failed)
-                            
+                if self.board_time is not None:
+                board_times = rs485GetTime(self.portName,
+                                        self.antennaMapping,
+                                        maxRetry=self.maxRetry,
+                                        waitRetry=self.waitRetry)
+                failed = []
+                for i,board_time in enumerate(board_times):
+                    if board_time != self.board_time:
+                        failed.append([self.standsPerBoard*i+1,self.standsPerBoard*(i+1)])
+                if self.ASPCallbackInstance is not None:
+                    if len(failed) > 0:
+                        self.ASPCallbackInstance.processUnconfiguredChassis(failed)
+                        
                 ## Also ping the boards with an ECHO command
                 self.configured, failed = rs485Check(self.portName,
                                                      self.antennaMapping,
