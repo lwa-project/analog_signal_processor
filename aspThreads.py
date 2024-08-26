@@ -349,7 +349,6 @@ class ChassisStatus(object):
             try:
                 ## Check the board time for each board.  If it gets reset then
                 ## we probably have a problem
-                if self.board_time is not None:
                 self.configured, board_times = rs485GetTime(self.portName,
                                                             self.antennaMapping,
                                                             maxRetry=self.maxRetry,
