@@ -11,16 +11,16 @@ import subprocess
 import contextlib
 
 
-__version__ = '0.5'
-__all__ = ['ChannelConfig', 'rs485CountBoards', 'rs485Reset', 'rs485Check',
-           'rs485SetTime', 'rs485GetTime', 'rs485Get', 'rs485Send',
-           'rs485Power', 'rs485RFPower', 'rs485Temperature']
+__version__ = '0.6'
+__all__ = ['ChannelConfig', 'rs485CountBoards', 'rs485Reset', 'rs485Sleep',
+           'rs485Wake', 'rs485Check', 'rs485SetTime', 'rs485GetTime', 'rs485Get',
+           'rs485Send', 'rs485Power', 'rs485RFPower', 'rs485Temperature']
 
 
 aspRS485Logger = logging.getLogger('__main__')
 
 
-RS485_LOCK = threading.Semaphore(1)
+RS485_LOCK = threading.Lock()
 
 
 class ChannelConfig():
@@ -36,6 +36,26 @@ class ChannelConfig():
         self.at2 = round(at2*2)/2
         self.dc_on = dc_on
         self.sig_on = sig_on
+        
+    @property
+    def at1(self):
+        return self._at1
+        
+    @at1.setter
+    def at1(self, value):
+        if value < 0 or value > 31.5:
+            raise ValueError("Valid attenuator values are 0 to 31.5 dB")
+        self._at1 = round(value*2)/2
+        
+    @property
+    def at2(self):
+        return self._at2
+        
+    @at2.setter
+    def at2(self, value):
+        if value < 0 or value > 31.5:
+            raise ValueError("Valid attenuator values are 0 to 31.5 dB")
+        self._at2 = round(value*2)/2
         
     @classmethod
     def from_raw(kls, raw):
@@ -170,6 +190,58 @@ def rs485Reset(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
     time.sleep(10) # Wait a little bit
     reset_check, failed = rs485Check(portName, antennaMapping, verbose=False)
     success &= reset_check
+    
+    return success
+
+
+def rs485Sleep(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
+    """
+    Set a sleep command to all of the Rev H ARX boards connected to the RS485
+    bus.  Returns True if all of the boards have been put to bed, False
+    otherwise.
+    """
+    
+    success = True
+    for board_key in antennaMapping.keys():
+        board = int(board_key)
+        board_success = False
+        for attempt in range(maxRetry+1):
+            try:
+                _send_command(portName, board, 'SLEP')
+                board_success = True
+                break
+            except Exception as e:
+                aspRS485Logger.warning("Could not sleep board %s: %s", board_key, str(e))
+                time.sleep(waitRetry)
+        success &= board_success
+        
+    return success
+
+
+def rs485Wake(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
+    """
+    Set a wake command to all of the Rev H ARX boards connected to the RS485
+    bus.  Returns True if all of the boards have woken up, False otherwise.
+    """
+    
+    success = True
+    for board_key in antennaMapping.keys():
+        board = int(board_key)
+        board_success = False
+        for attempt in range(maxRetry+1):
+            try:
+                _send_command(portName, board, 'WAKE')
+                board_success = True
+                break
+            except Exception as e:
+                aspRS485Logger.warning("Could not wake board %s: %s", board_key, str(e))
+                time.sleep(waitRetry)
+        success &= board_success
+        
+    # Check for completion of wake
+    time.sleep(10) # Wait a little bit
+    wake_check, failed = rs485Check(portName, antennaMapping, verbose=False)
+    success &= wake_check
     
     return success
 
