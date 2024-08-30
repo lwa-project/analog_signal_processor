@@ -1,7 +1,6 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <FlashStorage_SAMD.h>
-#include <SoftwareSerial.h>
 
 // Chip select pin for SPI operations
 #define SPI_SS_PIN D3
@@ -29,8 +28,6 @@
 
 // Locate LED pin
 #define LOCATE_PIN D1
-
-SoftwareSerial SoftSerial1(D7, D6);
 
 // Command input buffer
 long int last_char = -1;
@@ -178,20 +175,20 @@ void scan_rs485(uint16_t nargs, uint8_t* argv) {
     invalid_arguments(nargs, argv);
   } else {
     for(addr=1; addr<127; addr++) {
-      SoftSerial1.flush();
+      Serial1.flush();
       
       digitalWrite(RS485_EN, HIGH);
       delayMicroseconds(250);
-      SoftSerial1.write((uint8_t) (0x80 + addr) & 0xFF);
-      SoftSerial1.write((uint8_t*) &(cmd[0]), 7);
-      SoftSerial1.write('\r');
-      SoftSerial1.flush();
+      Serial1.write((uint8_t) (0x80 + addr) & 0xFF);
+      Serial1.write((uint8_t*) &(cmd[0]), 7);
+      Serial1.write('\r');
+      Serial1.flush();
       
       digitalWrite(RS485_EN, LOW);
 
       unsigned long t_start = millis();
       while( (millis() - t_start) < 10 ) {
-        if( SoftSerial1.available() > 4 ) {
+        if( Serial1.available() > 4 ) {
           found_addr[ndevice++] = addr;
           break;
         }
@@ -215,8 +212,8 @@ void read_rs485(uint16_t nargs, uint8_t* argv) {
   } else {
     unsigned long t_start = millis();
     while( ((millis() - t_start) < RS485_TIMEOUT_MS) && (i < 80) ) {
-      if( SoftSerial1.available() > 0 ) {
-        response[i] = SoftSerial1.read();
+      if( Serial1.available() > 0 ) {
+        response[i] = Serial1.read();
         if( response[i++] == '\r' ) {
           i--;
           break;
@@ -247,14 +244,14 @@ void write_rs485(uint16_t nargs, uint8_t* argv) {
   if( nargs < 2 ) {
     invalid_arguments(nargs, argv);
   } else {
-    SoftSerial1.flush();
+    Serial1.flush();
     
     digitalWrite(RS485_EN, HIGH);
     delayMicroseconds(250);
-    SoftSerial1.write((uint8_t) (0x80 + addr) & 0xFF);
-    SoftSerial1.write((uint8_t*) &(argv[1]), size);
-    SoftSerial1.write('\r');
-    SoftSerial1.flush();
+    Serial1.write((uint8_t) (0x80 + addr) & 0xFF);
+    Serial1.write((uint8_t*) &(argv[1]), size);
+    Serial1.write('\r');
+    Serial1.flush();
     
     digitalWrite(RS485_EN, LOW);
 
@@ -273,21 +270,22 @@ void send_rs485(uint16_t nargs, uint8_t* argv) {
   if( nargs < 2 ) {
     invalid_arguments(nargs, argv);
   } else {
-    SoftSerial1.flush();
+    Serial1.flush();
 
     digitalWrite(RS485_EN, HIGH);
     delayMicroseconds(250);
-    SoftSerial1.write((uint8_t) (0x80 + addr) & 0xFF);
-    SoftSerial1.write((uint8_t*) &(argv[1]), size);
-    SoftSerial1.write('\r');
-    SoftSerial1.flush();
+    Serial1.write((uint8_t) (0x80 + addr) & 0xFF);
+    Serial1.write((uint8_t*) &(argv[1]), size);
+    Serial1.write('\r');
+    Serial1.flush();
     
+    delayMicroseconds(250);
     digitalWrite(RS485_EN, LOW);
     
     unsigned long t_start = millis();
     while( ((millis() - t_start) < RS485_TIMEOUT_MS) && (i < 80) ) {
-      if( SoftSerial1.available() > 0 ) {
-        response[i] = SoftSerial1.read();
+      if( Serial1.available() > 0 ) {
+        response[i] = Serial1.read();
         if( response[i++] == '\r' ) {
           i--;
           break;
@@ -490,8 +488,7 @@ void setup() {
   Serial.begin(115200);
   
   // RS485 setup
-  SoftSerial1.begin(19200);
-  SoftSerial1.setTimeout(RS485_TIMEOUT_MS);
+  Serial1.begin(19200);
   pinMode(RS485_EN, OUTPUT);
   digitalWrite(RS485_EN, LOW);
   
