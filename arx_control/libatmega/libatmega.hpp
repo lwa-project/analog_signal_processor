@@ -24,6 +24,12 @@
 
 #endif
 
+#ifndef ATMEGA_DEBUG
+
+#define ATMEGA_DEBUG 0
+
+#endif
+
 #define ATMEGA_MAX_BUFFER_SIZE 530
 
 namespace atmega {

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <sys/select.h>
 
 std::list<std::string> atmega::find_devices() {
   std::list<std::string> devices;
@@ -212,7 +213,10 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
   ::memset(response, 0, sizeof(buffer));
   response->command = atmega::COMMAND_FAILURE;
   
-  ssize_t nsend = 0, nrecv = 0;
+  // Empty the buffer
+  ::tcdrain(fd);
+  
+  ssize_t nsend = 0, nrecv = 0, nbatch = 0, nleft=0;
   const char *start = "<<<";
   const char *stop = ">>>";
   char *temp;
@@ -226,8 +230,11 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
     nsend = ::write(fd, start, 3);
     nsend += ::write(fd, command, 3+command->size);
     nsend += ::write(fd, stop, 3);
+    #if defined(ATMEGA_DEBUG) && ATMEGA_DEBUG
+    std::cout << "sent: " << command->buffer << std::endl;
+    #endif
     
-    // Wait
+    // Set the timeout based on the command type
     int cmd_wait_ms = 5;
     if( (   (command->command == atmega::COMMAND_READ_I2C)
          || (command->command == atmega::COMMAND_WRITE_I2C)) ) {
@@ -246,10 +253,70 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
       // RS485 scan has a 2 *s* timeout
       cmd_wait_ms = 2000;
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(cmd_wait_ms));
+    
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
     
     // Receive the reply
-    nrecv = ::read(fd, (uint8_t*) temp, 6+sizeof(buffer));
+    nrecv = 0;
+    nleft = 6 + sizeof(buffer);
+    fd_set read_fds;
+    struct timeval batch_timeout;
+    batch_timeout.tv_sec = 0;
+    batch_timeout.tv_usec = 1000;
+    
+    FD_ZERO(&read_fds);
+    FD_SET(fd, &read_fds);
+    
+    int timeout_count = 0;
+    double elapsed_time = 0.0;
+    auto start_time = std::chrono::steady_clock::now();
+    while( (nleft > 0) && (timeout_count < 5) && (elapsed_time <= cmd_wait_ms) ) {
+      int ret = ::select(fd + 1, &read_fds, nullptr, nullptr, &batch_timeout);
+      #if defined(ATMEGA_DEBUG) && ATMEGA_DEBUG
+      std::cout << "poll with " << ret << " after " << nleft << "; " << timeout_count << "; " << elapsed_time << std::endl;
+      #endif
+      if( ret == -1 ) {
+        // Something when wrong, giving up.
+        break;
+      } else if( ret == 0 ) {
+        if( nrecv > 0 ) {
+          // We've received some data but now we are timing out.  Increment the
+          // timeout counter so we know when to give up.
+          timeout_count++;
+        }
+        
+        // Update the elapsed time
+        auto current_time = std::chrono::steady_clock::now();
+        elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time).count();
+        
+        // Try again...
+        continue;
+      }
+      
+      if( FD_ISSET(fd, &read_fds) ) {
+        nbatch = ::read(fd, (uint8_t*) (temp+nrecv), nleft);
+        #if defined(ATMEGA_DEBUG) && ATMEGA_DEBUG
+        std::cout << "nrecv: " << nrecv << " and nbatch: " << nbatch << std::endl;
+        #endif
+        if( nbatch > 0 ) {
+          // We've received something.  Update the data counters and reset the
+          // timeout counter.
+          nrecv += nbatch;
+          nleft -= nbatch;
+          timeout_count = 0;
+          
+          // Update the elapsed time
+          auto current_time = std::chrono::steady_clock::now();
+          elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time).count();
+        }
+      }
+    }
+    #if defined(ATMEGA_DEBUG) && ATMEGA_DEBUG
+    std::cout << "nrecv: " << nrecv << std::endl;
+    #endif
+    
+    FD_CLR(fd, &read_fds);
+    
     if( nsend >= 9 && nrecv >= 9 ) {
       if( (strncmp(temp, start, 3) == 0) && (strncmp(temp+nrecv-3, stop, 3) == 0) ) {
         ::memcpy((uint8_t*) response, temp+3, nrecv-6);
