@@ -231,7 +231,7 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
     nsend += ::write(fd, command, 3+command->size);
     nsend += ::write(fd, stop, 3);
     #if defined(ATMEGA_DEBUG) && ATMEGA_DEBUG
-    std::cout << "sent: " << command->buffer << std::endl;
+      std::cout << "sent: " << command->buffer << std::endl;
     #endif
     
     // Set the timeout based on the command type
@@ -273,7 +273,7 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
     while( (nleft > 0) && (timeout_count < 5) && (elapsed_time <= cmd_wait_ms) ) {
       int ret = ::select(fd + 1, &read_fds, nullptr, nullptr, &batch_timeout);
       #if defined(ATMEGA_DEBUG) && ATMEGA_DEBUG
-      std::cout << "poll with " << ret << " after " << nleft << "; " << timeout_count << "; " << elapsed_time << std::endl;
+        std::cout << "poll with " << ret << " after " << nleft << "; " << timeout_count << "; " << elapsed_time << std::endl;
       #endif
       if( ret == -1 ) {
         // Something when wrong, giving up.
@@ -296,7 +296,7 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
       if( FD_ISSET(fd, &read_fds) ) {
         nbatch = ::read(fd, (uint8_t*) (temp+nrecv), nleft);
         #if defined(ATMEGA_DEBUG) && ATMEGA_DEBUG
-        std::cout << "nrecv: " << nrecv << " and nbatch: " << nbatch << std::endl;
+          std::cout << "nrecv: " << nrecv << " and nbatch: " << nbatch << std::endl;
         #endif
         if( nbatch > 0 ) {
           // We've received something.  Update the data counters and reset the
@@ -312,7 +312,7 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
       }
     }
     #if defined(ATMEGA_DEBUG) && ATMEGA_DEBUG
-    std::cout << "nrecv: " << nrecv << std::endl;
+      std::cout << "nrecv: " << nrecv << std::endl;
     #endif
     
     FD_CLR(fd, &read_fds);
