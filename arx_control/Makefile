@@ -6,7 +6,7 @@ all: LIBATMEGA sendARXDevice sendPICDevice \
      readPSU readThermometers \
      onoffPSU configPSU \
      readARXDevice setATmegaSN listATmegaSN locateATmega \
-		 atmegaConfig
+     atmegaConfig
 
 #------------------------------------------------------------------------------
 # Config
@@ -39,8 +39,10 @@ CXXFLAGS += -Ilibatmega
 LDFLAGS += -lm
 ifeq ($(OS),Linux)
   LDFLAGS += -ludev
+  LIBEXT = so
 else ifeq ($(OS),Darwin)
   LDFLAGS += -framework IOKit -framework CoreFoundation
+  LIBEXT = dylib
 endif
 
 #------------------------------------------------------------------------------
@@ -57,6 +59,7 @@ endif
 .PHONY: LIBATMEGA
 LIBATMEGA: 
 	make -C libatmega
+	cp -fp libatmega/*.$(LIBEXT) .
 
 sendARXDevice: sendARXDevice.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
@@ -119,5 +122,8 @@ install:
 
 clean:
 	rm -f *.o *.out *.err *.exe *.a *.so *.dylib
-	rm -f sendARXDevice sendPICDevice countBoards countPSUs countThermometers countPICs readPSU readThermometers onoffPSU configPSU readARXDevice setATmegaSN listATmegaSN locateATmega
+	rm -f sendARXDevice sendPICDevice \
+	countBoards countPSUs countThermometers countPICs \
+	readPSU readThermometers onoffPSU configPSU readARXDevice \
+	setATmegaSN listATmegaSN locateATmega
 	make -C libatmega clean
