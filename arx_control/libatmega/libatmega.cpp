@@ -120,7 +120,8 @@ std::list<std::string> atmega::find_devices() {
     }
     
     if( match == 3 ) {
-      devices.push_back(std::string(udev_device_get_devnode(udevice)));
+      const char *node_path = udev_device_get_devnode(udevice);
+      devices.push_back(std::string(node_path));
     }
     
     udev_device_unref(udevice);
