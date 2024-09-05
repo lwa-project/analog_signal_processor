@@ -15,6 +15,7 @@ defaults.cfg
 # Executables
 configPSU
 countBoards
+countPICs
 countPSUs
 countThermometers
 onoffPSU
@@ -22,5 +23,8 @@ readARXDevice
 readPSU
 readThermometers
 sendARXDevice
+sendPICDevice
 writeARXLCD
 setATmegaSN
+listATmegaSN
+locateATmega
