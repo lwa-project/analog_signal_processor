@@ -415,22 +415,69 @@ class AnalogProcessor(object):
         # Do SPI bus stuff
         cb = SPICommandCallback(self.currentState['filter'].__setitem__, stand, filterCode)
         if stand == 121:
-            if filterCode < 4:
+            if filterCode == 0:
+                # HPF30 + LPF83 - like split
                 self.currentState['spiThread'].queue_command(stand, SPI_P14_on)
                 self.currentState['spiThread'].queue_command(stand, SPI_P15_off)
-            else:
-                self.currentState['spiThread'].queue_command(stand, SPI_P14_off)
-                self.currentState['spiThread'].queue_command(stand, SPI_P15_on)    
-                filterCode -= 4
                 
-            if filterCode & 1:
-                self.currentState['spiThread'].queue_command(stand, SPI_P19_on, cb)
-            else:
-                self.currentState['spiThread'].queue_command(stand, SPI_P19_off, cb)
-            if filterCode & 2:
+                self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
                 self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
-            else:
+                
+            elif filterCode == 1:
+                # HPF10 + LPF83 - like full
+                self.currentState['spiThread'].queue_command(stand, SPI_P14_on)
+                self.currentState['spiThread'].queue_command(stand, SPI_P15_off)
+                
+                self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
                 self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
+                
+            elif filterCode == 2:
+                # HPF30 + LPF73 - like reduced
+                self.currentState['spiThread'].queue_command(stand, SPI_P14_off)
+                self.currentState['spiThread'].queue_command(stand, SPI_P15_on)
+                
+                self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
+                self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
+                
+            elif filterCode == 3:
+                # HPF3 + LPF73 - was off but now like full but with the band shifted down
+                self.currentState['spiThread'].queue_command(stand, SPI_P14_off)
+                self.currentState['spiThread'].queue_command(stand, SPI_P15_on)
+                
+                self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
+                self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
+                
+            elif filterCode == 4:
+                # HPF20 + LPF83 - like split @ 3MHz
+                self.currentState['spiThread'].queue_command(stand, SPI_P14_on)
+                self.currentState['spiThread'].queue_command(stand, SPI_P15_off)
+                
+                self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
+                self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
+                
+            elif filterCode == 5:
+                # HPF3 + LPF83 - like full @ 3MHz
+                self.currentState['spiThread'].queue_command(stand, SPI_P14_on)
+                self.currentState['spiThread'].queue_command(stand, SPI_P15_off)
+                
+                self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
+                self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
+                
+            elif filterCode == 6:
+                # HPF10 + LPF73 - new - like full but with better FM rejection
+                self.currentState['spiThread'].queue_command(stand, SPI_P14_off)
+                self.currentState['spiThread'].queue_command(stand, SPI_P15_on)
+                
+                self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
+                self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
+                
+            else:
+                # HPF20 + LPF73 - new - like split @ 3MHz but with better FM rejection
+                self.currentState['spiThread'].queue_command(stand, SPI_P14_off)
+                self.currentState['spiThread'].queue_command(stand, SPI_P15_on)
+                
+                self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
+                self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
                 
         else:
             if filterCode > 3:
