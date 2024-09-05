@@ -27,6 +27,7 @@ Options:
 #include <iostream>
 #include <string>
 #include <cstring>
+#include <cstdint>
 #include <cmath>
 #include <chrono>
 #include <thread>

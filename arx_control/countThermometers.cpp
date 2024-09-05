@@ -16,6 +16,7 @@ Options:
 #include <iostream>
 #include <string>
 #include <cstring>
+#include <cstdint>
 
 #include "libatmega.hpp"
 #include "aspCommon.hpp"

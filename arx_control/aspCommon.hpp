@@ -12,6 +12,7 @@
 #include <list>
 #include <thread>
 #include <cstring>
+#include <cstdint>
 #include <stdexcept>
 
 #include "libatmega.hpp"
