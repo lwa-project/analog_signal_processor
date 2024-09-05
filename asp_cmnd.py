@@ -150,16 +150,6 @@ class MCSCommunicate(Communicate):
                         packed_data = self.SubSystemInstance.currentState['lastLog']
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
-                elif data[0:8] == 'AT3_':
-                    stand = int(data[8:])
-                    
-                    status, attens = self.SubSystemInstance.getAttenuators(stand)
-                    if status:
-                        packed_data = str(attens[3])
-                    else:
-                        packed_data = self.SubSystemInstance.currentState['lastLog']
-                        
-                    self.logger.debug('%s = exited with status %s', data, str(status))
                     
                 ## Analog gain state - FEE power
                 elif data[0:11] == 'FEEPOL1PWR_':
@@ -400,18 +390,6 @@ class MCSCommunicate(Communicate):
             # ATS
             elif command == 'ATS':
                 mode = 3
-                stand = int(data[:-2])
-                attenSetting = int(data[-2:])
-                
-                status, exitCode = self.SubSystemInstance.setAttenuator(mode, stand, attenSetting)
-                if status:
-                    packed_data = ''
-                else:
-                    packed_data = "0x%02X! %s" % (exitCode, self.SubSystemInstance.currentState['lastLog'])
-                    
-            # AT3
-            elif command == 'AT3':
-                mode = 4
                 stand = int(data[:-2])
                 attenSetting = int(data[-2:])
                 

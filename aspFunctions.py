@@ -19,7 +19,7 @@ __all__ = ['modeDict', 'commandExitCodes', 'AnalogProcessor']
 aspFunctionsLogger = logging.getLogger('__main__')
 
 
-modeDict = {1: 'AT1', 2: 'AT2', 3: 'ATS', 4: 'AT3'}
+modeDict = {1: 'AT1', 2: 'AT2', 3: 'ATS'}
 
 
 commandExitCodes = {0x00: 'Process accepted without error', 
@@ -118,7 +118,6 @@ class AnalogProcessor(object):
         self.currentState['at1']    = ASPSettingsList([30 for i in range(max_nstand)])
         self.currentState['at2']    = ASPSettingsList([30 for i in range(max_nstand)])
         self.currentState['ats']    = ASPSettingsList([30 for i in range(max_nstand)])
-        self.currentState['at3']    = ASPSettingsList([ 0 for i in range(max_nstand)])
         
         ## Monitoring and background threads
         self.currentState['spiThread'] = None
@@ -254,7 +253,6 @@ class AnalogProcessor(object):
                     self.currentState['at1'][i] = 30
                     self.currentState['at2'][i] = 30
                     self.currentState['ats'][i] = 30
-                    self.currentState['at3'][i] = 0
                     
                 # Start the SPI command processor
                 self.currentState['spiThread'].start()
@@ -472,7 +470,6 @@ class AnalogProcessor(object):
           1. AT1
           2. AT2
           3. ATS
-          4. AT3 (stand 121 only)
         """
         
         # Check the operational status of the system
@@ -482,9 +479,6 @@ class AnalogProcessor(object):
             
         # Validate inputs
         if stand < 0 or stand > self.num_stands:
-            self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x02])
-            return False, 0x02
-        if mode == 4 and stand != 121:
             self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x02])
             return False, 0x02
         if attenSetting < 0 or attenSetting > self.config['max_atten']:
@@ -500,7 +494,7 @@ class AnalogProcessor(object):
     
     def __atnProcess(self, mode, stand, attenSetting):
         """
-        Background process for AT1/AT2/ATS/AT3 commands so that other commands can keep on running.
+        Background process for AT1/AT2/ATS commands so that other commands can keep on running.
         """
         
         # Do SPI bus stuff
@@ -510,8 +504,6 @@ class AnalogProcessor(object):
             order = ((SPI_P27_on, SPI_P27_off), (SPI_P24_on, SPI_P24_off), (SPI_P25_on, SPI_P25_off), (SPI_P26_on, SPI_P26_off))
         elif mode == 2:
             order = ((SPI_P23_on, SPI_P23_off), (SPI_P21_on, SPI_P21_off), (SPI_P20_on, SPI_P20_off), (SPI_P22_on, SPI_P22_off))
-        elif mode == 3
-            order = ((SPI_P31_on, SPI_P31_off), (SPI_P28_on, SPI_P28_off), (SPI_P29_on, SPI_P29_off), (SPI_P30_on, SPI_P30_off))
         else:
             order = ((SPI_P31_on, SPI_P31_off), (SPI_P28_on, SPI_P28_off), (SPI_P29_on, SPI_P29_off), (SPI_P30_on, SPI_P30_off))
             
@@ -747,8 +739,7 @@ class AnalogProcessor(object):
             at1 = self.currentState['at1'][stand]
             at2 = self.currentState['at2'][stand]
             ats = self.currentState['ats'][stand]
-            at3 = self.currentState['ats'][stand]
-            return True, (at1, at2, ats, at3)
+            return True, (at1, at2, ats)
             
         else:
             self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
