@@ -390,10 +390,16 @@ class AnalogProcessor(object):
         if stand < 0 or stand > self.num_stands:
             self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x02]
             return False, 0x02
-        if filterCode < 0 or filterCode > 5:
-            self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x04]
-            return False, 0x04
-            
+        if stand == 121:
+            if filterCode < 0 or filterCode > 7:
+                self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x04]
+                return False, 0x04
+                
+        else:
+            if filterCode < 0 or filterCode > 5:
+                self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x04]
+                return False, 0x04
+                
         # Process in the background
         thread = threading.Thread(target=self.__filProcess, args=(stand, filterCode))
         thread.setDaemon(1)
@@ -407,33 +413,52 @@ class AnalogProcessor(object):
         """
         
         # Do SPI bus stuff
-        if filterCode > 3:
-            # Set 3 MHz mode
-            self.currentState['spiThread'].queue_command(stand, SPI_P14_on)
-            self.currentState['spiThread'].queue_command(stand, SPI_P15_off)
-        else:
-            # Set 10 MHz mode
-            self.currentState['spiThread'].queue_command(stand, SPI_P14_off)
-            self.currentState['spiThread'].queue_command(stand, SPI_P15_on)
-            
         cb = SPICommandCallback(self.currentState['filter'].__setitem__, stand, filterCode)
-        if filterCode == 0 or filterCode == 4:
-            # Set Filter to Split Bandwidth
-            self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
-            self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
-        elif filterCode == 1 or filterCode == 5:
-            # Set Filter to Full Bandwidth
-            self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
-            self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
-        elif filterCode == 2:
-            # Set Filter to Reduced Bandwidth
-            self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
-            self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
-        elif filterCode == 3:
-            # Set Filters OFF
-            self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
-            self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
-            
+        if stand == 121:
+            if filterCode < 4:
+                self.currentState['spiThread'].queue_command(stand, SPI_P14_on)
+                self.currentState['spiThread'].queue_command(stand, SPI_P15_off)
+            else:
+                self.currentState['spiThread'].queue_command(stand, SPI_P14_off)
+                self.currentState['spiThread'].queue_command(stand, SPI_P15_on)    
+                filterCode -= 4
+                
+            if filterCode & 1:
+                self.currentState['spiThread'].queue_command(stand, SPI_P19_on, cb)
+            else:
+                self.currentState['spiThread'].queue_command(stand, SPI_P19_off, cb)
+            if filterCode & 2:
+                self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
+            else:
+                self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
+                
+        else:
+            if filterCode > 3:
+                # Set 3 MHz mode
+                self.currentState['spiThread'].queue_command(stand, SPI_P14_on)
+                self.currentState['spiThread'].queue_command(stand, SPI_P15_off)
+            else:
+                # Set 10 MHz mode
+                self.currentState['spiThread'].queue_command(stand, SPI_P14_off)
+                self.currentState['spiThread'].queue_command(stand, SPI_P15_on)
+                
+            if filterCode == 0 or filterCode == 4:
+                # Set Filter to Split Bandwidth
+                self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
+                self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
+            elif filterCode == 1 or filterCode == 5:
+                # Set Filter to Full Bandwidth
+                self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
+                self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
+            elif filterCode == 2:
+                # Set Filter to Reduced Bandwidth
+                self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
+                self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
+            elif filterCode == 3:
+                # Set Filters OFF
+                self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
+                self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
+                
         self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
         aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
         
