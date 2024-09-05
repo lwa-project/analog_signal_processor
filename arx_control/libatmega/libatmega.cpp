@@ -109,16 +109,18 @@ std::list<std::string> atmega::find_devices() {
     const char *vendor_id = udev_device_get_property_value(udevice, "ID_VENDOR_ID");
     const char *product_id = udev_device_get_property_value(udevice, "ID_MODEL_ID");
     if( (   (strstr(vendor_id, "0403") != nullptr)
-         || (strstr(vendor_id, "2341") != nullptr) ) ) {
+         || (strstr(vendor_id, "2341") != nullptr)
+         || (strstr(vendor_id, "2886") != nullptr) ) ) {
         match |= 1;
     }
     if( (   (strstr(product_id, "6001") != nullptr )
-         || (strstr(product_id, "0001") != nullptr ) ) ) {
+         || (strstr(product_id, "0001") != nullptr )
+         || (strstr(product_id, "802f") != nullptr ) ) ) {
         match |= 2;
     }
     
     if( match == 3 ) {
-      devices.push_back(std::string(dev_path));
+      devices.push_back(std::string(udev_device_get_devnode(udevice)));
     }
     
     udev_device_unref(udevice);
