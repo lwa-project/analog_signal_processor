@@ -34,7 +34,7 @@ CXXFLAGS  := -O2 -Wall -std=c++17
 #------------------------------------------------------------------------------
 # Linker Flags 
 #------------------------------------------------------------------------------
-LDFLAGS := -latmega_static -Llibatmega
+LDFLAGS := -Llibatmega -latmega_static
 CXXFLAGS += -Ilibatmega
 LDFLAGS += -lm
 ifeq ($(OS),Linux)
