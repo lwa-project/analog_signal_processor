@@ -23,6 +23,7 @@
     "8245": [57, 64]
   },
   
+  "rs485_port": "/dev/arx",
   "max_rs485_retry": 0,
   "wait_rs485_retry": 0.2,
   

@@ -16,122 +16,14 @@ from io import StringIO
     
 from lwainflux import LWAInfluxClient
 
-from aspRS485 import rs485Check, rs485Get, rs485Power, rs485RFPower, rs485Temperature
+from aspRS485 import rs485Check, rs485GetTime, rs485SetTime, rs485Get, rs485Power, rs485RFPower, rs485Temperature
 
 
-__version__ = '0.8'
-__all__ = ['BackendService', 'TemperatureSensors', 'ChassisStatus']
+__version__ = '1.0'
+__all__ = ['TemperatureSensors', 'ChassisStatus']
 
 
 aspThreadsLogger = logging.getLogger('__main__')
-
-
-class BackendService(object):
-    """
-    Class for managing the RS485 background service.
-    """
-    
-    def __init__(self, ASPCallbackInstance=None):
-        self.service_running = False
-        
-        # Setup the callback
-        self.ASPCallbackInstance = ASPCallbackInstance
-        
-        self.thread = None
-        self.alive = threading.Event()
-        
-    def start(self):
-        """
-        Start the background service thread.
-        """
-        
-        if self.thread is not None:
-            self.stop()
-            
-        self.thread = threading.Thread(target=self.serviceThread)
-        self.thread.setDaemon(1)
-        self.alive.set()
-        self.thread.start()
-        
-        time.sleep(1)
-        
-    def stop(self):
-        """
-        Stop the background service thread, waiting until it's finished.
-        """
-        
-        if self.thread is not None:
-            self.alive.clear()          #clear alive event for thread
-            self.thread.join()          #wait until thread has finished
-            
-    def serviceThread(self):
-        # Determine the path for the service executable
-        path = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(path, 'backend')
-        
-        # Start the service
-        service = subprocess.Popen([os.path.join(path, 'lwaARXserial')], cwd=path, 
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        watch_out = select.poll()
-        watch_out.register(service.stdout)
-        watch_err = select.poll()
-        watch_err.register(service.stderr)
-        
-        while self.alive.isSet():
-            try:
-                ## Are we alive?
-                if service.poll() is None:
-                    self.service_running = True
-                else:
-                    self.service_running = False
-                    if self.ASPCallbackInstance is not None:
-                        self.ASPCallbackInstance.processNoBackendService(self.service_running)
-                        
-                ## Is there anything to read on stdout?
-                while watch_out.poll(1) and self.alive.isSet():
-                    line = service.stdout.readline()
-                    line = line.decode()
-                    aspThreadsLogger.debug("%s: serviceThread - %s", type(self).__name__, line.rstrip())
-                    
-                ## Is there anything to read on stderr?
-                while watch_err.poll(1) and self.alive.isSet():
-                    line = service.stderr.readline()
-                    line = line.decode()
-                    aspThreadsLogger.debug("%s: serviceThread - %s", type(self).__name__, line.rstrip())
-                    
-            except Exception as e:
-                exc_type, exc_value, exc_traceback = sys.exc_info()
-                aspThreadsLogger.error("%s: serviceThread failed with: %s at line %i", type(self).__name__, str(e), exc_traceback.tb_lineno)
-                
-                ## Grab the full traceback and save it to a string via StringIO
-                fileObject = StringIO()
-                traceback.print_tb(exc_traceback, file=fileObject)
-                tbString = fileObject.getvalue()
-                fileObject.close()
-                ## Print the traceback to the logger as a series of DEBUG messages
-                for line in tbString.split('\n'):
-                    aspThreadsLogger.debug("%s", line)
-                    
-            ## Sleep for a bit to wait on new log entries
-            time.sleep(1)
-            
-        # Clean up and get ready to exit
-        try:
-            watch_out.unregister(service.stdout)
-        except KeyError:
-            pass
-        try:
-            watch_out.unregister(service.stderr)
-        except KeyError:
-            pass
-        try:
-            service.kill()
-        except OSError:
-            pass
-        self.service_running = False
-        
-    def isRunning(self):
-        return self.service_running
 
 
 class TemperatureSensors(object):
@@ -167,6 +59,7 @@ class TemperatureSensors(object):
         if config is None:
             return True
             
+        self.portName = config['rs485_port']
         self.antennaMapping = config['antenna_mapping']
         self.monitorPeriod = config['temp_period']
         self.minTemp  = config['temp_min']
@@ -222,7 +115,7 @@ class TemperatureSensors(object):
             
             try:
                 # Poll the boards
-                status, temps = rs485Temperature(self.antennaMapping)
+                status, temps = rs485Temperature(self.portName, self.antennaMapping)
                 if not status:
                     raise RuntimeError("status != True")
                     
@@ -388,6 +281,7 @@ class ChassisStatus(object):
     
     def __init__(self, config, ASPCallbackInstance=None):
         self.updateConfig(config)
+        self.board_time = None
         self.configured = False
         self.board_currents = []
         self.fee_currents = []
@@ -407,19 +301,23 @@ class ChassisStatus(object):
         if config is None:
             return True
             
+        self.standsPerBoard = config['stands_per_board']
+        self.portName = config['rs485_port']
         self.antennaMapping = config['antenna_mapping']
         self.maxRetry = config['max_rs485_retry']
         self.waitRetry = config['wait_rs485_retry']
         self.monitorPeriod = config['chassis_period']
         
-    def start(self):
+    def start(self, board_time):
         """
-        Start the monitoring thread.
+        Set the board initalization time and start the monitoring thread.
         """
         
         if self.thread is not None:
             self.stop()
             
+        self.board_time = board_time
+        
         self.thread = threading.Thread(target=self.monitorThread)
         self.thread.setDaemon(1)
         self.alive.set()
@@ -436,56 +334,37 @@ class ChassisStatus(object):
             self.alive.clear()          #clear alive event for thread
             self.thread.join()          #wait until thread has finished
             self.thread = None
+            self.board_time = None
             self.configured = False
             self.lastError = None
             
     def monitorThread(self):
         """
-        Create a monitoring thread for the temperature.
+        Create a monitoring thread for the chassis status.
         """
-        
-        config_failures = 0
         
         while self.alive.isSet():
             tStart = time.time()
             
             try:
-                self.configured, failed = rs485Check(self.antennaMapping,
-                                                     maxRetry=self.maxRetry,
-                                                     waitRetry=self.waitRetry)
+                ## Check the board time for each board.  If it gets reset then
+                ## we probably have a problem
+                self.configured, board_times = rs485GetTime(self.portName,
+                                                            self.antennaMapping,
+                                                            maxRetry=self.maxRetry,
+                                                            waitRetry=self.waitRetry)
+                failed = []
+                for i,board_time in enumerate(board_times):
+                    if board_time != self.board_time:
+                        self.configured &= False
+                        failed.append([self.standsPerBoard*i+1,self.standsPerBoard*(i+1)])
                 if self.ASPCallbackInstance is not None:
-                    if not self.configured:
+                    if len(failed) > 0:
                         self.ASPCallbackInstance.processUnconfiguredChassis(failed)
                         
-                ## Detailed configuration check for the first 8 stands - only if
-                ## we have access to the current requested configuration
-                if self.ASPCallbackInstance is not None:
-                    config_status = True
-                    for stand in range(1, 8+1):
-                        ### Configuration from ASP-MCS
-                        req_config = self.ASPCallbackInstance.currentState['config'][2*(stand-1):2*(stand-1)+2]
-                        ### Configuration from the board itself
-                        act_config = rs485Get(stand, self.antennaMapping)
-                        for pol in (0, 1):
-                            for key in act_config[pol].keys():
-                                if act_config[pol][key] != req_config[pol][key]:
-                                    config_status = False
-                                    break
-                            if not config_status:
-                                break
-                                
-                    if config_status:
-                        config_failures = 0
-                    else:
-                        config_failures += 1
-                        
-                    ## If we have had more than two consecutive polling failures,
-                    ## it's a problem
-                    if config_failures > 1:
-                        self.ASPCallbackInstance.processUnconfiguredChassis([[1, 8],])
-                        
                 ## Record the power consumption while we are at it
-                status, boards, fees = rs485Power(self.antennaMapping,
+                status, boards, fees = rs485Power(self.portName,
+                                                  self.antennaMapping,
                                                   maxRetry=self.maxRetry,
                                                   waitRetry=self.waitRetry)
                 if status:
@@ -509,7 +388,8 @@ class ChassisStatus(object):
                         aspThreadsLogger.error("%s: monitorThread failed to update FEE power log - %s", type(self).__name__, str(e))
                         
                 ## And the square law detector power
-                status, rf_power = rs485RFPower(self.antennaMapping,
+                status, rf_power = rs485RFPower(self.portName,
+                                                self.antennaMapping,
                                                 maxRetry=self.maxRetry,
                                                 waitRetry=self.waitRetry)
                 if status:

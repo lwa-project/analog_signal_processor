@@ -4,22 +4,133 @@ Module for storing the various RS485 function calls
 """
 
 import time
+import serial
 import logging
 import threading
 import subprocess
+import contextlib
 
-from lwautils import lwa_arx
-_ARX = lwa_arx.ARX()
 
-__version__ = '0.3'
-__all__ = ['rs485CountBoards', 'rs485Reset', 'rs485Check', 'rs485Get',
+__version__ = '0.6'
+__all__ = ['ChannelConfig', 'rs485CountBoards', 'rs485Reset', 'rs485Sleep',
+           'rs485Wake', 'rs485Check', 'rs485SetTime', 'rs485GetTime', 'rs485Get',
            'rs485Send', 'rs485Power', 'rs485RFPower', 'rs485Temperature']
 
 
 aspRS485Logger = logging.getLogger('__main__')
 
 
-RS485_LOCK = threading.Semaphore(1)
+RS485_LOCK = threading.Lock()
+
+
+class ChannelConfig():
+    """
+    Class to help go to/from the 16-bit channel configuration value used
+    by the Rev H boards.
+    """
+    
+    def __init__(self, narrow_hpf=False, narrow_lpf=False, at1=31.5, at2=31.5, dc_on=False, sig_on=False):
+        self.narrow_hpf = narrow_hpf
+        self.narrow_lpf = narrow_lpf
+        self.at1 = round(at1*2)/2
+        self.at2 = round(at2*2)/2
+        self.dc_on = dc_on
+        self.sig_on = sig_on
+        
+    @property
+    def at1(self):
+        return self._at1
+        
+    @at1.setter
+    def at1(self, value):
+        if value < 0 or value > 31.5:
+            raise ValueError("Valid attenuator values are 0 to 31.5 dB")
+        self._at1 = round(value*2)/2
+        
+    @property
+    def at2(self):
+        return self._at2
+        
+    @at2.setter
+    def at2(self, value):
+        if value < 0 or value > 31.5:
+            raise ValueError("Valid attenuator values are 0 to 31.5 dB")
+        self._at2 = round(value*2)/2
+        
+    @classmethod
+    def from_raw(kls, raw):
+        """
+        Construct a new ChannelConfig instance from a 16-bit configuration
+        value.
+        """
+        
+        k = kls()
+        
+        if isinstance(raw, (str, bytes)):
+            raw = int(raw, 16)
+            
+        k.narrow_hpf = (raw & 1) == 1
+        k.sig_on = ((raw >> 1) & 1) == 1
+        k.narrow_lpf = ((raw >> 2) & 1) == 1
+        k.at1 = (((raw ^ 0xFFFF) >> 3) & 0x3F) * 0.5
+        k.at2 = (((raw ^ 0xFFFF) >> 9) & 0x3F) * 0.5
+        k.dc_on = ((raw >> 15) & 1) == 1
+        return k
+        
+    @property
+    def raw(self):
+        """
+        Render the channel configuration as a four character hexadecimal
+        string.
+        """
+        
+        value = 0
+        value |= int(self.narrow_hpf)
+        value |= (int(self.sig_on) << 1)
+        value |= (int(self.narrow_lpf) << 2)
+        value |= (((int(round(self.at1*2)) ^ 0xFFFF) & 0x3F) << 3)
+        value |= (((int(round(self.at2*2)) ^ 0xFFFF) & 0x3F) << 9)
+        value |= (int(self.dc_on) << 15)
+        return "%04X" % value
+
+
+def _send_command(portName, addr, cmd, data=None, timeout=1.0):
+    addr = (0x80 + addr) & 0xFF
+    if not isinstance(cmd, bytes):
+        cmd = cmd.encode('ascii')
+    if cmd == b'WAKE':
+        cmd = b'W'
+    if data is None:
+        data = ''
+    if not isinstance(data, bytes):
+        data = data.encode('ascii')
+        
+    resp = b''
+    with RS485_LOCK:
+        with serial.Serial(port=portName, baudrate=19200, parity=serial.PARITY_NONE,
+                             stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS,
+                             timeout=timeout, writeTimeout=0) as port:
+            port.flush()
+            port.write(bytes([addr]) + cmd + data + b'\r')
+            if cmd not in (b'RSET', b'SLEP', b'W'):
+                status = False
+                resp = port.read_until(b'\r', 80)
+                
+                if len(resp) > 1:
+                    status = (resp[0] == 6)
+                    resp = resp[1:-1]
+                    if not status:
+                        errcode = {1: 'command code was not recognized ',
+                                   2: 'command was too long',
+                                   3: 'command failed'}[resp[0]]
+                        
+                else:
+                    errcode = 'timeout'
+                    
+                if not status:
+                    raise RuntimeError("Command '%s' failed: %s" % (cmd, errcode))
+                    
+    return resp
 
 
 def _stand_to_board_chans(stand, antennaMapping):
@@ -35,212 +146,375 @@ def _stand_to_board_chans(stand, antennaMapping):
     return board, chan0, chan1
 
 
-def rs485CountBoards(antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485CountBoards(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
+    """
+    Find and return the number of Rev H ARX boards connected to the RS485 bus.
+    """
+    
     found = 0
-    with RS485_LOCK:
-        for board_key in antennaMapping.keys():
-            board = int(board_key)
-            for attempt in range(maxRetry+1):
-                try:
-                    _ARX.get_board_info(board & 0xFF)
-                    found += 1
-                    break
-                except Exception as e:
-                    aspRS485Logger.warning("Could not query info. for board %s: %s", board_key, str(e))
-                    time.sleep(waitRetry)
+    for board_key in antennaMapping.keys():
+        board = int(board_key)
+        for attempt in range(maxRetry+1):
+            try:
+                _send_command(portName, board, 'ARXN')
+                found += 1
+                break
+            except Exception as e:
+                aspRS485Logger.warning("Could not query info. for board %s: %s", board_key, str(e))
+                time.sleep(waitRetry)
+                
     return found
 
 
-def rs485Reset(antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485Reset(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
+    """
+    Set a reset command to all of the Rev H ARX boards connected to the RS485
+    bus.  Returns True if all of the boards have been reset, False otherwise.
+    """
+    
     success = True
-    with RS485_LOCK:
-        for board_key in antennaMapping.keys():
-            board = int(board_key)
-            board_success = False
-            for attempt in range(maxRetry+1):
-                try:
-                    _ARX.reset(board & 0xFF)
-                    board_success = True
-                    break
-                except Exception as e:
-                    aspRS485Logger.warning("Could not reset board %s: %s", board_key, str(e))
-                    time.sleep(waitRetry)
-            success &= board_success
-
+    for board_key in antennaMapping.keys():
+        board = int(board_key)
+        board_success = False
+        for attempt in range(maxRetry+1):
+            try:
+                _send_command(portName, board, 'RSET')
+                board_success = True
+                break
+            except Exception as e:
+                aspRS485Logger.warning("Could not reset board %s: %s", board_key, str(e))
+                time.sleep(waitRetry)
+        success &= board_success
+        
     # Check for completion of reset
     time.sleep(10) # Wait a little bit
-    reset_check, failed = rs485Check(antennaMapping, verbose=False)
+    reset_check, failed = rs485Check(portName, antennaMapping, verbose=False)
     success &= reset_check
-
+    
     return success
 
 
-def rs485Check(antennaMapping, maxRetry=0, waitRetry=0.2, verbose=False):
+def rs485Sleep(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
+    """
+    Set a sleep command to all of the Rev H ARX boards connected to the RS485
+    bus.  Returns True if all of the boards have been put to bed, False
+    otherwise.
+    """
+    
+    success = True
+    for board_key in antennaMapping.keys():
+        board = int(board_key)
+        board_success = False
+        for attempt in range(maxRetry+1):
+            try:
+                _send_command(portName, board, 'SLEP')
+                board_success = True
+                break
+            except Exception as e:
+                aspRS485Logger.warning("Could not sleep board %s: %s", board_key, str(e))
+                time.sleep(waitRetry)
+        success &= board_success
+        
+    return success
+
+
+def rs485Wake(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
+    """
+    Set a wake command to all of the Rev H ARX boards connected to the RS485
+    bus.  Returns True if all of the boards have woken up, False otherwise.
+    """
+    
+    success = True
+    for board_key in antennaMapping.keys():
+        board = int(board_key)
+        board_success = False
+        for attempt in range(maxRetry+1):
+            try:
+                _send_command(portName, board, 'WAKE')
+                board_success = True
+                break
+            except Exception as e:
+                aspRS485Logger.warning("Could not wake board %s: %s", board_key, str(e))
+                time.sleep(waitRetry)
+        success &= board_success
+        
+    # Check for completion of wake
+    time.sleep(10) # Wait a little bit
+    wake_check, failed = rs485Check(portName, antennaMapping, verbose=False)
+    success &= wake_check
+    
+    return success
+
+
+def rs485Check(portName, antennaMapping, maxRetry=0, waitRetry=0.2, verbose=False):
+    """
+    Ping each of the Rev H ARX boards connected to the RS485 bus.  Returns
+    a two-element tuple of:
+     * True if all boards were pinged, false otherwise
+     * a list of any boards that failed to respond
+    """
+    
     data = "check_for_me"
     
     success = True
     failed = []
-    with RS485_LOCK:
-        for board_key in antennaMapping.keys():
-            board = int(board_key)
-            board_success = False
-            for attempt in range(maxRetry+1):
-                try:
-                    echo_data = _ARX.echo(board & 0xFF, data)
-                    board_success = True
-                    break
-                except Exception as e:
-                    if verbose:
-                        aspRS485Logger.warning("Could not echo '%s' to board %s: %s", data, board_key, str(e))
-                    time.sleep(waitRetry)
-            success &= board_success
-            if not board_success:
-                failed.append(antennaMapping[board_key])
-                
+    for board_key in antennaMapping.keys():
+        board = int(board_key)
+        board_success = False
+        for attempt in range(maxRetry+1):
+            try:
+                echo_data = _send_command(portName, board, 'ECHO', data=data)
+                board_success = True
+                break
+            except Exception as e:
+                if verbose:
+                    aspRS485Logger.warning("Could not echo '%s' to board %s: %s", data, board_key, str(e))
+                time.sleep(waitRetry)
+        success &= board_success
+        if not board_success:
+            failed.append(antennaMapping[board_key])
+            
     return success, failed
 
 
-def rs485Get(stand, antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485SetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2, verbose=False):
+    """
+    Get the board time on all Rev H ARX boards connected to the RS485 bus.
+    Returns a three-element tuple of:
+     * True if all boards were pinged, false otherwise
+     * a list of any boards that failed to respond
+     * the time set
+    """
+    
+    data = "%08X" % int(time.time())
+    success = True
+    failed = []
+    for board_key in antennaMapping.keys():
+        board = int(board_key)
+        board_success = False
+        for attempt in range(maxRetry+1):
+            try:
+                _send_command(portName, board, 'STIM', data=data)
+                board_success = True
+                break
+            except Exception as e:
+                if verbose:
+                    aspRS485Logger.warning("Could not set time to '%s' on board %s: %s", data, board_key, str(e))
+                time.sleep(waitRetry)
+        success &= board_success
+        if not board_success:
+            failed.append(antennaMapping[board_key])
+            
+    return success, failed, int(data, 16)
+
+
+def rs485GetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2, verbose=False):
+    """
+    Poll all of the Rev H ARX boards on the RS485 bus and return a two-element
+    tuple of:
+     * True if all boards were pinged, false otherwise
+     * a list of board times.
+     
+    Any board that failed to respond will have its time reported as zero.
+    """
+    
+    success = True
+    data = []
+    for board_key in antennaMapping.keys():
+        board = int(board_key)
+        board_success = False
+        for attempt in range(maxRetry+1):
+            try:
+                gtim_data = _send_command(portName, board, 'GTIM')
+                data.append(int(gtim_data, 16))
+                board_success = True
+                break
+            except Exception as e:
+                if verbose:
+                    aspRS485Logger.warning("Could not get time from board %s: %s", board_key, str(e))
+                time.sleep(waitRetry)
+        success &= board_success
+        if not board_success:
+            data.append(0)
+            
+    return success, data
+
+
+def rs485Get(stand, portName, antennaMapping, maxRetry=0, waitRetry=0.2):
+    """
+    Return a list of ChannelConfig instances for the specified stands.
+    """
+    
     config = []
     if stand == 0:
-        with RS485_LOCK:
-            for board_key in antennaMapping.keys():
-                board = int(board_key)
-                for attempt in range(maxRetry+1):
-                    try:
-                        board_config = _ARX.get_all_chan_cfg(board & 0xFF)
-                        config.extend(board_config)
-                        break
-                    except Exception as e:
-                        aspRS485Logger.warning("Could not get channel info. for board %s: %s", board_key, str(e))
-                        time.sleep(waitRetry)
+        for board_key in antennaMapping.keys():
+            board = int(board_key)
+            for attempt in range(maxRetry+1):
+                try:
+                    raw_board_config = _send_command(portName, board, 'GETA')
+                    for i in range(16):
+                        config.append(ChannelConfig.from_raw(raw_board_config[2*i:2*i+2]))
+                    break
+                except Exception as e:
+                    aspRS485Logger.warning("Could not get channel info. for board %s: %s", board_key, str(e))
+                    time.sleep(waitRetry)
+                    
     else:
         board, chan0, chan1 = _stand_to_board_chans(stand, antennaMapping)
         if board is None:
             aspRS485Logger.warning("Unable to relate stand %i to a RS485 board", stand)
             return False
             
-        with RS485_LOCK:
-            for attempt in range(maxRetry+1):
-                try:
-                    chan_config0 = _ARX.get_chan_cfg(board & 0xFF, chan0)
-                    chan_config1 = _ARX.get_chan_cfg(board & 0xFF, chan1)
-                    config.append(chan_config0)
-                    config.append(chan_config1)
-                    break
-                except Exception as e:
-                    aspRS485Logger.warning("Could not get channel config. for board %s: %s", board, str(e))
-                    time.sleep(waitRetry)
-                    
+        for attempt in range(maxRetry+1):
+            try:
+                raw_chan_config0 = _send_command(portName, board, 'GETC', data="%X" % chan0)
+                raw_chan_config1 = _send_command(portName, board, 'GETC', data="%X" % chan1)
+                config.append(ChannelConfig.from_raw(raw_chan_config0))
+                config.append(ChannelConfig.from_raw(raw_chan_config1))
+                break
+            except Exception as e:
+                aspRS485Logger.warning("Could not get channel config. for board %s: %s", board, str(e))
+                time.sleep(waitRetry)
+                
     return config
 
 
-def rs485Send(stand, config, antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485Send(stand, config, portName, antennaMapping, maxRetry=0, waitRetry=0.2):
+    """
+    Give a stand and a list of ChannelConfig instances, set the stand
+    configuration.
+    """
+    
     success = True
     if stand == 0:
-        with RS485_LOCK:
-            for board_key in antennaMapping.keys():
-                board = int(board_key)
-                board_success = False
-                for attempt in range(maxRetry+1):
-                    try:
-                        # THIS IS ALL DEBUG GARBAGE
-                        config_start = 2*(antennaMapping[board_key][0]-1)
-                        config_end = 2*(antennaMapping[board_key][1])
-                        subconfig = config[config_start:config_end]
-                        for i,c in enumerate(subconfig):
-                             _ARX.set_chan_cfg(board & 0xFF, i, c)
-                        #_ARX.set_all_different_chan_cfg(board & 0xFF, subconfig)
-                        board_success = True
-                        break
-                    except Exception as e:
-                        aspRS485Logger.warning("Could not set channel config. for board %s: %s", board_key, str(e))
-                        time.sleep(waitRetry)
-                success &= board_success
-                
+        for board_key in antennaMapping.keys():
+            board = int(board_key)
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    config_start = 2*(antennaMapping[board_key][0]-1)
+                    config_end = 2*(antennaMapping[board_key][1])
+                    sub_config = config[config_start:config_end]
+                    
+                    raw_config = ''
+                    for sc in sub_config:
+                        raw_config += sc.raw
+                    _send_command(portName, board, 'SETA', data=raw_config)
+                    board_success = True
+                    break
+                except Exception as e:
+                    aspRS485Logger.warning("Could not set channel config. for board %s: %s", board_key, str(e))
+                    time.sleep(waitRetry)
+            success &= board_success
+            
     else:
         board, chan0, chan1 = _stand_to_board_chans(stand, antennaMapping)
         if board is None:
             aspRS485Logger.warning("Unable to relate stand %i to a RS485 board", stand)
             return False
             
-        with RS485_LOCK:
-            board_success = False
-            for attempt in range(maxRetry+1):
-                try:
-                    _ARX.set_chan_cfg(board & 0xFF, chan0, config[0])
-                    _ARX.set_chan_cfg(board & 0xFF, chan1, config[1])
-                    board_success = True
-                    break
-                except Exception as e:
-                    aspRS485Logger.warning("Could not set channel info. for board %s: %s", board, str(e))
-                    time.sleep(waitRetry)
-            success &= board_success
-            
+        board_success = False
+        for attempt in range(maxRetry+1):
+            try:
+                _send_command(portName, board, "SETC%X" % chan0, config[0].raw)
+                _send_command(portName, board, "SETC%X" % chan1, config[1].raw)
+                board_success = True
+                break
+            except Exception as e:
+                aspRS485Logger.warning("Could not set channel info. for board %s: %s", board, str(e))
+                time.sleep(waitRetry)
+        success &= board_success
+        
     return success
 
 
-def rs485Power(antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485Power(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
+    """
+    Poll all of the Rev H ARX boards connected to the RS485 bus and return a
+    three-element tuple of:
+     * True if all board were successfully polled, False otherwise
+     * a list of board currents (1/board)
+     * a list of FEE currents (16/board)
+    """
+    
     success = True
     boards = []
     fees = []
-    with RS485_LOCK:
-        for board_key in antennaMapping.keys():
-            board = int(board_key)
-            board_success = False
-            for attempt in range(maxRetry+1):
-                try:
-                    new_board = _ARX.get_board_current(board & 0xFF)
-                    new_fees = _ARX.get_all_chan_current(board & 0xFF)
-                    boards.append(new_board)
-                    fees.extend(new_fees)
-                    board_success = True
-                    break
-                except Exception as e:
-                    aspRS485Logger.warning("Could not get power info. for board %s: %s", board_key, str(e))
-                    time.sleep(waitRetry)
-            success &= board_success
-            
+    for board_key in antennaMapping.keys():
+        board = int(board_key)
+        board_success = False
+        for attempt in range(maxRetry+1):
+            try:
+                raw_board = _send_command(portName, board, 'CURB')
+                raw_board = int(raw_board, 16)
+                boards.append(raw_board * 0.008)
+                raw_fees = _send_command(portName, board, 'CURA')
+                for i in range(16):
+                    fees.append(int(raw_fees[4*i:4*(i+1)], 16) * 0.004 * 0.1)
+                board_success = True
+                break
+            except Exception as e:
+                aspRS485Logger.warning("Could not get power info. for board %s: %s", board_key, str(e))
+                time.sleep(waitRetry)
+        success &= board_success
+        
     return success, boards, fees
 
 
-def rs485RFPower(antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485RFPower(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
+    """
+    Poll all of the Rev H ARX boards connected to the RS485 bus and return a
+    two-element tuple of:
+     * True if all board were successfully polled, False otherwise
+     * a list of per-channel RF powers (16/board)
+    """
+    
     success = True
     rf_powers = []
-    with RS485_LOCK:
-        for board_key in antennaMapping.keys():
-            board = int(board_key)
-            board_success = False
-            for attempt in range(maxRetry+1):
-                try:
-                    new_rf_power = _ARX.get_all_chan_power(board & 0xFF)
-                    rf_powers.extend(new_rf_power)
-                    board_success = True
-                    break
-                except Exception as e:
-                    aspRS485Logger.warning("Could not get RF power info. for board %s: %s", board_key, str(e))
-                    time.sleep(waitRetry)
-            success &= board_success
-            
+    for board_key in antennaMapping.keys():
+        board = int(board_key)
+        board_success = False
+        for attempt in range(maxRetry+1):
+            try:
+                raw_rf_power = _send_command(portName, board, 'POWA')
+                for i in range(16):
+                    v = int(raw_rf_power[4*i:4*(i+1)], 16) * 0.004
+                    rf_powers.append((v/2.296)**2/50)
+                board_success = True
+                break
+            except Exception as e:
+                aspRS485Logger.warning("Could not get RF power info. for board %s: %s", board_key, str(e))
+                time.sleep(waitRetry)
+        success &= board_success
+        
     return success, rf_powers
 
 
-def rs485Temperature(antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485Temperature(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
+    """
+    Poll all of the Rev H ARX boards connected to the RS485 bus and return a
+    two-element tuple of:
+     * True if all board were successfully polled, False otherwise
+     * a list of temperatures (typically 3/board)
+    """
+    
     success = True
     temps = []
-    with RS485_LOCK:
-        for board_key in antennaMapping.keys():
-            board = int(board_key)
-            board_success = False
-            for attempt in range(maxRetry+1):
-                try:
-                    new_temps = _ARX.get_1wire_temp(board & 0xFF)
-                    temps.extend(new_temps)
-                    board_success = True
-                    break
-                except Exception as e:
-                    aspRS485Logger.warning("Could not get temperature info. for board %s: %s", board_key, str(e))
-                    time.sleep(waitRetry)
-            success &= board_success
-            
+    for board_key in antennaMapping.keys():
+        board = int(board_key)
+        board_success = False
+        for attempt in range(maxRetry+1):
+            try:
+                ntemp = _send_command(portName, board, 'OWDC')
+                ntemp = int(ntemp, 16)
+                raw_temps = _send_command(portName, board, 'OWTE')
+                for i in range(ntemp):
+                    temps.append(int(raw_temps[4*i:4*(i+1)], 16)/16)
+                board_success = True
+                break
+            except Exception as e:
+                aspRS485Logger.warning("Could not get temperature info. for board %s: %s", board_key, str(e))
+                time.sleep(waitRetry)
+        success &= board_success
+        
     return success, temps
