@@ -67,8 +67,8 @@ WLFLAGS ?= $(SONAME_FLAG),$(LIBATMEGA_SO)
 # Target Builds
 # 
 #------------------------------------------------------------------------------
-LIBATMEGA : libatmega.a $(LIBATMEGA_SO)
-libatmega.a : libatmega.o
+LIBATMEGA : libatmega_static.a $(LIBATMEGA_SO)
+libatmega_static.a : libatmega.o
 	ar -rcsv $@ $^
 $(LIBATMEGA_SO): libatmega.o
 	$(CXX) $(SHARED_FLAG) -Wl,$(WLFLAGS) -o $@ libatmega.o $(LFLAGS)
