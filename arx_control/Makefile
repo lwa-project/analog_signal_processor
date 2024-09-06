@@ -34,15 +34,13 @@ CXXFLAGS  := -O2 -Wall -std=c++17
 #------------------------------------------------------------------------------
 # Linker Flags 
 #------------------------------------------------------------------------------
-LDFLAGS := -latmega -Llibatmega
+LDFLAGS := -latmega_static -Llibatmega
 CXXFLAGS += -Ilibatmega
 LDFLAGS += -lm
 ifeq ($(OS),Linux)
   LDFLAGS += -ludev
-  LIBEXT = so
 else ifeq ($(OS),Darwin)
   LDFLAGS += -framework IOKit -framework CoreFoundation
-  LIBEXT = dylib
 endif
 
 #------------------------------------------------------------------------------
@@ -59,7 +57,6 @@ endif
 .PHONY: LIBATMEGA
 LIBATMEGA: 
 	make -C libatmega
-	cp -fp libatmega/*.$(LIBEXT) .
 
 sendARXDevice: sendARXDevice.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
