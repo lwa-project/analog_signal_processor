@@ -629,6 +629,47 @@ class AnalogProcessor(object):
             
         return True, 0
         
+    def setLocate(self, stand, locSetting):
+        """
+        Set the locate LED on the specified stand
+        """
+
+        # Check the operational status of the system
+        if self.currentState['status'] == 'SHUTDWN'or not self.currentState['ready']:
+            self.currentState['lastLog'] = 'LOC: %s' % commandExitCodes[0x0A]
+            return False, 0x0A
+
+        # Validate inputs
+        if stand < 0 or stand > self.num_stands:
+            self.currentState['lastLog'] = 'LOC: %s' % commandExitCodes[0x02]
+            return False, 0x02
+        if locSetting not in (0, 1):
+            self.currentState['lastLog'] = 'LOC: %s' % commandExitCodes[0x05]
+            return False, 0x05
+
+        # Process in the background
+        thread = threading.Thread(target=self.__locProcess, args=(stand, locSetting))
+        thread.setDaemon(1)
+        thread.start()
+
+        return True, 0
+
+    def __locProcess(self, stand, locSetting):
+        """
+        Background process for LOC commands so that other commands can keep on running.
+        """
+
+        # Do SPI bus stuff
+        if locSetting:
+            self.currentState['spiThread'].queue_command(stand, SPI_P12_on)
+        else:
+            self.currentState['spiThread'].queue_command(stand, SPI_P12_on)
+
+        self.currentState['lastLog'] = '%s: Set locate state to %i for stand %i' % (locSetting, stand)
+        aspFunctionsLogger.debug('%s - Set locate state to %i for stand %i', locSetting, stand)
+
+        return True, 0
+        
     def setFPWPowerState(self, state):
         """
         Set the FEE power supply power state.

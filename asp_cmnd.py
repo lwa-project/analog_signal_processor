@@ -399,6 +399,17 @@ class MCSCommunicate(Communicate):
                 else:
                     packed_data = "0x%02X! %s" % (exitCode, self.SubSystemInstance.currentState['lastLog'])
                     
+            # LOC
+            elif command == 'LOC':
+                stand = int(data[:-2])
+                locSetting = int(data[-2:])
+
+                status, exitCode = self.SubSystemInstance.setLocate(stand, locSetting)
+                if status:
+                    packed_data = ''
+                else:
+                    packed_data = "0x%02X! %s" % (exitCode, self.SubSystemInstance.currentState['lastLog'])
+                    
             # FPW
             elif command == 'FPW':
                 stand = int(data[:-3])
