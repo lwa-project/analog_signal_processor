@@ -229,9 +229,16 @@ int main(int argc, char** argv) {
           
         } else if( command.substr(0,4) == "POWC" ) {
           float value = std::stoi(std::string("0x") + temp, nullptr, 16);
-          value *= 0.004;
-          value = value/2.296*value/2.296/50*1000*1000;
-          std::cout << std::fixed << std::setprecision(1) << value << " uW" << std::endl;
+          #if defined(PIC_IS_REVH) && PIC_IS_REVH
+            value *= 0.004;
+            value = value/2.296*value/2.296/50*1000*1000;
+          #else
+            value *= 3.3 / 1024;
+            value = value/7.5*value/7.5/50*1000*1000;
+          #endif
+          float value_dBm = 10*log10(value / 1000);
+          std::cout << std::fixed << std::setprecision(1) << value << " uW" << 
+                                                             value_dBm << " dBm" << std::endl;
           
         } else if( command == "TEMP" ) {
           float value = std::stoi(std::string("0x") + temp, nullptr, 16);
