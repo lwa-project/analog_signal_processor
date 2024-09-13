@@ -3,6 +3,11 @@
 #include <SoftwareSerial.h>
 #include <FlashStorage_SAMD.h>
 
+// Check SoftwareSerial RX buffer size check
+#if _SS_MAX_RX_BUFF < 80
+  #error Default SoftwareSerial buffer is too small
+#endif
+
 // Chip select pin for SPI operations
 #define SPI_SS_PIN D3
 
