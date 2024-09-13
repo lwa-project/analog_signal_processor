@@ -63,6 +63,7 @@ namespace atmega {
     COMMAND_FAILURE_STA   = 0xFB,
     COMMAND_FAILURE_BUS   = 0xFC,
     COMMAND_FAILURE_RS485 = 0xFD,
+    COMMAND_FAILURE_TOUT  = 0xFE,
     COMMAND_FAILURE_CMD   = 0xFF
   } Command;
   
