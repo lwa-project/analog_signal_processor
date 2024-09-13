@@ -18,6 +18,7 @@ Options:
 #include <cstring>
 #include <chrono>
 #include <thread>
+#include <cmath>
 
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
