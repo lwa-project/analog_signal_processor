@@ -215,8 +215,13 @@ int main(int argc, char** argv) {
         } else if( command == "POWA" ) {
           for(int i=0; i<size/4; i++) {
             float value = std::stoi(std::string("0x") + temp.substr(4*i, 4), nullptr, 16);
-            value *= 0.004;
-            value = value/2.296*value/2.296/50*1000*1000;
+            #if defined(PIC_IS_REVH) && PIC_IS_REVH
+              value *= 0.004;
+              value = value/2.296*value/2.296/50*1000*1000;
+            #else
+              value *= 3.3 / 1024;
+              value = value/7.5*value/7.5/50*1000*1000;
+            #endif
             std::cout << i+1 << ": " << std::fixed << std::setprecision(1) << value << " uW" << std::endl;
           }
           
