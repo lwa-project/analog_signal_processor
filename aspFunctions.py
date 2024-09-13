@@ -417,7 +417,7 @@ class AnalogProcessor(object):
         """
         
         # Do SPI bus stuff
-        if filterCode in (0, 1, 3, 4, 5):
+        if filterCode in (0, 1, 4, 5):
             # LPF83
             self.currentState['spiThread'].queue_command(stand, SPI_P14_on)
             self.currentState['spiThread'].queue_command(stand, SPI_P15_off)
