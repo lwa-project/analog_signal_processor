@@ -390,7 +390,7 @@ class AnalogProcessor(object):
         if stand < 0 or stand > self.num_stands:
             self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x02]
             return False, 0x02
-        if filterCode < 0 or filterCode > 5:
+        if filterCode < 0 or filterCode > 7:
             self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x04]
             return False, 0x04
             
@@ -404,9 +404,46 @@ class AnalogProcessor(object):
     def __filProcess(self, stand, filterCode):
         """
         Background process for FIL commands so that other commands can keep on running.
+        
+        Filter Key:
+         0 - HPF30 + LPF83 - like split
+         1 - HPF10 + LPF83 - like full
+         2 - HPF30 + LPF73 - like reduced
+         3 - HPF3 + LPF73 - was off but now like full but with the band shifted down
+         4 - HPF20 + LPF83 - like split @ 3MHz
+         5 - HPF3 + LPF83 - like full @ 3MHz
+         6 - HPF10 + LPF73 - new - like full but with better FM rejection
+         7 - HPF20 + LPF73 - new - like split @ 3MHz but with better FM rejection
         """
         
         # Do SPI bus stuff
+        if filterCode in (0, 1, 3, 4, 5):
+            # LPF83
+            self.currentState['spiThread'].queue_command(stand, SPI_P14_on)
+            self.currentState['spiThread'].queue_command(stand, SPI_P15_off)
+        else:
+            # LPF73
+            self.currentState['spiThread'].queue_command(stand, SPI_P14_off)
+            self.currentState['spiThread'].queue_command(stand, SPI_P15_on)
+            
+        cb = SPICommandCallback(self.currentState['filter'].__setitem__, stand, filterCode)
+        if filterCode in (3, 5):
+            # HPF3
+            self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
+            self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
+        elif filterCode in (1, 6):
+            # HPF10
+            self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
+            self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
+        elif filterCode in (4, 7):
+            # HPF20
+            self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
+            self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
+        else:
+            # HPF30
+            self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
+            self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
+            
         if filterCode > 3:
             # Set 3 MHz mode
             self.currentState['spiThread'].queue_command(stand, SPI_P14_on)
@@ -415,24 +452,6 @@ class AnalogProcessor(object):
             # Set 10 MHz mode
             self.currentState['spiThread'].queue_command(stand, SPI_P14_off)
             self.currentState['spiThread'].queue_command(stand, SPI_P15_on)
-            
-        cb = SPICommandCallback(self.currentState['filter'].__setitem__, stand, filterCode)
-        if filterCode == 0 or filterCode == 4:
-            # Set Filter to Split Bandwidth
-            self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
-            self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
-        elif filterCode == 1 or filterCode == 5:
-            # Set Filter to Full Bandwidth
-            self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
-            self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
-        elif filterCode == 2:
-            # Set Filter to Reduced Bandwidth
-            self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
-            self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
-        elif filterCode == 3:
-            # Set Filters OFF
-            self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
-            self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
             
         self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
         aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
