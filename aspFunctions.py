@@ -463,7 +463,7 @@ class AnalogProcessor(object):
         Set one of the attenuators for a given stand.  The attenuators are:
           1. AT1
           2. AT2
-          3. ATS
+          3. AT3
         """
         
         # Check the operational status of the system
@@ -475,7 +475,7 @@ class AnalogProcessor(object):
         if stand < 0 or stand > self.num_stands:
             self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x02])
             return False, 0x02
-        if attenSetting < 0 or attenSetting > self.config['max_atten']:
+        if attenSetting < 0 or attenSetting > self.config['max_atten'][mode]:
             self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x05])
             return False, 0x05
             
@@ -492,46 +492,72 @@ class AnalogProcessor(object):
         """
         
         # Do SPI bus stuff
-        setting = 2*attenSetting
-        
         if mode == 1:
-            order = ((SPI_P27_on, SPI_P27_off), (SPI_P24_on, SPI_P24_off), (SPI_P25_on, SPI_P25_off), (SPI_P26_on, SPI_P26_off))
+            setting = 2.0*attenSetting
+            order = ((SPI_P27_on, SPI_P27_off), (SPI_P24_on, SPI_P24_off), (SPI_P25_on, SPI_P25_off), (SPI_P26_on, SPI_P26_off), (None, None), (None, None))
         elif mode == 2:
-            order = ((SPI_P23_on, SPI_P23_off), (SPI_P21_on, SPI_P21_off), (SPI_P20_on, SPI_P20_off), (SPI_P22_on, SPI_P22_off))
+            setting = 2.0*attenSetting
+            order = ((SPI_P23_on, SPI_P23_off), (SPI_P21_on, SPI_P21_off), (SPI_P20_on, SPI_P20_off), (SPI_P22_on, SPI_P22_off), (None, None), (None, None))
         else:
-            order = ((SPI_P31_on, SPI_P31_off), (SPI_P28_on, SPI_P28_off), (SPI_P29_on, SPI_P29_off), (SPI_P30_on, SPI_P30_off))
+            setting = attenSetting/2.0
+            order = ((None, None), (SPI_P31_on, SPI_P31_off), (SPI_P28_on, SPI_P28_off), (SPI_P29_on, SPI_P29_off), (SPI_P30_on, SPI_P30_off), (SPI_P13_on, SPI_P13_off))
             
         cb = SPICommandCallback(self.currentState[modeDict[mode].lower()].__setitem__, stand, attenSetting)
         if setting >= 16:
-            self.currentState['spiThread'].queue_command(stand, order[0][0], cb)
+            if order[0][0] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[0][0], cb)
             setting -= 16
             cb = None
         else:
-            self.currentState['spiThread'].queue_command(stand, order[0][1], cb)
+            if order[0][1] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[0][1], cb)
             cb = None
             
         if setting >= 8:
-            self.currentState['spiThread'].queue_command(stand, order[1][0], cb)
+            if order[1][0] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[1][0], cb)
             setting -= 8
             cb = None
         else:
-            self.currentState['spiThread'].queue_command(stand, order[1][1], cb)
+            if order[1][1] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[1][1], cb)
             cb = None
             
         if setting >= 4:
-            self.currentState['spiThread'].queue_command(stand, order[2][0], cb)
+            if order[2][0] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[2][0], cb)
             setting -= 4
             cb = None
         else:
-            self.currentState['spiThread'].queue_command(stand, order[2][1], cb)
+            if order[2][1] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[2][1], cb)
             cb = None
             
         if setting >= 2:
-            self.currentState['spiThread'].queue_command(stand, order[3][0], cb)
+            if order[3][0] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[3][0], cb)
             setting -= 2
             cb = None
         else:
-            self.currentState['spiThread'].queue_command(stand, order[3][1], cb)
+            if order[3][1] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[3][1], cb)
+            cb = None
+            
+        if setting >= 1:
+            if order[4][0] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[4][0], cb)
+            setting -= 1
+        else:
+            if order[4][1] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[4][1], cb)
+            cb = None
+        if setting >= 0.5:
+            if order[5][0] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[5][0], cb)
+            setting -= 0.5
+        else:
+            if order[5][1] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[5][1], cb)
             cb = None
             
         self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)

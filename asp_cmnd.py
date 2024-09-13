@@ -387,8 +387,8 @@ class MCSCommunicate(Communicate):
                 else:
                     packed_data = "0x%02X! %s" % (exitCode, self.SubSystemInstance.currentState['lastLog'])
                     
-            # ATS
-            elif command == 'ATS':
+            # AT3
+            elif command == 'AT3':
                 mode = 3
                 stand = int(data[:-2])
                 attenSetting = int(data[-2:])
