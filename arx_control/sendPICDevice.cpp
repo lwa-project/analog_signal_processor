@@ -222,7 +222,9 @@ int main(int argc, char** argv) {
               value *= 3.3 / 1024;
               value = value/7.5*value/7.5/50*1000*1000;
             #endif
-            std::cout << i+1 << ": " << std::fixed << std::setprecision(1) << value << " uW" << std::endl;
+            float value_dBm = 10*log10(value / 1000);
+            std::cout << i+1 << ": " << std::fixed << std::setprecision(1) << value << " uW " <<
+                                                                              value_dBm << " dBm" << std::endl;
           }
           
         } else if( command.substr(0,4) == "POWC" ) {
