@@ -19,7 +19,7 @@
   "stands_per_board": 8,
   "max_boards": 33,
   "max_stands": 264,
-  "max_atten": 15,
+  "max_atten": [15, 15, 31],
   
   "sub20_i2c_mapping": "0FD5",
   "sub20_antenna_mapping": {
