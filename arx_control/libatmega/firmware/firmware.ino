@@ -30,7 +30,8 @@ SoftwareSerial SSerial1(D7, D6);
 #define RS485_EN D2
 
 // RS485 RX timeout in ms
-#define RS485_TIMEOUT_MS 1000
+#define RS485_SHORT_TIMEOUT_MS 125
+#define RS485_LONG_TIMEOUT_MS 1025
 
 // Fault LED pin
 #define FAULT_PIN D0
@@ -221,7 +222,7 @@ void read_rs485(uint16_t nargs, uint8_t* argv) {
     invalid_arguments(nargs, argv);
   } else {
     unsigned long t_start = millis();
-    while( ((millis() - t_start) < RS485_TIMEOUT_MS) && (i < 80) ) {
+    while( ((millis() - t_start) < RS485_LONG_TIMEOUT_MS) && (i < 80) ) {
       if( SSerial1.available() > 0 ) {
         response[i] = SSerial1.read();
         if( response[i++] == '\r' ) {
@@ -270,18 +271,43 @@ void write_rs485(uint16_t nargs, uint8_t* argv) {
   }
 }
 
+unsigned long get_rs485_timeout_ms(const uint8_t* cmd, int size) {
+    // Determine a command-specific timeout period if ms
+    //   Input: 2 - command name (N uint8_t), size of the command (int)
+    //   Output: command timeout in ms (unsigned long)
+
+    // Special cases with no response expected
+    if (size == 1 && cmd[0] == 'W') return 25;  // WAKE
+    if (size == 4) {
+        if (memcmp(cmd, "RSET", 4) == 0) return 25;
+        if (memcmp(cmd, "SLEP", 4) == 0) return 25;
+    }
+    
+    // Commands with extended timeouts
+    if (size == 4) {
+        if (memcmp(cmd, "OWSE", 4) == 0) return RS485_LONG_TIMEOUT_MS;
+        if (memcmp(cmd, "OWTE", 4) == 0) return RS485_LONG_TIMEOUT_MS;
+    }
+    
+    // Standard commands use base timeout
+    return RS485_SHORT_TIMEOUT_MS;
+}
+
 void send_rs485(uint16_t nargs, uint8_t* argv) {
   // Write the given number of bytes to the provided ARX board address
   //   Input: 2+ arguments - address (uint8_t), value (N uint8_t)
   //   Output: Value written as N uint8_t (N >= 0)
   byte addr = argv[0];
   uint16_t size = nargs - 1;
+  unsigned long timeout_ms = RS485_SHORT_TIMEOUT_MS;
   int i = 0;
   byte response[80] = {0};
   if( nargs < 2 ) {
     invalid_arguments(nargs, argv);
   } else {
     SSerial1.flush();
+
+    timeout_ms = get_rs485_timeout_ms((uint8_t*) &(argv[1]), size);
 
     digitalWrite(RS485_EN, HIGH);
     delayMicroseconds(250);
@@ -294,7 +320,7 @@ void send_rs485(uint16_t nargs, uint8_t* argv) {
     digitalWrite(RS485_EN, LOW);
     
     unsigned long t_start = millis();
-    while( ((millis() - t_start) < RS485_TIMEOUT_MS) && (i < 80) ) {
+    while( ((millis() - t_start) < timeout_ms) && (i < 80) ) {
       if( SSerial1.available() > 0 ) {
         response[i] = SSerial1.read();
         if( response[i++] == '\r' ) {
@@ -315,7 +341,10 @@ void send_rs485(uint16_t nargs, uint8_t* argv) {
           timeout_rs485_command(nargs, argv);
         }
       } else if( size == 4 ) {
-        if( (argv[1] == 'R') && (argv[2] == 'S') && (argv[3] == 'E') && (argv[4] == 'T') ) {
+        if( (argv[1] == '*') ) {
+          // Don't expect anything from a hidden command
+          serial_sendresp(0, 0, (uint8_t*) &(response[0]));
+        } else if( (argv[1] == 'R') && (argv[2] == 'S') && (argv[3] == 'E') && (argv[4] == 'T') ) {
           // Don't expect anything from RSET
           serial_sendresp(0, 0, (uint8_t*) &(response[0]));
         } else if( (argv[1] == 'S') && (argv[2] == 'L') && (argv[3] == 'E') && (argv[4] == 'P') ) {
@@ -325,7 +354,12 @@ void send_rs485(uint16_t nargs, uint8_t* argv) {
           timeout_rs485_command(nargs, argv);
         }
       } else {
-        timeout_rs485_command(nargs, argv);
+        if( (argv[1] == '*') ) {
+          // Don't expect anything from a hidden command
+          serial_sendresp(0, 0, (uint8_t*) &(response[0]));
+        } else {
+          timeout_rs485_command(nargs, argv);
+        }
       }
     } else {
       if( response[0] != 0x06 ) {
