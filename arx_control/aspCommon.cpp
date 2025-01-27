@@ -49,15 +49,53 @@ std::list<std::string> list_atmegas() {
 bool ATmega::open() {
   bool found = false;
   atmega::handle fd = -1;
+  if( _sn.substr(0,4).compare("/dev") == 0 ) {
+    int open_attempts = 0;
+    while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
+      try {
+      	fd = atmega::open(_sn);
+      	break;
+      } catch(const std::exception& e) {
+      	open_attempts++;
+      	std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
+      }
+    }
+    
+    if( fd != 0 ) {
+      try {
+        atmega::buffer cmd, resp;
+        cmd.command = atmega::COMMAND_READ_SN;
+        cmd.size = 0;
+        
+        int n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+        if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
+        	std::string sn;
+        	for(int i=0; i<resp.size; i++) {
+        	  sn.push_back((char) resp.buffer[i]);
+        	}
+        	
+        	found = true;
+        	_fd = fd;
+        }
+      } catch(const std::exception& e) {}
+      
+      if( !found ) {
+        atmega::close(fd);
+      }
+    }
+    
+    return found;
+  }
+  
   for(std::string const& dev_name: atmega::find_devices()) {
     int open_attempts = 0;
     while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
       try {
-        fd = atmega::open(dev_name);
-        break;
+      	fd = atmega::open(dev_name);
+      	break;
       } catch(const std::exception& e) {
-        open_attempts++;
-        std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
+      	open_attempts++;
+      	std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
       }
     }
     
@@ -72,18 +110,18 @@ bool ATmega::open() {
       
       int n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
       if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
-        std::string sn;
-        for(int i=0; i<resp.size; i++) {
-          sn.push_back((char) resp.buffer[i]);
-        }
-        
-        if( _sn.compare(sn) == 0 ) {
-          found = true;
-          _fd = fd;
-          break;
-        } else {
-          _fd = -1;
-        }
+	std::string sn;
+	for(int i=0; i<resp.size; i++) {
+	  sn.push_back((char) resp.buffer[i]);
+	}
+	
+	if( _sn.compare(sn) == 0 ) {
+	  found = true;
+	  _fd = fd;
+	  break;
+	} else {
+	  _fd = -1;
+	}
       }
     } catch(const std::exception& e) {}
     
