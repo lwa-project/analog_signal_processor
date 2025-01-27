@@ -248,13 +248,25 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
       // EEPROM operations are really slow
       cmd_wait_ms = 100;
     } else if( (   (command->command == atmega::COMMAND_READ_RS485)
-                || (command->command == atmega::COMMAND_WRITE_RS485)
-                || (command->command == atmega::COMMAND_SEND_RS485) ) ) {
-      // RS485 has a 1000 ms timeout
-      cmd_wait_ms = 1050;
+                || (command->command == atmega::COMMAND_WRITE_RS485)) ) {
+      // RS485 read/write has a 1025 ms timeout
+      cmd_wait_ms = 1025;
+    } else if ( command->command == atmega::COMMAND_SEND_RS485 ) {
+      // RS485 send has a variable timeout based on the command - most are 100 ms
+      cmd_wait_ms = 125;
+      if( command->size >= 5 ) {
+        const char* cmd = (const char*) &command->buffer[1];
+        if( (::strncmp(cmd, "OWSE", 4) == 0) || (::strncmp(cmd, "OWTE", 4) == 0) ) {
+          cmd_wait_ms = 1025;
+        } else if( (::strncmp(cmd, "RSET", 4) == 0) || (::strncmp(cmd, "SLEP", 4) == 0) ) {
+          cmd_wait_ms = 25;   // No return expected
+        }
+      } else if(command->size == 2 && command->buffer[1] == 'W') {
+        cmd_wait_ms = 25;     // No return expected
+      }
     } else if( command ->command == atmega::COMMAND_SCAN_RS485 ) {
       // RS485 scan has a 2 *s* timeout
-      cmd_wait_ms = 2000;
+      cmd_wait_ms = 2025;
     }
     
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
