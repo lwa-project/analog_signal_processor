@@ -196,7 +196,7 @@ int main(int argc, char** argv) {
               value *= 0.004;
               value *= 100;
             #else
-              value *= 3.3 / 1024 / 2.38;
+              value *= 3.3 / 1024 / 2.06;
               value *= 1000;
             #endif
             std::cout << i+1 << ": " << std::fixed << std::setprecision(1) << value << " mA" << std::endl;
@@ -208,7 +208,7 @@ int main(int argc, char** argv) {
             value *= 0.004;
             value *= 100;
           #else
-            value *= 3.3 / 1024 / 2.38;
+            value *= 3.3 / 1024 / 2.06;
             value *= 1000;
           #endif
           std::cout << std::fixed << std::setprecision(1) << value << " mA" << std::endl;
