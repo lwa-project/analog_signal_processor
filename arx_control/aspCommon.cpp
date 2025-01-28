@@ -3,6 +3,7 @@
 #include <thread>
 #include <chrono>
 #include <filesystem>
+#include <sys/stat.h>
 
 #include "aspCommon.hpp"
 
@@ -49,11 +50,16 @@ std::list<std::string> list_atmegas() {
 bool ATmega::open() {
   bool found = false;
   atmega::handle fd = -1;
-  if( _sn.substr(0,4).compare("/dev") == 0 ) {
+  if( _sn.find("/dev") == 0 ) {
+    struct stat sb;
+    if( stat(_sn.c_str(), &sb) == -1 || !S_ISCHR(sb.st_mode) ) {
+      return false;
+    }
+    
     int open_attempts = 0;
     while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
       try {
-      	fd = atmega::open(_sn);
+        fd = atmega::open(_sn);
       	break;
       } catch(const std::exception& e) {
       	open_attempts++;
@@ -61,7 +67,7 @@ bool ATmega::open() {
       }
     }
     
-    if( fd != 0 ) {
+    if( fd >= 0 ) {
       try {
         atmega::buffer cmd, resp;
         cmd.command = atmega::COMMAND_READ_SN;
@@ -69,11 +75,6 @@ bool ATmega::open() {
         
         int n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
         if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
-        	std::string sn;
-        	for(int i=0; i<resp.size; i++) {
-        	  sn.push_back((char) resp.buffer[i]);
-        	}
-        	
         	found = true;
         	_fd = fd;
         }
@@ -85,50 +86,50 @@ bool ATmega::open() {
     }
     
     return found;
-  }
-  
-  for(std::string const& dev_name: atmega::find_devices()) {
-    int open_attempts = 0;
-    while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
-      try {
-      	fd = atmega::open(dev_name);
-      	break;
-      } catch(const std::exception& e) {
-      	open_attempts++;
-      	std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
+  } else {
+    for(std::string const& dev_name: atmega::find_devices()) {
+      int open_attempts = 0;
+      while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
+        try {
+        	fd = atmega::open(dev_name);
+        	break;
+        } catch(const std::exception& e) {
+        	open_attempts++;
+        	std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
+        }
       }
-    }
-    
-    if( fd < 0 ) {
-      continue;
-    }
-    
-    try {
-      atmega::buffer cmd, resp;
-      cmd.command = atmega::COMMAND_READ_SN;
-      cmd.size = 0;
       
-      int n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
-      if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
-	std::string sn;
-	for(int i=0; i<resp.size; i++) {
-	  sn.push_back((char) resp.buffer[i]);
-	}
-	
-	if( _sn.compare(sn) == 0 ) {
-	  found = true;
-	  _fd = fd;
-	  break;
-	} else {
-	  _fd = -1;
-	}
+      if( fd < 0 ) {
+        continue;
       }
-    } catch(const std::exception& e) {}
-    
-    if( found ) {
-      break;
-    } else {
-      atmega::close(fd);
+      
+      try {
+        atmega::buffer cmd, resp;
+        cmd.command = atmega::COMMAND_READ_SN;
+        cmd.size = 0;
+        
+        int n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+        if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
+  	std::string sn;
+  	for(int i=0; i<resp.size; i++) {
+  	  sn.push_back((char) resp.buffer[i]);
+  	}
+  	
+  	if( _sn.compare(sn) == 0 ) {
+  	  found = true;
+  	  _fd = fd;
+  	  break;
+  	} else {
+  	  _fd = -1;
+  	}
+        }
+      } catch(const std::exception& e) {}
+      
+      if( found ) {
+        break;
+      } else {
+        atmega::close(fd);
+      }
     }
   }
   
