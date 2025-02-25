@@ -222,8 +222,7 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
   ssize_t nsend = 0, nrecv = 0, nbatch = 0, nleft=0;
   const char *start = "<<<";
   const char *stop = ">>>";
-  char *temp;
-  temp = (char*) ::calloc(1, 6+sizeof(buffer));
+  char *temp = (char*) ::calloc(1, 6+sizeof(buffer));
   for(int i=0; i<max_retry+1; i++) {
     if( i > 0 ) {
       std::this_thread::sleep_for(std::chrono::milliseconds(retry_wait_ms));
@@ -238,15 +237,11 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
     #endif
     
     // Set the timeout based on the command type
-    int cmd_wait_ms = 5;
-    if( (   (command->command == atmega::COMMAND_READ_I2C)
-         || (command->command == atmega::COMMAND_WRITE_I2C)) ) {
-      // I2C operations are slow
-      cmd_wait_ms = 50;
-    } else if( (   (command->command == atmega::COMMAND_READ_SN)
+    int cmd_wait_ms = 50;
+    if( (   (command->command == atmega::COMMAND_READ_SN)
                 || (command->command == atmega::COMMAND_WRITE_SN)) ) {
-      // EEPROM operations are really slow
-      cmd_wait_ms = 100;
+      // EEPROM operations are slow
+      cmd_wait_ms = 125;
     } else if( (   (command->command == atmega::COMMAND_READ_RS485)
                 || (command->command == atmega::COMMAND_WRITE_RS485)) ) {
       // RS485 read/write has a 1025 ms timeout
@@ -258,18 +253,18 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
         const char* cmd = (const char*) &command->buffer[1];
         if( (::strncmp(cmd, "OWSE", 4) == 0) || (::strncmp(cmd, "OWTE", 4) == 0) ) {
           cmd_wait_ms = 1025;
-        } else if( (::strncmp(cmd, "RSET", 4) == 0) || (::strncmp(cmd, "SLEP", 4) == 0) ) {
-          cmd_wait_ms = 25;   // No return expected
+        } else if( (cmd[0] == '*') || (::strncmp(cmd, "RSET", 4) == 0) || (::strncmp(cmd, "SLEP", 4) == 0) ) {
+          cmd_wait_ms = 50;   // No return expected
         }
       } else if(command->size == 2 && command->buffer[1] == 'W') {
-        cmd_wait_ms = 25;     // No return expected
+        cmd_wait_ms = 50;     // No return expected
       }
     } else if( command ->command == atmega::COMMAND_SCAN_RS485 ) {
       // RS485 scan has a 2 *s* timeout
       cmd_wait_ms = 2025;
     }
     
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     
     // Receive the reply
     nrecv = 0;
@@ -277,7 +272,7 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
     fd_set read_fds;
     struct timeval batch_timeout;
     batch_timeout.tv_sec = 0;
-    batch_timeout.tv_usec = 1000;
+    batch_timeout.tv_usec = 25000;
     
     FD_ZERO(&read_fds);
     FD_SET(fd, &read_fds);
@@ -309,9 +304,9 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
       }
       
       if( FD_ISSET(fd, &read_fds) ) {
-        nbatch = ::read(fd, (uint8_t*) (temp+nrecv), nleft);
+        nbatch = ::read(fd, (temp+nrecv), nleft);
         #if defined(ATMEGA_DEBUG) && ATMEGA_DEBUG
-          std::cout << "nrecv: " << nrecv << " and nbatch: " << nbatch << std::endl;
+          std::cout << "nrecv: " << nrecv << " and nbatch: " << nbatch << " with nleft: " << nleft << std::endl;
         #endif
         if( nbatch > 0 ) {
           // We've received something.  Update the data counters and reset the
