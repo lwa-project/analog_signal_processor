@@ -239,20 +239,27 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
     // Set the timeout based on the command type
     int cmd_wait_ms = 50;
     if( (   (command->command == atmega::COMMAND_READ_SN)
-                || (command->command == atmega::COMMAND_WRITE_SN)) ) {
+         || (command->command == atmega::COMMAND_WRITE_SN)) ) {
       // EEPROM operations are slow
       cmd_wait_ms = 125;
+    } else if( (   (command->command == atmega::COMMAND_READ_I2C)
+                || (command->command == atmega::COMMAND_WRITE_I2C)) ) {
+      // I2C read/write has a 100 ms timeout
+      cmd_wait_ms = 125;
+    } else if( command->command == atmega::COMMAND_SCAN_I2C ) {
+       // I2C scan has a 630 ms timeout
+       cmd_wait_ms = 655;
     } else if( (   (command->command == atmega::COMMAND_READ_RS485)
                 || (command->command == atmega::COMMAND_WRITE_RS485)) ) {
       // RS485 read/write has a 1025 ms timeout
       cmd_wait_ms = 1025;
     } else if ( command->command == atmega::COMMAND_SEND_RS485 ) {
       // RS485 send has a variable timeout based on the command - most are 100 ms
-      cmd_wait_ms = 125;
+      cmd_wait_ms = 150;
       if( command->size >= 5 ) {
         const char* cmd = (const char*) &command->buffer[1];
         if( (::strncmp(cmd, "OWSE", 4) == 0) || (::strncmp(cmd, "OWTE", 4) == 0) ) {
-          cmd_wait_ms = 1025;
+          cmd_wait_ms = 1050;
         } else if( (cmd[0] == '*') || (::strncmp(cmd, "RSET", 4) == 0) || (::strncmp(cmd, "SLEP", 4) == 0) ) {
           cmd_wait_ms = 50;   // No return expected
         }
@@ -261,7 +268,7 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
       }
     } else if( command ->command == atmega::COMMAND_SCAN_RS485 ) {
       // RS485 scan has a 2 *s* timeout
-      cmd_wait_ms = 2025;
+      cmd_wait_ms = 2050;
     }
     
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -272,15 +279,16 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
     fd_set read_fds;
     struct timeval batch_timeout;
     batch_timeout.tv_sec = 0;
-    batch_timeout.tv_usec = 25000;
+    batch_timeout.tv_usec = 50000;
     
     FD_ZERO(&read_fds);
     FD_SET(fd, &read_fds);
     
     int timeout_count = 0;
+    int max_timeout_count = std::max(3, (cmd_wait_ms - 1) / (batch_timeout.tv_usec/1000) + 1);
     double elapsed_time = 0.0;
     auto start_time = std::chrono::steady_clock::now();
-    while( (nleft > 0) && (timeout_count < 5) && (elapsed_time <= cmd_wait_ms) ) {
+    while( (nleft > 0) && (timeout_count < max_timeout_count) && (elapsed_time <= cmd_wait_ms) ) {
       int ret = ::select(fd + 1, &read_fds, nullptr, nullptr, &batch_timeout);
       #if defined(ATMEGA_DEBUG) && ATMEGA_DEBUG
         std::cout << "poll with " << ret << " after " << nleft << "; " << timeout_count << "; " << elapsed_time << std::endl;
