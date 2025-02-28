@@ -1,12 +1,6 @@
 #include <SPI.h>
 #include <Wire.h>
-#include <SoftwareSerial.h>
 #include <FlashStorage_SAMD.h>
-
-// Check SoftwareSerial RX buffer size check
-#if _SS_MAX_RX_BUFF < 80
-  #error Default SoftwareSerial buffer is too small
-#endif
 
 // Chip select pin for SPI operations
 #define SPI_SS_PIN D3
@@ -22,9 +16,6 @@
 
 // Version string
 #define VERSION "v0.0.1"
-
-// RS485 software serial port
-SoftwareSerial SSerial1(D7, D6);
 
 // RS485 RX/TX enable pin
 #define RS485_EN D2
@@ -188,21 +179,25 @@ void scan_rs485(uint16_t nargs, uint8_t* argv) {
     invalid_arguments(nargs, argv);
   } else {
     for(addr=1; addr<127; addr++) {
-      SSerial1.flush();
+      Serial1.flush();
       
       digitalWrite(RS485_EN, HIGH);
-      delayMicroseconds(250);
-      SSerial1.write((uint8_t) (0x80 + addr) & 0xFF);
-      SSerial1.write((uint8_t*) &(cmd[0]), 7);
-      SSerial1.write('\r');
-      SSerial1.flush();
+      delayMicroseconds(500);
+      Serial1.write((uint8_t) (0x80 + addr) & 0xFF);
+      Serial1.write((uint8_t*) &(cmd[0]), 7);
+      Serial1.write('\r');
+      Serial1.flush();
       
-      delayMicroseconds(250);
+      delayMicroseconds(500);
       digitalWrite(RS485_EN, LOW);
 
       unsigned long t_start = millis();
-      while( (millis() - t_start) < 10 ) {
-        if( SSerial1.available() > 4 ) {
+      while( (millis() - t_start) < 25 ) {
+        if( Serial1.available() >= 9 ) {
+          while( Serial1.available() ) {
+            Serial1.read();
+            delayMicroseconds(500);
+          }
           found_addr[ndevice++] = addr;
           break;
         }
@@ -226,14 +221,14 @@ void read_rs485(uint16_t nargs, uint8_t* argv) {
   } else {
     unsigned long t_start = millis();
     while( ((millis() - t_start) < RS485_LONG_TIMEOUT_MS) && (i < 80) ) {
-      if( SSerial1.available() > 0 ) {
-        response[i] = SSerial1.read();
+      if( Serial1.available() > 0 ) {
+        response[i] = Serial1.read();
         if( response[i++] == '\r' ) {
           i--;
           break;
         }
       } else {
-        delayMicroseconds(250);
+        delayMicroseconds(500);
       }
     }
     
@@ -258,16 +253,16 @@ void write_rs485(uint16_t nargs, uint8_t* argv) {
   if( nargs < 2 ) {
     invalid_arguments(nargs, argv);
   } else {
-    SSerial1.flush();
+    Serial1.flush();
     
     digitalWrite(RS485_EN, HIGH);
-    delayMicroseconds(250);
-    SSerial1.write((uint8_t) (0x80 + addr) & 0xFF);
-    SSerial1.write((uint8_t*) &(argv[1]), size);
-    SSerial1.write('\r');
-    SSerial1.flush();
+    delayMicroseconds(500);
+    Serial1.write((uint8_t) (0x80 + addr) & 0xFF);
+    Serial1.write((uint8_t*) &(argv[1]), size);
+    Serial1.write('\r');
+    Serial1.flush();
     
-    delayMicroseconds(250);
+    delayMicroseconds(500);
     digitalWrite(RS485_EN, LOW);
 
     serial_sendresp(0, 0, argv);
@@ -308,30 +303,30 @@ void send_rs485(uint16_t nargs, uint8_t* argv) {
   if( nargs < 2 ) {
     invalid_arguments(nargs, argv);
   } else {
-    SSerial1.flush();
+    Serial1.flush();
 
     timeout_ms = get_rs485_timeout_ms((uint8_t*) &(argv[1]), size);
 
     digitalWrite(RS485_EN, HIGH);
-    delayMicroseconds(250);
-    SSerial1.write((uint8_t) (0x80 + addr) & 0xFF);
-    SSerial1.write((uint8_t*) &(argv[1]), size);
-    SSerial1.write('\r');
-    SSerial1.flush();
+    delayMicroseconds(500);
+    Serial1.write((uint8_t) (0x80 + addr) & 0xFF);
+    Serial1.write((uint8_t*) &(argv[1]), size);
+    Serial1.write('\r');
+    Serial1.flush();
     
-    delayMicroseconds(250);
+    delayMicroseconds(500);
     digitalWrite(RS485_EN, LOW);
     
     unsigned long t_start = millis();
     while( ((millis() - t_start) < timeout_ms) && (i < 80) ) {
-      if( SSerial1.available() > 0 ) {
-        response[i] = SSerial1.read();
+      if( Serial1.available() > 0 ) {
+        response[i] = Serial1.read();
         if( response[i++] == '\r' ) {
           i--;
           break;
         }
       } else {
-        delayMicroseconds(250);
+        delayMicroseconds(500);
       }
     }
 
@@ -416,7 +411,7 @@ void read_i2c(uint16_t nargs, uint8_t* argv) {
     Wire.endTransmission();
 
     Wire.requestFrom(addr, sze);
-    usinged long startTime = millis();
+    unsigned long startTime = millis();
     while( Wire.available() < sze ) {
       if( (millis() - startTime) > I2C_TIMEOUT_MS ) {
         invalid_bus_error(nargs, argv);
@@ -428,7 +423,7 @@ void read_i2c(uint16_t nargs, uint8_t* argv) {
     if( nread < sze ) {
       digitalWrite(FAULT_PIN, HIGH);
       invalid_bus_error(nargs, argv);
-      return
+      return;
     }
     err = Wire.endTransmission(); 
     if( err == 0 ) {
@@ -546,7 +541,7 @@ void setup() {
   Serial.begin(115200);
   
   // RS485 setup
-  SSerial1.begin(19200);
+  Serial1.begin(19200);
   pinMode(RS485_EN, OUTPUT);
   digitalWrite(RS485_EN, LOW);
   
