@@ -18,8 +18,8 @@
 #include "libatmega.hpp"
 
 // ATmega device opening control
-#define ATMEGA_OPEN_MAX_ATTEMPTS 20
-#define ATMEGA_OPEN_WAIT_MS  5
+#define ATMEGA_OPEN_MAX_ATTEMPTS 5
+#define ATMEGA_OPEN_WAIT_MS  55
 
 
 // ARX board configuration
