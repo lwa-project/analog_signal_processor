@@ -149,6 +149,7 @@ std::string ATmega::get_version() {
   
   int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
   if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+    std::cerr << "Warning: " << atmega::strerror(resp.command) << std::endl;
     return version;
   }
   
@@ -171,6 +172,7 @@ bool ATmega::transfer_spi(const char* inputs, char* outputs, int size) {
   
   int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
   if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+    std::cerr << "Warning: " << atmega::strerror(resp.command) << std::endl;
     return false;
   }
   
@@ -191,6 +193,7 @@ std::list<uint8_t> ATmega::list_rs485_devices() {
   
   int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
   if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+    std::cerr << "Warning: " << atmega::strerror(resp.command) << std::endl;
     return rs485_addresses_list;
   }
   
@@ -213,6 +216,7 @@ bool ATmega::read_rs485(uint8_t addr, char* data, int* size) {
   try {
     n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
     if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+      std::cerr << "Warning: " << atmega::strerror(resp.command) << std::endl;
       return false;
     }
   } catch(const std::exception& e) {
@@ -238,6 +242,7 @@ bool ATmega::write_rs485(uint8_t addr, const char* data, int size) {
   try {
     int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
     if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+      std::cerr << "Warning: " << atmega::strerror(resp.command) << std::endl;
       return false;
     }
   } catch(const std::exception& e) {
@@ -262,6 +267,7 @@ bool ATmega::send_rs485(uint8_t addr, const char* in_data, int in_size, char* ou
   try {
     n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
     if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+      std::cerr << "Warning: " << atmega::strerror(resp.command) << std::endl;
       return false;
     }
   } catch(const std::exception& e) {
@@ -286,6 +292,7 @@ std::list<uint8_t> ATmega::list_i2c_devices() {
   
   int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
   if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+    std::cerr << "Warning: " << atmega::strerror(resp.command) << std::endl;
     return i2c_addresses_list;
   }
   
@@ -310,6 +317,7 @@ bool ATmega::read_i2c(uint8_t addr, uint8_t reg, char* data, int size) {
   try {
     int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
     if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+      std::cerr << "Warning: " << atmega::strerror(resp.command) << std::endl;
       return false;
     }
   } catch(const std::exception& e) {
@@ -335,6 +343,7 @@ bool ATmega::write_i2c(uint8_t addr, uint8_t reg, const char* data, int size) {
   try {
     int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
     if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+      std::cerr << "Warning: " << atmega::strerror(resp.command) << std::endl;
       return false;
     }
   } catch(const std::exception& e) {
@@ -356,6 +365,7 @@ bool ATmega::clear_fault() {
   
   int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
   if( resp.command & atmega::COMMAND_FAILURE ) {
+    std::cerr << "Warning: " << atmega::strerror(resp.command) << std::endl;
     return false;
   }
   
@@ -374,6 +384,7 @@ bool ATmega::locate() {
   
   int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
   if( resp.command & atmega::COMMAND_FAILURE ) {
+    std::cerr << "Warning: " << atmega::strerror(resp.command) << std::endl;
     return false;
   }
   

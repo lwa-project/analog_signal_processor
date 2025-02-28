@@ -352,6 +352,20 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
   return nrecv;
 }
 
+std::string atmega::strerror(uint8_t cmd) {
+  switch(cmd) {
+    case COMMAND_SUCCESS:       return std::string("Command successful");
+    case COMMAND_FAILURE:       return std::string("General command failure (reason not specified)");
+    case COMMAND_FAILURE_ARG:   return std::string("Invalid argument count");
+    case COMMAND_FAILURE_STA:   return std::string("Invalid device state");
+    case COMMAND_FAILURE_BUS:   return std::string("An error occurred during the I2C transaction");
+    case COMMAND_FAILURE_RS485: return std::string("Invalid RS485-specific command");
+    case COMMAND_FAILURE_TOUT:  return std::string("Timeout reading from RS485");
+    case COMMAND_FAILURE_CMD:   return std::string("Invalid command");
+    default:                    return std::string("Unknown error code");
+  }
+}
+
 void atmega::close(atmega::handle fd) {
   if( fd >= 0 ) {
     ::close(fd);

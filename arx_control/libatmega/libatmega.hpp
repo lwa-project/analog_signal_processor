@@ -84,6 +84,9 @@ namespace atmega {
   ssize_t send_command(handle fd, const buffer* command, buffer* response, 
                        int max_retry=0, int retry_wait_ms=50);
   
+  // Decode a response error message
+  std::string strerror(uint8_t cmd);
+  
   // Close an open device
   void close(handle fd);
 }
