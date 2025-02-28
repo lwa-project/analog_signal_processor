@@ -180,6 +180,9 @@ void scan_rs485(uint16_t nargs, uint8_t* argv) {
   } else {
     for(addr=1; addr<127; addr++) {
       Serial1.flush();
+      while( Serial1.available() ) {
+        Serial1.read();
+      }
       
       digitalWrite(RS485_EN, HIGH);
       delayMicroseconds(500);
@@ -196,10 +199,11 @@ void scan_rs485(uint16_t nargs, uint8_t* argv) {
         if( Serial1.available() >= 9 ) {
           while( Serial1.available() ) {
             Serial1.read();
-            delayMicroseconds(500);
           }
           found_addr[ndevice++] = addr;
           break;
+        } else {
+          delayMicroseconds(500);
         }
       }
 
@@ -254,6 +258,9 @@ void write_rs485(uint16_t nargs, uint8_t* argv) {
     invalid_arguments(nargs, argv);
   } else {
     Serial1.flush();
+    while( Serial1.available() ) {
+      Serial1.read();
+    }
     
     digitalWrite(RS485_EN, HIGH);
     delayMicroseconds(500);
@@ -304,6 +311,9 @@ void send_rs485(uint16_t nargs, uint8_t* argv) {
     invalid_arguments(nargs, argv);
   } else {
     Serial1.flush();
+    while( Serial1.available() ) {
+      Serial1.read();
+    }
 
     timeout_ms = get_rs485_timeout_ms((uint8_t*) &(argv[1]), size);
 
