@@ -267,8 +267,8 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
         cmd_wait_ms = 50;     // No return expected
       }
     } else if( command ->command == atmega::COMMAND_SCAN_RS485 ) {
-      // RS485 scan has a 2 *s* timeout
-      cmd_wait_ms = 2050;
+      // RS485 scan has a 5 *s* timeout
+      cmd_wait_ms = 5050;
     }
     
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
