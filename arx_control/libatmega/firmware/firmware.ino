@@ -33,6 +33,9 @@ SoftwareSerial SSerial1(D7, D6);
 #define RS485_SHORT_TIMEOUT_MS 125
 #define RS485_LONG_TIMEOUT_MS 1025
 
+// I2C timeout in ms
+#define I2C_TIMEOUT_MS 100
+
 // Fault LED pin
 #define FAULT_PIN D0
 
@@ -413,10 +416,20 @@ void read_i2c(uint16_t nargs, uint8_t* argv) {
     Wire.endTransmission();
 
     Wire.requestFrom(addr, sze);
+    usinged long startTime = millis();
     while( Wire.available() < sze ) {
+      if( (millis() - startTime) > I2C_TIMEOUT_MS ) {
+        invalid_bus_error(nargs, argv);
+        return;
+      }
       delay(1);
     }
-    Wire.readBytes(argv, sze);
+    size_t nread = Wire.readBytes(argv, sze);
+    if( nread < sze ) {
+      digitalWrite(FAULT_PIN, HIGH);
+      invalid_bus_error(nargs, argv);
+      return
+    }
     err = Wire.endTransmission(); 
     if( err == 0 ) {
       serial_sendresp(0, sze, argv);
