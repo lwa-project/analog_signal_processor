@@ -285,7 +285,7 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
     FD_SET(fd, &read_fds);
     
     int timeout_count = 0;
-    int max_timeout_count = std::max(3, (cmd_wait_ms - 1) / (batch_timeout.tv_usec/1000) + 1);
+    int max_timeout_count = std::max(3, (int) ((cmd_wait_ms - 1) / (batch_timeout.tv_usec/1000) + 1));
     double elapsed_time = 0.0;
     auto start_time = std::chrono::steady_clock::now();
     while( (nleft > 0) && (timeout_count < max_timeout_count) && (elapsed_time <= cmd_wait_ms) ) {
