@@ -18,6 +18,10 @@ Usage:
      tempFault ##.# - Set the temperature fault limit
                       to the specified value in 
                       degrees C
+     voltAdjust ##.# - Set the output voltage to the
+                       specified value in volts
+     turnOnDelay ### - Set the turn on delays to the
+                       specifed value in ms
 
 Options:
   None
@@ -34,6 +38,7 @@ Options:
 
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
+#include "ivsCommon.hpp"
 
 #define MODE_UNKOWN       0
 #define MODE_QUERY      101
@@ -42,6 +47,7 @@ Options:
 #define MODE_TEMPWARN   104
 #define MODE_TEMPFAULT  105
 #define MODE_VOLTADJUST 106
+#define MODE_ONDELAY    107
 
 
 int main(int argc, char** argv) {
@@ -87,6 +93,13 @@ int main(int argc, char** argv) {
       std::exit(EXIT_FAILURE);
     }
     arg_value = std::strtod(argv[4], &endptr);
+  } else if( command == "turnOnDelay" ) {
+		mode = MODE_ONDELAY;
+    if( argc < 4+1 ) {
+      std::cerr << "configPSU - Setting 'turnOnDelay' requires an additional argument" << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+    arg_value = std::strtod(argv[4], &endptr);
 	} else {
     std::cerr << "configPSU - Invalid command '" << command << "'" << std::endl;
 		std::exit(EXIT_FAILURE);
@@ -108,26 +121,30 @@ int main(int argc, char** argv) {
 	********************/
   std::list<uint8_t> i2c_devices = atm->list_i2c_devices();
   
-  uint16_t data, modules;
+  uint16_t data;
   bool found = false;
   for(uint8_t& addr: i2c_devices) {
     if( addr != i2c_device ) {
       continue;
     }
     
-    if( mode == MODE_VOLTADJUST ) {
+    std::list<uint8_t> modules;
+    if( (mode == MODE_QUERY) || (mode == MODE_VOLTADJUST) || (mode == MODE_ONDELAY) ) {
       // Get a list of smart modules tha we need to update
-      success = atm->read_i2c(addr, 0xD3, (char *) &modules, 2);
-		  if( !success ) {
-			  std::cerr << "configPSU - smart module listing failed" << std::endl;
-			  continue;
-		  }
+      modules = ivs_get_smart_modules(atm, addr);
+    }
+    
+    if( mode == MODE_VOLTADJUST ) {
+      bool is_on = ivs_is_on(atm, addr);
+      if( is_on ) {
+        mode = MODE_UNKOWN;
+        std::cerr << "configPSU - Cannot adjust output voltage while unit is on" << std::endl;
+      }
     }
     
     if( mode != MODE_QUERY ) {
 			// Enable writing to the OPERATION address (0x01) so we can change modules
-			data = 0;
-			success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
+			success = ivs_enable_operation_page_writes(atm, addr);
 			if( !success ) {
 				std::cerr << "configPSU - write settings failed" << std::endl;
 				continue;
@@ -200,6 +217,24 @@ int main(int argc, char** argv) {
 				}
 				std::cout << "Low Power Limit:           " << (int) ((wide_data >> 8) & 0xFFFF) << " W" << std::endl;
 				std::cout << "High Power Limit:          " << (int) ((wide_data >> 24) & 0xFFFF) << " W" << std::endl;
+        
+        // Query turn on delay
+        for(uint8_t& module: modules) {
+          success = ivs_select_module(atm, addr, module);
+          if( !success ) {
+            std::cerr << "configPSU - page change failed" << std::endl;
+            continue;
+          }
+          
+          success = atm->read_i2c(addr, 0x60, (char *) &data, 2);
+          if( !success ) {
+  					std::cerr << "configPSU - get turn on delay failed" << std::endl;
+  					continue;
+  				}
+          data &= 0xFF;
+          std::cout << "Module " << module << " Turn On Delay: " << (int) data << " ms" << std::endl;
+        }
+        
 				break;
 				
 			case MODE_AUTOOFF:
@@ -299,96 +334,95 @@ int main(int argc, char** argv) {
 				break;
 				
       case MODE_VOLTADJUST:
+      case MODE_ONDELAY:
         // Loop over modules
-        for(int i=0; i<16; i++) {
-          // Skip modules that aren't smart
-          if( ((modules >> i) & 1) == 0 ) {
+        for(uint8_t& module: modules) {
+          success = ivs_select_module(atm, addr, module);
+          if( !success ) {
+            std::cerr << "configPSU - page change failed" << std::endl;
             continue;
           }
           
-          int page = 17;
-          while( page != i ) {
-            // Move to the correct module page
-            data = i;
-				    success = atm->write_i2c(addr, 0x00, (char *) &data, 1);
-				    if( !success ) {
-              std::cerr << "configPSU - page change failed" << std::endl;
-    					break;
-    				}
+          if( mode == MODE_VOLTADJUST ) {
+            // Read what this module is capable of
+            uint32_t longdata = 0;
+            success = atm->read_i2c(addr, 0xDF, (char *) &longdata, 4);
+            if( !success ) {
+              std::cerr << "configPSU - get module info failed" << std::endl;
+              continue;
+            }
+            int modulevolts = 0;  // The only valid options are the 8V and 15V modules
+            if( (longdata & 15) == 1 ) {// 6V to 12V
+              modulevolts = 8;
+            } else if( (longdata & 15) == 2 ) {// 14V to 20V
+              modulevolts = 15;
+            } else if( (longdata & 15) == 7 ) {// 12V to 15V
+              modulevolts = 15;
+            }
             
-            std::this_thread::sleep_for(std::chrono::milliseconds(25));
+            // Verify module compatibility
+            if( (arg_value < (0.9*modulevolts)) || (arg_value > (1.1*modulevolts)) ) {
+              std::cerr << "configPSU - requested voltage outside module range, skipping" << std::endl;
+              continue;
+            }
             
-            success = atm->read_i2c(addr, 0x00, (char *) &data, 1);
-				    if( !success ) {
-					    std::cerr << "configPSU - get page failed" << std::endl;
-					    continue;
-				    }
-				    page = data & 0xFF;
-          }
-          
-          // Read what this module is capable of
-          uint32_t longdata = 0;
-          success = atm->read_i2c(addr, 0xDF, (char *) &longdata, 4);
-          if( !success ) {
-            std::cerr << "configPSU - get module info failed" << std::endl;
-            continue;
-          }
-          int modulevolts = 0;  // The only valid options are the 8V and 15V modules
-          if( (longdata & 15) == 1 ) {// 6V to 12V
-            modulevolts = 8;
-          } else if( (longdata & 15) == 2 ) {// 14V to 20V
-            modulevolts = 15;
-          } else if( (longdata & 15) == 7 ) {// 12V to 15V
-            modulevolts = 15;
-          }
-          
-          // Verify module compatibility
-          if( (arg_value < (0.9*modulevolts)) || (arg_value > (1.1*modulevolts)) ) {
-            std::cerr << "configPSU - requeted voltage outside module range, skipping" << std::endl;
-            continue;
-          }
-          
-          // Convert to the right format
-          data = (uint16_t) round(arg_value*100);
-          
-          // Update the output voltage
-          success = atm->write_i2c(addr, 0x21, (char *) &data, 2);
-          if( !success ) {
-      			std::cerr << "configPSU - output voltage update failed" << std::endl;
-      			continue;
-      		}
-          
-          std::this_thread::sleep_for(std::chrono::milliseconds(50));
-          
-          // Verify the module status
-          success = atm->read_i2c(addr, 0x78, (char *) &data, 1);
-          if( !success ) {
-      			std::cerr << "configPSU - get output voltage failed" << std::endl;
-      			continue;
-      		}
-          if( (data & 191) != 0 ) {
-            std::cerr << "configPSU - module in unexpected state:" << std::endl;
-            if( (data >> 7) & 1 ) {// busy
-              std::cerr << "            busy" << std::endl;
+            // Convert to the right format
+            data = (uint16_t) round(arg_value*100);
+            
+            // Update the output voltage
+            success = atm->write_i2c(addr, 0x21, (char *) &data, 2);
+            if( !success ) {
+        			std::cerr << "configPSU - output voltage update failed" << std::endl;
+        			continue;
+        		}
+            
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            
+            // Verify the module status
+            success = atm->read_i2c(addr, 0x78, (char *) &data, 1);
+            if( !success ) {
+        			std::cerr << "configPSU - get output voltage failed" << std::endl;
+        			continue;
+        		}
+            if( (data & 191) != 0 ) {
+              std::cerr << "configPSU - module in unexpected state:" << std::endl;
+              if( (data >> 7) & 1 ) {// busy
+                std::cerr << "            busy" << std::endl;
+              }
+              if( (data >> 5) & 1 ) {// overvoltage
+                std::cerr << "            output overvoltage" << std::endl;
+              }
+              if( (data >> 4) & 1 ) {// overcurrent
+                std::cerr << "            output overcurrent" << std::endl;
+              }
+              if( (data >> 3) & 1 ) {// undervoltage
+                std::cerr << "            input undervoltage" << std::endl;
+              }
+              if( (data >> 2) & 1 ) {// temperature
+                std::cerr << "            temperature" << std::endl;
+              }
+              if( (data >> 1) & 1 ) {// comms, memory, or logic
+                std::cerr << "            comm/mem/logic" << std::endl;
+              }
+              if( (data >> 0) & 1 ) {// other
+                std::cerr << "            other" << std::endl;
+              }
             }
-            if( (data >> 5) & 1 ) {// overvoltage
-              std::cerr << "            output overvoltage" << std::endl;
+          } else if( mode == MODE_ONDELAY) {
+            if( (arg_value < 0) || (arg_value > 255) ) {
+              std::cerr << "configPSU - requested turn on delay outside range, skipping" << std::endl;
+              continue;
             }
-            if( (data >> 4) & 1 ) {// overcurrent
-              std::cerr << "            output overcurrent" << std::endl;
-            }
-            if( (data >> 3) & 1 ) {// undervoltage
-              std::cerr << "            input undervoltage" << std::endl;
-            }
-            if( (data >> 2) & 1 ) {// temperature
-              std::cerr << "            temperature" << std::endl;
-            }
-            if( (data >> 1) & 1 ) {// comms, memory, or logic
-              std::cerr << "            comm/mem/logic" << std::endl;
-            }
-            if( (data >> 0) & 1 ) {// other
-              std::cerr << "            other" << std::endl;
-            }
+            
+            // Convert to the right format
+            data = (uint16_t) round(arg_value);
+            
+            // Update the turn on delay
+            success = atm->write_i2c(addr, 0x60, (char *) &data, 2);
+            if( !success ) {
+        			std::cerr << "configPSU - turn on delay update failed" << std::endl;
+        			continue;
+        		}
           }
         }
       
@@ -406,8 +440,7 @@ int main(int argc, char** argv) {
     }
 		
     if( mode != MODE_QUERY ) {// Write-protect all entries but WRITE_PROTECT (0x10)
-			data = ((1 << 7) & 1);
-			success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
+			success = ivs_disable_writes(atm, addr);
 			if( !success ) {
 				std::cerr << "configPSU - write settings failed" << std::endl;
 				continue;
