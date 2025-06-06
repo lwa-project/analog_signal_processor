@@ -22,6 +22,7 @@ Options:
 
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
+#include "ivsCommon.hpp"
 
 
 int main(int argc, char** argv) {
@@ -67,17 +68,11 @@ int main(int argc, char** argv) {
     }
     
     // Get the current power supply state
-		success = atm->read_i2c(addr, 0x01, (char *) &data, 1);
-		if( !success ) {
-			std::cerr << "onoffPSU - page change failed" << std::endl;
-			continue;
-		}
-		status = (data >> 7) & 1;
-		std::cout << std::uppercase << std::hex << "0x" << (int) addr << std::nouppercase << std::dec << " is in state " << (int) status << std::endl;
+    bool is_on = ivs_is_on(atm, addr);
+		std::cout << std::uppercase << std::hex << "0x" << (int) addr << std::nouppercase << std::dec << " is in state " << (int) is_on << std::endl;
 		
 		// Enable writing to the OPERATION address (0x01) so we can change modules
-		data = 0;
-		success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
+		success = ivs_enable_operation_page_writes(atm, addr);
 		if( !success ) {
 			std::cerr << "onoffPSU - write settings failed" << std::endl;
 			continue;
@@ -111,8 +106,7 @@ int main(int argc, char** argv) {
 		std::cout << std::uppercase << std::hex << "0x" << (int) addr << std::nouppercase << std::dec << " is now in state " << (int) status << std::endl;
 		
 		// Write-protect all entries but WRITE_PROTECT (0x10)
-		data = (1 << 7) & 1;
-		success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
+		success = ivs_disable_writes(atm, addr);
 		if( !success ) {
 			std::cerr << "onoffPSU - write settings failed" << std::endl;
 			continue;

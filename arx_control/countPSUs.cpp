@@ -21,6 +21,7 @@ Options:
 
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
+#include "ivsCommon.hpp"
 
 int main(int argc, char** argv) {
   /************************************
@@ -49,7 +50,6 @@ int main(int argc, char** argv) {
     }
     
     int num = 0;
-    uint16_t data;
     for(uint8_t& addr: i2c_devices) {
       if( addr > 0x1F ) {
         continue;
@@ -58,15 +58,8 @@ int main(int argc, char** argv) {
       std::cout << " -> " << std::uppercase << std::hex << "0x" << (int) addr << std::nouppercase << std::dec << std::endl;
 		  
 			// Get a list of smart modules for polling
-			success = atm->read_i2c(addr, 0xD3, (char *) &data, 2);
-			if( !success ) {
-				std::cerr <<  "countPSUs - module status failed" << std::endl;
-				continue;
-			}
-		  
-			for(int j=0; j<16; j++) {
-				num += ((data >> j) & 1);
-			}
+      std::list<uint8_t> modules = ivs_get_smart_modules(atm, addr);
+      num = modules.size();
 		}
 	
 		if( num > 0 ) {

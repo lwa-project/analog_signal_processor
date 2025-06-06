@@ -22,6 +22,7 @@ Options:
 
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
+#include "ivsCommon.hpp"
 
 int main(int argc, char** argv) {
   /*************************
@@ -58,49 +59,24 @@ int main(int argc, char** argv) {
     }
     
 		#ifdef __INCLUDE_MODULE_TEMPS__
-      uint16_t modules, page;
+      std::list<uint8_t> modules = ivs_get_smart_modules(atm, addr);
       
-			// Get a list of smart modules for polling
-			success = atm->read_i2c(addr, 0xD3, (char *) &data, 2);
-			if( !success ) {
-				std::cerr << "readThermometers - module status failed" << std::endl;
-				continue;
-			}
-			modules = data;
-			
 			// Enable writing to the PAGE address (0x00) so we can change modules
-      data = ((1 << 6) & 1) << 8;
-			success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
+      success = ivs_enable_operation_page_writes(atm, addr);
 			if( !success ) {
 				std::cerr << "readThermometers - write settings failed" << std::endl;
 				continue;
 			}
 			
-			// Loop over modules 0 through 15
-			for(int j=0; j<16; j++) {
-				// Skip "dumb" modules
-				if( ((modules >> j) & 1) == 0 ) {
-					continue;
-				}
-				
-				// Jump to the correct page and give the PSU a second to get ready
-				data = j << 8;
-				success = atm->write_i2c(addr, 0x00, (char *) &data, 1);
-				if( !success ) {
-					std::cerr << "readThermometers - page change failed" << std::endl;
-					continue;
-				}
-				std::this_thread::sleep_for(std::chrono::milliseconds(20));
-				
-				// Verify the current page
-				success = atm->read_i2c(addr, 0x00, (char *) &data, 1);
-				if( !success ) {
-					std::cerr << "readThermometers - get page failed" << std::endl;
-					continue;
-				}
-				page = (data >> 8) & 0xFFFF;
-				
-				/******************
+			// Loop over modules
+      for(uint8_t& module: modules) {
+        success = ivs_select_module(atm, addr, module);
+        if( !success ) {
+          std::cerr << "readThermometers - page change failed" << std::endl;
+          continue;
+        }
+        
+	      /******************
 				* Get Temperature *
 				******************/
 				
@@ -109,20 +85,11 @@ int main(int argc, char** argv) {
 					std::cerr << "readThermometers - get temperature #3 failed" << std::endl;
 					continue;
 				}
-				std::cout << "0x" << std::uppercase << std::hex << (int) addr << std::nouppercase << std::dec << " Module" << page << " " << (1.0*data) << std::endl;
-			}
-			
-			// Set the module number back to 0
-			data = 0;
-			success = atm->write_i2c(addr, 0x00, (char *) &data, 1);
-			if( !success ) {
-				std::cerr << "readThermometers - page change failed" << std::endl;
-				continue;
+				std::cout << "0x" << std::uppercase << std::hex << (int) addr << std::nouppercase << std::dec << " Module" << module << " " << (1.0*data) << std::endl;
 			}
 			
 			// Write-protect all entries but WRITE_PROTECT (0x10)
-			data = ((1 << 7) & 1) << 8;
-			success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
+			success = ivs_disable_writes(atm, addr);
 			if( !success ) {
 				std::cerr << "readThermometers - write settings failed" << std::endl;
 				continue;

@@ -67,25 +67,25 @@ sendPICDevice: sendPICDevice.o aspCommon.o
 countBoards: countBoards.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-countPSUs: countPSUs.o aspCommon.o
+countPSUs: countPSUs.o aspCommon.o ivsCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-countThermometers: countThermometers.o aspCommon.o
+countThermometers: countThermometers.o aspCommon.o ivsCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 countPICs: countPICs.o aspCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-readPSU: readPSU.o aspCommon.o
+readPSU: readPSU.o aspCommon.o ivsCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-readThermometers: readThermometers.o aspCommon.o
+readThermometers: readThermometers.o aspCommon.o ivsCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-onoffPSU: onoffPSU.o aspCommon.o
+onoffPSU: onoffPSU.o aspCommon.o ivsCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-configPSU: configPSU.o aspCommon.o
+configPSU: configPSU.o aspCommon.o ivsCommon.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 readARXDevice: readARXDevice.o aspCommon.o

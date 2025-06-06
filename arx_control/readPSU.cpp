@@ -23,10 +23,11 @@ Options:
 
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
+#include "ivsCommon.hpp"
 
-std::string getModuleName(uint16_t page, uint8_t moduleCode) {
+std::string getModuleName(uint16_t module, uint8_t moduleCode) {
 	// Decode the power rating of the current module
-  std::string output = std::string("Module")+std::to_string(page);
+  std::string output = std::string("Module")+std::to_string(module);
   switch((moduleCode >> 4 ) & 0xF) {
     case 0: output = output+std::string("_210W");  break;
     case 1: output = output+std::string("_360W");  break;
@@ -152,7 +153,7 @@ int main(int argc, char** argv) {
 	********************/
   std::list<uint8_t> i2c_devices = atm->list_i2c_devices();
   
-  uint16_t data, page, modules;
+  uint16_t data;
   bool found = false;
   for(uint8_t& addr: i2c_devices) {
     if( addr != i2c_device ) {
@@ -160,59 +161,27 @@ int main(int argc, char** argv) {
     }
     
 		// Get a list of smart modules for polling
-		success = atm->read_i2c(addr, 0xD3, (char *) &data, 2);
-		if( !success ) {
-			std::cout << "readPSU - module status failed" << std::endl;
-			continue;
-		}
-		modules = data;
-    
+    std::list<uint8_t> modules = ivs_get_smart_modules(atm, addr);
+		
 		// Enable writing to all of the supported command so we can change 
 		// modules/poll module type
-		data = 0;
-		success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
+		success = ivs_enable_all_writes(atm, addr);
 		if( !success ) {
 			std::cout << "readPSU - write settings failed" << std::endl;
 			continue;
 		}
 
 		// Loop over modules 0 through 15
-		int nMod = 0;
-    std::string moduleName, modulePower, moduleStatus;
+    int nMod = 0;
+		std::string moduleName, modulePower, moduleStatus;
     float voltage = 0.0, current = 0.0;
-		for(int j=0; j<16; j++) {
-			/****************
-			* Module Change *
-			****************/
-			
-			// Skip "dumb" modules
-			if( ((modules >> j) & 1) == 0 ) {
-				continue;
-			}
-			nMod += 1;
-			
-			page = 17;
-			while( page != j ) {
-				// Jump to the correct page and give the PSU a second to get ready
-				data = j;
-				success = atm->write_i2c(addr, 0x00, (char *) &data, 1);
-				if( !success ) {
-					std::cout << "readPSU - page change failed" << std::endl;
-				  delete atm;
-          std::exit(EXIT_FAILURE);
-				}
-				
-				std::this_thread::sleep_for(std::chrono::milliseconds(10));
-				
-				// Verify the current page
-				success = atm->read_i2c(addr, 0x00, (char *) &data, 1);
-				if( !success ) {
-					std::cout << "readPSU - get page failed" << std::endl;
-					continue;
-				}
-				page = data & 0xFF;
-			}
-
+    for(uint8_t& module: modules) {
+			success = ivs_select_module(atm, addr, module);
+      if( !success ) {
+        std::cerr << "readPSU - page change failed" << std::endl;
+        continue;
+      }
+      
 			/***********************
 			* Module Name and Type *
 			***********************/
@@ -239,12 +208,12 @@ int main(int argc, char** argv) {
         if( moduleName.size() > 0 ) {
           moduleName = moduleName+std::string("|");
         }
-				moduleName = moduleName+getModuleName(page, code);
+				moduleName = moduleName+getModuleName(module, code);
 			#else
 				if( moduleName.size() > 0 ) {
 					moduleName = moduleName+std::string("|");
 				}
-        moduleName = moduleName+std::string("Module")+std::to_string(page);
+        moduleName = moduleName+std::string("Module")+std::to_string(module);
 			#endif
 
 			/*************************
@@ -313,8 +282,7 @@ int main(int argc, char** argv) {
 		}
 
 		// Write-protect all entries but WRITE_PROTECT (0x10)
-		data = (1 << 7) & 1;
-		success = atm->write_i2c(addr, 0x10, (char *) &data, 1);
+		success = ivs_disable_writes(atm, addr);
 		if( !success ) {
 			std::cout << "readPSU - write settings failed" << std::endl;
 			continue;

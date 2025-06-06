@@ -20,6 +20,7 @@ Options:
 
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
+#include "ivsCommon.hpp"
 
 int main(int argc, char** argv) {
   /*************************
@@ -57,17 +58,8 @@ int main(int argc, char** argv) {
 
 #ifdef __INCLUDE_MODULE_TEMPS__
 			// Get a list of smart modules for polling
-      uint16_t data;
-      success = atm->read_i2c(addr, 0xD3, (char *) &data, 2);
-			if( !success ) {
-				std::cerr << "countThermometers - module status failed" << std::endl;
-				continue;
-			}
-			
-			// Each module has a temperature sensor
-      for(int j=0; j<16; j++) {
-				num += ((data >> j) & 1);
-			}
+      std::list<uint8_t> modules = ivs_get_smart_modules(atm, addr);
+      num += modules.size();
 #endif
   
 		// And there are two overall sensors per PSU
