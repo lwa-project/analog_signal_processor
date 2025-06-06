@@ -128,7 +128,11 @@ int main(int argc, char** argv) {
       std::cout << "Response: " << std::quoted(temp) << std::endl;
       
       if( decode ) {
-        if( command == "GTIM" ) {
+        if( command.substr(0, 4) == "ECHO" ) {
+          std::string echor = temp.substr(4, temp.size()-4);
+          std::cout << "Echo response: " << echor << std::endl;
+          
+        } else if( command == "GTIM" ) {
           uint32_t value = std::stoi(std::string("0x") + temp, nullptr, 16);
           std::cout << "Board Time: " << value << " s" << std::endl;
           
