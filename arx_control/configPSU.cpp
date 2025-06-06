@@ -35,12 +35,13 @@ Options:
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
 
-#define MODE_UNKOWN      0
-#define MODE_QUERY     101
-#define MODE_AUTOON    102
-#define MODE_AUTOOFF   103
-#define MODE_TEMPWARN  104
-#define MODE_TEMPFAULT 105
+#define MODE_UNKOWN       0
+#define MODE_QUERY      101
+#define MODE_AUTOON     102
+#define MODE_AUTOOFF    103
+#define MODE_TEMPWARN   104
+#define MODE_TEMPFAULT  105
+#define MODE_VOLTADJUST 106
 
 
 int main(int argc, char** argv) {
@@ -79,6 +80,13 @@ int main(int argc, char** argv) {
       std::exit(EXIT_FAILURE);
     }
     arg_value = std::strtod(argv[4], &endptr);
+  } else if( command == "voltAdjust" ) {
+		mode = MODE_VOLTADJUST;
+    if( argc < 4+1 ) {
+      std::cerr << "configPSU - Setting 'voltAdjust' requires an additional argument" << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+    arg_value = std::strtod(argv[4], &endptr);
 	} else {
     std::cerr << "configPSU - Invalid command '" << command << "'" << std::endl;
 		std::exit(EXIT_FAILURE);
@@ -100,11 +108,20 @@ int main(int argc, char** argv) {
 	********************/
   std::list<uint8_t> i2c_devices = atm->list_i2c_devices();
   
-  uint16_t data;
+  uint16_t data, modules;
   bool found = false;
   for(uint8_t& addr: i2c_devices) {
     if( addr != i2c_device ) {
       continue;
+    }
+    
+    if( mode == MODE_VOLTADJUST ) {
+      // Get a list of smart modules tha we need to update
+      success = atm->read_i2c(addr, 0xD3, (char *) &modules, 2);
+		  if( !success ) {
+			  std::cerr << "configPSU - smart module listing failed" << std::endl;
+			  continue;
+		  }
     }
     
     if( mode != MODE_QUERY ) {
@@ -281,9 +298,112 @@ int main(int argc, char** argv) {
 				}
 				break;
 				
+      case MODE_VOLTADJUST:
+        // Loop over modules
+        for(int i=0; i<16; i++) {
+          // Skip modules that aren't smart
+          if( ((modules >> i) & 1) == 0 ) {
+            continue;
+          }
+          
+          int page = 17;
+          while( page != i ) {
+            // Move to the correct module page
+            data = i;
+				    success = atm->write_i2c(addr, 0x00, (char *) &data, 1);
+				    if( !success ) {
+              std::cerr << "configPSU - page change failed" << std::endl;
+    					break;
+    				}
+            
+            std::this_thread::sleep_for(std::chrono::milliseconds(25));
+            
+            success = atm->read_i2c(addr, 0x00, (char *) &data, 1);
+				    if( !success ) {
+					    std::cerr << "configPSU - get page failed" << std::endl;
+					    continue;
+				    }
+				    page = data & 0xFF;
+          }
+          
+          // Read what this module is capable of
+          uint32_t longdata = 0;
+          success = atm->read_i2c(addr, 0xDF, (char *) &longdata, 4);
+          if( !success ) {
+            std::cerr << "configPSU - get module info failed" << std::endl;
+            continue;
+          }
+          int modulevolts = 0;  // The only valid options are the 8V and 15V modules
+          if( (longdata & 15) == 1 ) {// 6V to 12V
+            modulevolts = 8;
+          } else if( (longdata & 15) == 2 ) {// 14V to 20V
+            modulevolts = 15;
+          } else if( (longdata & 15) == 7 ) {// 12V to 15V
+            modulevolts = 15;
+          }
+          
+          // Verify module compatibility
+          if( (arg_value < (0.9*modulevolts)) || (arg_value > (1.1*modulevolts)) ) {
+            std::cerr << "configPSU - requeted voltage outside module range, skipping" << std::endl;
+            continue;
+          }
+          
+          // Convert to the right format
+          data = (uint16_t) round(arg_value*100);
+          
+          // Update the output voltage
+          success = atm->write_i2c(addr, 0x21, (char *) &data, 2);
+          if( !success ) {
+      			std::cerr << "configPSU - output voltage update failed" << std::endl;
+      			continue;
+      		}
+          
+          std::this_thread::sleep_for(std::chrono::milliseconds(50));
+          
+          // Verify the module status
+          success = atm->read_i2c(addr, 0x78, (char *) &data, 1);
+          if( !success ) {
+      			std::cerr << "configPSU - get output voltage failed" << std::endl;
+      			continue;
+      		}
+          if( (data & 191) != 0 ) {
+            std::cerr << "configPSU - module in unexpected state:" << std::endl;
+            if( (data >> 7) & 1 ) {// busy
+              std::cerr << "            busy" << std::endl;
+            }
+            if( (data >> 5) & 1 ) {// overvoltage
+              std::cerr << "            output overvoltage" << std::endl;
+            }
+            if( (data >> 4) & 1 ) {// overcurrent
+              std::cerr << "            output overcurrent" << std::endl;
+            }
+            if( (data >> 3) & 1 ) {// undervoltage
+              std::cerr << "            input undervoltage" << std::endl;
+            }
+            if( (data >> 2) & 1 ) {// temperature
+              std::cerr << "            temperature" << std::endl;
+            }
+            if( (data >> 1) & 1 ) {// comms, memory, or logic
+              std::cerr << "            comm/mem/logic" << std::endl;
+            }
+            if( (data >> 0) & 1 ) {// other
+              std::cerr << "            other" << std::endl;
+            }
+          }
+        }
+      
 			default:
 				break;
 		}
+    
+    if( mode == MODE_VOLTADJUST ) {// Clear faults after changing the voltage
+      data = 0;
+      success = atm->write_i2c(addr, 0x03, (char *) &data, 1);
+      if( !success ) {
+				std::cerr << "configPSU - clear faults failed" << std::endl;
+				continue;
+			}
+    }
 		
     if( mode != MODE_QUERY ) {// Write-protect all entries but WRITE_PROTECT (0x10)
 			data = ((1 << 7) & 1);
