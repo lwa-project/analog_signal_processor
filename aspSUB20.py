@@ -3,6 +3,7 @@
 Module for storing the various SUB-20 function calls
 """
 
+import re
 import time
 import logging
 import threading
@@ -456,7 +457,7 @@ def rs485Check(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s ECHO%s' % (sub20SN, board, data), shell=True,
+                    p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s ECHO%s' % (sub20SN, board, data), shell=True,
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     output, output2 = p.communicate()
                     try:
@@ -465,7 +466,7 @@ def rs485Check(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
                     except AttributeError:
                         pass
                         
-                    if p.returncode == 0:
+                    if p.returncode == 0 and output.find():
                         board_success = True
                         break
                     else:
@@ -530,6 +531,8 @@ def rs485GetTime(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
     Any board that failed to respond will have its time reported as zero.
     """
     
+    gtimRE = re.compile(r'Board Time: (?<gtim>\d*) s')
+    
     success = True
     data = []
     for sub20SN in sorted(sub20Mapper2.keys()):
@@ -538,7 +541,7 @@ def rs485GetTime(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s GTIM' % (sub20SN, board), shell=True,
+                    p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s GTIM' % (sub20SN, board), shell=True,
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     output, output2 = p.communicate()
                     try:
@@ -547,9 +550,10 @@ def rs485GetTime(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
                     except AttributeError:
                         pass
                         
-                    if p.returncode == 0:
-                        gtime_data = int(output, 16)
-                        data.append(int(gtim_data, 16))
+                    mtch = gtimRE.search(output)
+                    if mtch is not None:
+                        gtim_data = mtch.group('gtim')
+                        data.append(int(gtim_data, 10))
                         board_success = True
                         break
                     else:
@@ -571,6 +575,8 @@ def rs485Power(sub20Mapper2, maxRetry=0, waitRetry=0.2):
      * a list of FEE currents (16/board)
     """
     
+    curaRE = re.compile(r'(?P<chan>\d*): (?P<curr>\d*\.\d*) mA')
+    
     success = True
     fees = []
     for sub20SN in sorted(sub20Mapper2.keys()):
@@ -589,8 +595,12 @@ def rs485Power(sub20Mapper2, maxRetry=0, waitRetry=0.2):
                         pass
                         
                     if p.returncode == 0:
-                        for i in range(16):
-                            fees.append(float(output))
+                        for line in filter(lambda x: x.find(' mA') != -1, output.split('\n')):
+                            mtch = curaRE.search(line)
+                            if mtch is not None:
+                                fees.append(float(mtch.group('curr')))
+                            else:
+                                fees.append(-1.0)
                         board_success = True
                         break
                     else:
@@ -608,6 +618,8 @@ def rs485RFPower(sub20Mapper2, maxRetry=0, waitRetry=0.2):
      * True if all board were successfully polled, False otherwise
      * a list of per-channel RF powers (16/board)
     """
+    
+    powaRE = re.compile(r'(?P<chan>\d*): (?P<pow>\d*\.\d*) uW')
     
     success = True
     rf_powers = []
@@ -627,8 +639,12 @@ def rs485RFPower(sub20Mapper2, maxRetry=0, waitRetry=0.2):
                         pass
                         
                     if p.returncode == 0:
-                        for i in range(16):
-                            rf_powers.append(float(output))
+                        for line in filter(lambda x: x.find(' uW') != -1, output.split('\n')):
+                            mtch = powaRE.search(line)
+                            if mtch is not None:
+                                rf_powers.append(float(mtch.group('pow')))
+                            else:
+                                rf_powers.append(-1.0)
                         board_success = True
                         break
                     except Exception as e:
@@ -646,6 +662,8 @@ def rs485Temperature(sub20Mapper2, maxRetry=0, waitRetry=0.2):
      * True if all board were successfully polled, False otherwise
      * a list of temperatures (typically 3/board)
     """
+    
+    owteRE = re.compile(r'(?P<chan>\d*): (?P<temp>\d*\.\d*) C')
     
     success = True
     temps = []
@@ -665,8 +683,12 @@ def rs485Temperature(sub20Mapper2, maxRetry=0, waitRetry=0.2):
                         pass
                         
                     if p.returncode == 0:
-                        for i in range(ntemp):
-                            temps.append(float(output))
+                        for line in filter(lambda x: x.find(' C') != -1, output.split('\n')):
+                            mtch = owteRE.search(line)
+                            if mtch is not None:
+                                temps.append(float(mtch.group('temp')))
+                            else:
+                                temps.append(-99.0)
                         board_success = True
                         break
                     else:
