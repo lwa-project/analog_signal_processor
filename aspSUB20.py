@@ -11,8 +11,8 @@ from collections import deque
 
 from aspThreads import SUB20_LOCKS
 
-__version__ = '0.3'
-__all__ = ['spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread', 'psuSend', 
+__version__ = '0.4'
+__all__ = ['spiCountBoards', 'rs485CountBoards', 'SPICommandCallback', 'SPIProcessingThread', 'psuSend', 
            'SPI_cfg_normal', 'SPI_cfg_shutdown', 
            'SPI_cfg_output_P12_13_14_15', 'SPI_cfg_output_P16_17_18_19', 'SPI_cfg_output_P20_21_22_23', 'SPI_cfg_output_P24_25_26_27', 'SPI_cfg_output_P28_29_30_31',
            'SPI_P12_on', 'SPI_P12_off', 'SPI_P13_on', 'SPI_P13_off', 'SPI_P14_on', 'SPI_P14_off', 'SPI_P15_on', 'SPI_P15_off',
@@ -100,6 +100,46 @@ def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY
                     time.sleep(waitRetry)
                     
                 p = subprocess.Popen('/usr/local/bin/countBoards %s' % sub20SN, shell=True,
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                output, output2 = p.communicate()
+                try:
+                    output = output.decode('ascii')
+                    output2 = output2.decode('ascii')
+                except AttributeError:
+                    pass
+                    
+                if p.returncode == 0:
+                    aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
+                    status = False
+                else:
+                    nBoards += p.returncode
+                    status = True
+                attempt += 1
+                
+        overallStatus &= status
+        
+    if not overallStatus:
+        nBoards = 0
+        
+    return nBoards
+
+
+def rs485CountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+    """
+    Count the number of PIC devices on all known SUB-20s.
+    """
+    
+    nBoards = 0
+    overallStatus = True
+    for sub20SN in sorted(sub20Mapper):
+        with SUB20_LOCKS[sub20SN]:
+            attempt = 0
+            status = False
+            while ((not status) and (attempt <= maxRetry)):
+                if attempt != 0:
+                    time.sleep(waitRetry)
+                    
+                p = subprocess.Popen('/usr/local/bin/countPICs %s' % sub20SN, shell=True,
                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 output, output2 = p.communicate()
                 try:
