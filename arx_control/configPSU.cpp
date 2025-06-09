@@ -134,17 +134,9 @@ int main(int argc, char** argv) {
       modules = ivs_get_smart_modules(atm, addr);
     }
     
-    if( mode == MODE_VOLTADJUST ) {
-      bool is_on = ivs_is_on(atm, addr);
-      if( is_on ) {
-        mode = MODE_UNKOWN;
-        std::cerr << "configPSU - Cannot adjust output voltage while unit is on" << std::endl;
-      }
-    }
-    
     if( mode != MODE_QUERY ) {
 			// Enable writing to the OPERATION address (0x01) so we can change modules
-			success = ivs_enable_operation_page_writes(atm, addr);
+			success = ivs_enable_all_writes(atm, addr);
 			if( !success ) {
 				std::cerr << "configPSU - write settings failed" << std::endl;
 				continue;
@@ -345,18 +337,28 @@ int main(int argc, char** argv) {
           
           if( mode == MODE_VOLTADJUST ) {
             // Read what this module is capable of
+            data = 0;
+            success = atm->write_i2c(addr, 0xDE, (char *) &longdata, 1);
+            if( !success ) {
+              std::cerr << "configPSU - get module info failed" << std::endl;
+              continue;
+            }
+            
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            
             uint32_t longdata = 0;
             success = atm->read_i2c(addr, 0xDF, (char *) &longdata, 4);
             if( !success ) {
               std::cerr << "configPSU - get module info failed" << std::endl;
               continue;
             }
+            
             int modulevolts = 0;  // The only valid options are the 8V and 15V modules
-            if( (longdata & 15) == 1 ) {// 6V to 12V
+            if( ((longdata >> 24) & 15) == 1 ) {// 6V to 12V
               modulevolts = 8;
-            } else if( (longdata & 15) == 2 ) {// 14V to 20V
+            } else if( ((longdata >> 24) & 15) == 2 ) {// 14V to 20V
               modulevolts = 15;
-            } else if( (longdata & 15) == 7 ) {// 12V to 15V
+            } else if( ((longdata >> 24) & 15) == 7 ) {// 12V to 15V
               modulevolts = 15;
             }
             
@@ -408,6 +410,7 @@ int main(int argc, char** argv) {
                 std::cerr << "            other" << std::endl;
               }
             }
+            
           } else if( mode == MODE_ONDELAY) {
             if( (arg_value < 0) || (arg_value > 255) ) {
               std::cerr << "configPSU - requested turn on delay outside range, skipping" << std::endl;
@@ -425,6 +428,15 @@ int main(int argc, char** argv) {
         		}
           }
         }
+        
+        // Save the configutation as default
+        data = 0x21;
+        success = atm->write_i2c(addr, 0x15, (char *) &data, 1);
+        if( !success ) {
+          std::cerr << "configPSU - save configuration failed" << std::endl;
+          continue;
+        }
+        break;
       
 			default:
 				break;
