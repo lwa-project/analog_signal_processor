@@ -181,6 +181,7 @@ int main(int argc, char** argv) {
         std::cerr << "readPSU - page change failed" << std::endl;
         continue;
       }
+      nMod++;
       
 			/***********************
 			* Module Name and Type *
