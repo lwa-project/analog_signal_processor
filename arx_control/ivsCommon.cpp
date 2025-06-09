@@ -24,20 +24,34 @@ bool ivs_select_module(ATmega *atm, uint8_t addr, uint8_t module) {
   uint16_t data;
   bool success;
   uint8_t page = 17;
+  int ntry = 0;
   while( page != module ) {
+    ntry++;
+    
     // Move to the correct module page
     data = module;
     success = atm->write_i2c(addr, 0x00, (char *) &data, 1);
     if( !success ) {
-      return false;
+      if( ntry < IVS_MAX_RETRY_PAGE ) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        continue;
+      } else {
+        return false;
+      }
     }
     
     std::this_thread::sleep_for(std::chrono::milliseconds(25));
     
     success = atm->read_i2c(addr, 0x00, (char *) &data, 1);
     if( !success ) {
-      return false;
+      if( ntry < IVS_MAX_RETRY_PAGE ) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        continue;
+      } else {
+        return false;
+      }
     }
+    
     page = data & 0xFF;
   }
 

@@ -13,6 +13,8 @@
 #include "aspCommon.hpp"
 
 
+#define IVS_MAX_RETRY_PAGE 3
+
 // Disable writes
 inline bool ivs_disable_writes(ATmega *atm, uint8_t addr) {
   uint8_t data = ((1 << 7) & 1);
