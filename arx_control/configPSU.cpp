@@ -338,7 +338,7 @@ int main(int argc, char** argv) {
           if( mode == MODE_VOLTADJUST ) {
             // Read what this module is capable of
             data = 0;
-            success = atm->write_i2c(addr, 0xDE, (char *) &longdata, 1);
+            success = atm->write_i2c(addr, 0xDE, (char *) &data, 1);
             if( !success ) {
               std::cerr << "configPSU - get module info failed" << std::endl;
               continue;
