@@ -65,4 +65,7 @@ std::list<uint8_t> ivs_get_smart_modules(ATmega *atm, uint8_t addr);
 // Set the current page to the requested module
 bool ivs_select_module(ATmega *atm, uint8_t addr, uint8_t module);
 
+// Wait for the busy flag to clear out of the STATUS_BYTE
+bool ivs_wait_not_busy(ATmega *atm, uint8_t addr, int timeout_ms=1000);
+
 #endif
