@@ -318,13 +318,17 @@ bool ATmega::read_i2c(uint8_t addr, uint8_t reg, char* data, int size) {
     int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
     if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
       std::cerr << "Warning: " << atmega::strerror(resp.command) << std::endl;
+      std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_I2C_WAIT_MS));
       return false;
     }
   } catch(const std::exception& e) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_I2C_WAIT_MS));
     return false;
   }
   
   ::memcpy(data, &(resp.buffer[0]), size);
+  
+  std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_I2C_WAIT_MS));
   return true;
 }
 
@@ -344,12 +348,15 @@ bool ATmega::write_i2c(uint8_t addr, uint8_t reg, const char* data, int size) {
     int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
     if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
       std::cerr << "Warning: " << atmega::strerror(resp.command) << std::endl;
+      std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_I2C_WAIT_MS));
       return false;
     }
   } catch(const std::exception& e) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_I2C_WAIT_MS));
     return false;
   }
   
+  std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_I2C_WAIT_MS));
   return true;
 }
 

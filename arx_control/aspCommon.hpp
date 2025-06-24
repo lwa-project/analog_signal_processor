@@ -31,6 +31,10 @@
 #define SPI_COMMAND_MARKER 0x0120
 
 
+// I2C inter-command wait
+#define ATMEGA_I2C_WAIT_MS 55
+
+
 // Uncomment the next line to include polling of module temperatures
 //#define __INCLUDE_MODULE_TEMPS__
 
