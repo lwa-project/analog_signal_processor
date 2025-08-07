@@ -629,24 +629,25 @@ def rs485RFPower(sub20Mapper2, maxRetry=0, waitRetry=0.2):
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s CURA' % (sub20SN, board), shell=True,
-                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
                     try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
-                    if p.returncode == 0:
-                        for line in filter(lambda x: x.find(' uW') != -1, output.split('\n')):
-                            mtch = powaRE.search(line)
-                            if mtch is not None:
-                                rf_powers.append(float(mtch.group('pow')))
-                            else:
-                                rf_powers.append(-1.0)
-                        board_success = True
-                        break
+                        p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s CURA' % (sub20SN, board), shell=True,
+                                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        output, output2 = p.communicate()
+                        try:
+                            output = output.decode('ascii')
+                            output2 = output2.decode('ascii')
+                        except AttributeError:
+                            pass
+                            
+                        if p.returncode == 0:
+                            for line in filter(lambda x: x.find(' uW') != -1, output.split('\n')):
+                                mtch = powaRE.search(line)
+                                if mtch is not None:
+                                    rf_powers.append(float(mtch.group('pow')))
+                                else:
+                                    rf_powers.append(-1.0)
+                            board_success = True
+                            break
                     except Exception as e:
                         aspSUB20Logger.warning("Could not get RF power info. for board %s: %s", board_key, str(e))
                         time.sleep(waitRetry)
