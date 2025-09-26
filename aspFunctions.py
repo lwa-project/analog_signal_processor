@@ -364,8 +364,9 @@ class AnalogProcessor(object):
             time.sleep(5)
             
         # Stop the SPI command processor
-        self.currentState['spiThread'].stop()
-        
+        if self.currentState['spiThread'] is not None:
+            self.currentState['spiThread'].stop()
+            
         # Power off the power supplies
         self.__rxpProcess(00, internal=True)
         self.__fepProcess(00, internal=True)
