@@ -191,7 +191,7 @@ class AnalogProcessor(object):
         self.currentState['activeProcess'].append('INI')
         
         # Make sure the SUB-20 is present
-        if os.system('lsusb -d 04d8: >/dev/null') == 0:
+        if os.system('lsusb -d 2886: >/dev/null') == 0:
             # Good, we can continue
             
             # Turn off the power supplies
