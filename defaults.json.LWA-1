@@ -21,12 +21,12 @@
   "max_stands": 264,
   "max_atten": [15, 15, 31],
   
-  "sub20_i2c_mapping": "0FD5",
+  "sub20_i2c_mapping": "7B92C359",
   "sub20_antenna_mapping": {
-    "0FD5": [1, 256]
+    "7B92C359": [1, 256]
   },
   "sub20_rs485_mapping": {
-    "0FD5": {
+    "7B92C359": {
       "301": [1, 8],
       "302": [9, 16],
       "303": [17, 24],
