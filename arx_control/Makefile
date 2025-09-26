@@ -116,6 +116,7 @@ install:
 	cp configPSU /usr/local/bin
 	cp readARXDevice /usr/local/bin
 	cp locateATmega /usr/local/bin
+	cp listATmega /usr/local/bin
 
 clean:
 	rm -f *.o *.out *.err *.exe *.a *.so *.dylib
