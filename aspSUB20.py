@@ -5,6 +5,7 @@ Module for storing the various SUB-20 function calls
 
 import re
 import time
+import inspect
 import logging
 import threading
 import subprocess
@@ -112,7 +113,7 @@ def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY
                     pass
                     
                 if p.returncode == 0:
-                    aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
+                    aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
                     status = False
                 else:
                     nBoards += p.returncode
@@ -315,7 +316,7 @@ def rs485CountBoards(sub20Mapper, maxRetry=0, waitRetry=0.2):
                     pass
                     
                 if p.returncode == 0:
-                    aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", type(self).__name__, self.sub20SN, attempt, self.maxRetry, p.returncode, output, output2)
+                    aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
                     status = False
                 else:
                     nBoards += p.returncode
