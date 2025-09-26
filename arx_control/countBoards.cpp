@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
   
   commands[0] = SPI_COMMAND_MARKER;
   int num = 0;
-  while( (responses[num] != SPI_COMMAND_MARKER) && (num < (STANDS_PER_BOARD*(17+1))) ) {
+  while( (responses[num] != SPI_COMMAND_MARKER) && (num < (STANDS_PER_BOARD*(MAX_BOARDS+1))) ) {
     num += STANDS_PER_BOARD;
     
     ::memset(responses, 0, sizeof(uint16_t)*2*(MAX_BOARDS*STANDS_PER_BOARD+1));
@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
   		std::cerr << "coundBoards - SPI write failed" << std::endl;
   	}
   }
-  if( num > STANDS_PER_BOARD*17 ) {
+  if( num > STANDS_PER_BOARD*MAX_BOARDS ) {
     num = 0;
   }
   num /= STANDS_PER_BOARD;
