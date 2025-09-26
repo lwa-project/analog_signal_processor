@@ -24,7 +24,7 @@
 
 // ARX board configuration
 #define STANDS_PER_BOARD 8
-#define MAX_BOARDS 33
+#define MAX_BOARDS 32
 
 
 // Command verification marker
