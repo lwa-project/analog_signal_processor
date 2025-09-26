@@ -19,7 +19,7 @@
 
 // ATmega device opening control
 #define ATMEGA_OPEN_MAX_ATTEMPTS 5
-#define ATMEGA_OPEN_WAIT_MS  55
+#define ATMEGA_OPEN_WAIT_MS  105
 
 
 // ARX board configuration
