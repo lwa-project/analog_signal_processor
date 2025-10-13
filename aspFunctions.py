@@ -208,12 +208,11 @@ class AnalogProcessor(object):
             boardsFound = spiCountBoards(self.config['sub20_antenna_mapping'],
                                          maxRetry=self.config['max_spi_retry'],
                                          waitRetry=self.config['wait_spi_retry'])
-            #boardsFound2 = rs485CountBoards(self.config['sub20_antenna_mapping'],
-            #                                maxRetry=self.config['max_spi_retry'],
-            #                                waitRetry=self.config['wait_spi_retry'])
-            boardsFound2 = boardsFound
+            boardsFound2 = rs485CountBoards(self.config['sub20_antenna_mapping'],
+                                           maxRetry=self.config['max_spi_retry'],
+                                           waitRetry=self.config['wait_spi_retry'])
             
-            if boundFound == boardsFound2 and boardsFound == nBoards:
+            if boardsFound == boardsFound2 and boardsFound == nBoards:
                 # Board and stand counts.  NOTE: Stand counts are capped at 260
                 self.num_boards = nBoards
                 self.num_stands = nBoards * self.config['stands_per_board']
