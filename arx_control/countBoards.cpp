@@ -49,15 +49,15 @@ int main(int argc, char** argv) {
 	****************************************/
   // Process the commands
   uint16_t *commands, *responses;
-  commands = (uint16_t*) calloc(sizeof(uint16_t), 2*(MAX_BOARDS*STANDS_PER_BOARD+1));
-  responses = (uint16_t*) calloc(sizeof(uint16_t), 2*(MAX_BOARDS*STANDS_PER_BOARD+1));
+  commands = (uint16_t*) calloc(sizeof(uint16_t), (MAX_BOARDS*STANDS_PER_BOARD+1));
+  responses = (uint16_t*) calloc(sizeof(uint16_t), (MAX_BOARDS*STANDS_PER_BOARD+1));
   
   commands[0] = SPI_COMMAND_MARKER;
   int num = 0;
   while( (responses[num] != SPI_COMMAND_MARKER) && (num < (STANDS_PER_BOARD*(MAX_BOARDS+1))) ) {
     num += STANDS_PER_BOARD;
     
-    ::memset(responses, 0, sizeof(uint16_t)*2*(MAX_BOARDS*STANDS_PER_BOARD+1));
+    ::memset(responses, 0, sizeof(uint16_t)*(MAX_BOARDS*STANDS_PER_BOARD+1));
     
     success = atm->transfer_spi((char*) commands, (char*) responses, 2*num+2);
   	if( !success ) {
