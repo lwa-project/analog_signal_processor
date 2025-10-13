@@ -62,7 +62,7 @@
     }
   },
   
-  "max_spi_retry": 0,
+  "max_spi_retry": 2,
   "wait_spi_retry": 0.2,
   
   "arx_ps_address": 31,
