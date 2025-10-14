@@ -365,7 +365,7 @@ def rs485Reset(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     success = True
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
-            for board in sub20Mapper2[sub20SN]:
+            for board_key in sub20Mapper2[sub20SN]:
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
@@ -403,7 +403,7 @@ def rs485Sleep(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     success = True
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
-            for board in sub20Mapper2[sub20SN]:
+            for board_key in sub20Mapper2[sub20SN]:
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
@@ -436,7 +436,7 @@ def rs485Wake(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     success = True
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
-            for board in sub20Mapper2[sub20SN]:
+            for board_key in sub20Mapper2[sub20SN]:
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
@@ -479,7 +479,7 @@ def rs485Check(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
     failed = []
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
-            for board in sub20Mapper2[sub20SN]:
+            for board_key in sub20Mapper2[sub20SN]:
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
@@ -520,7 +520,7 @@ def rs485SetTime(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
     failed = []
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
-            for board in sub20Mapper2[sub20SN]:
+            for board_key in sub20Mapper2[sub20SN]:
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
@@ -563,7 +563,7 @@ def rs485GetTime(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
     data = []
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
-            for board in sub20Mapper2[sub20SN]:
+            for board_key in sub20Mapper2[sub20SN]:
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
@@ -607,7 +607,7 @@ def rs485Power(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     fees = []
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
-            for board in sub20Mapper2[sub20SN]:
+            for board_key in sub20Mapper2[sub20SN]:
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
@@ -651,7 +651,7 @@ def rs485RFPower(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     rf_powers = []
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
-            for board in sub20Mapper2[sub20SN]:
+            for board_key in sub20Mapper2[sub20SN]:
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
@@ -696,7 +696,7 @@ def rs485Temperature(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     temps = []
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
-            for board in sub20Mapper2[sub20SN]:
+            for board_key in sub20Mapper2[sub20SN]:
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
