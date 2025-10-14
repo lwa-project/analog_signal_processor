@@ -15,37 +15,14 @@ try:
 except ImportError:
     from io import StringIO
 
+from aspSUB20 import *
 
-__version__ = '0.6'
-__all__ = ['SUB20_LOCKS', 'TemperatureSensors', 'PowerStatus', 'ChassisStatus']
+
+__version__ = '0.7'
+__all__ = ['TemperatureSensors', 'PowerStatus', 'ChassisStatus']
 
 
 aspThreadsLogger = logging.getLogger('__main__')
-
-
-class LockLocker(dict):
-    """
-    Class to automatically generate threading.Lock objects for any key that
-    might be requested.
-    """
-    
-    _access_lock = threading.RLock()
-    
-    def __getitem__(self, name):
-        with self._access_lock:
-            try:
-                lock = dict.__getitem__(self, name)
-            except KeyError:
-                lock = threading.Lock()
-                dict.__setitem__(self, name, lock)
-        return lock
-        
-    def __setitem__(self, name, value):
-        with self._access_lock:
-            dict.__setitem__(self, name, value)
-
-
-SUB20_LOCKS = LockLocker()
 
 
 class TemperatureSensors(object):

@@ -11,9 +11,7 @@ import threading
 import subprocess
 from collections import deque
 
-from aspThreads import SUB20_LOCKS
-
-__version__ = '0.4'
+__version__ = '0.5'
 __all__ = ['spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread', 'psuSend',
            'rs485CountBoards', 'rs485Reset', 'rs485Sleep', 'rs485Wake', 'rs485Check',
            'rs485SetTime', 'rs485GetTime', 'rs485Power', 'rs485RFPower', 'rs485Temperature',
@@ -24,10 +22,37 @@ __all__ = ['spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread', 'psuSe
            'SPI_P20_on', 'SPI_P20_off', 'SPI_P21_on', 'SPI_P21_off', 'SPI_P22_on', 'SPI_P22_off', 'SPI_P23_on', 'SPI_P23_off',
            'SPI_P24_on', 'SPI_P24_off', 'SPI_P25_on', 'SPI_P25_off', 'SPI_P26_on', 'SPI_P26_off', 'SPI_P27_on', 'SPI_P27_off',
            'SPI_P28_on', 'SPI_P28_off', 'SPI_P29_on', 'SPI_P29_off', 'SPI_P30_on', 'SPI_P30_off', 'SPI_P31_on', 'SPI_P31_off',
-           'SPI_NoOp', 'MAX_SPI_RETRY']
+           'SPI_NoOp', 'SUB20_LOCKS', 'MAX_SPI_RETRY']
 
 
 aspSUB20Logger = logging.getLogger('__main__')
+
+
+# Device access locks
+class LockLocker(dict):
+    """
+    Class to automatically generate threading.Lock objects for any key that
+    might be requested.
+    """
+    
+    _access_lock = threading.RLock()
+    
+    def __getitem__(self, name):
+        with self._access_lock:
+            try:
+                lock = dict.__getitem__(self, name)
+            except KeyError:
+                lock = threading.Lock()
+                dict.__setitem__(self, name, lock)
+        return lock
+        
+    def __setitem__(self, name, value):
+        with self._access_lock:
+            dict.__setitem__(self, name, value)
+
+
+SUB20_LOCKS = LockLocker()
+
 
 # SPI control
 MAX_SPI_RETRY = 2
