@@ -368,6 +368,8 @@ std::string atmega::strerror(uint8_t cmd) {
 
 void atmega::close(atmega::handle fd) {
   if( fd >= 0 ) {
+    ::tcdrain(fd);
     ::close(fd);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
   }
 }
