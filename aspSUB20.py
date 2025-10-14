@@ -366,7 +366,7 @@ def rs485Reset(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
             for board_key in sub20Mapper2[sub20SN]:
-                board = int(board_key)
+                board = (int(board_key) % 126) or 126
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
@@ -408,7 +408,7 @@ def rs485Sleep(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
             for board_key in sub20Mapper2[sub20SN]:
-                board = int(board_key)
+                board = (int(board_key) % 126) or 126
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
@@ -445,7 +445,7 @@ def rs485Wake(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
             for board_key in sub20Mapper2[sub20SN]:
-                board = int(board_key)
+                board = (int(board_key) % 126) or 126
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
@@ -492,7 +492,7 @@ def rs485Check(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
             for board_key in sub20Mapper2[sub20SN]:
-                board = int(board_key)
+                board = (int(board_key) % 126) or 126
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
@@ -537,7 +537,7 @@ def rs485SetTime(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
             for board_key in sub20Mapper2[sub20SN]:
-                board = int(board_key)
+                board = (int(board_key) % 126) or 126
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
@@ -584,7 +584,7 @@ def rs485GetTime(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
             for board_key in sub20Mapper2[sub20SN]:
-                board = int(board_key)
+                board = (int(board_key) % 126) or 126
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
@@ -632,11 +632,11 @@ def rs485Power(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
             for board_key in sub20Mapper2[sub20SN]:
-                board = int(board_key)
+                board = (int(board_key) % 126) or 126
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
-                        p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s CURA' % (sub20SN, board), shell=True,
+                        p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s CURA' % (sub20SN, board), shell=True,
                                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                         output, output2 = p.communicate()
                         try:
@@ -680,11 +680,11 @@ def rs485RFPower(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
             for board_key in sub20Mapper2[sub20SN]:
-                board = int(board_key)
+                board = (int(board_key) % 126) or 126
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
-                        p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s CURA' % (sub20SN, board), shell=True,
+                        p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s CURA' % (sub20SN, board), shell=True,
                                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                         output, output2 = p.communicate()
                         try:
@@ -728,11 +728,11 @@ def rs485Temperature(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     for sub20SN in sorted(sub20Mapper2.keys()):
         with SUB20_LOCKS[sub20SN]:
             for board_key in sub20Mapper2[sub20SN]:
-                board = int(board_key)
+                board = (int(board_key) % 126) or 126
                 board_success = False
                 for attempt in range(maxRetry+1):
                     try:
-                        p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s OWTE' % (sub20SN, board), shell=True,
+                        p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s OWTE' % (sub20SN, board), shell=True,
                                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                         output, output2 = p.communicate()
                         try:
