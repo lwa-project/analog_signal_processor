@@ -551,6 +551,8 @@ class ChassisStatus(object):
         Create a monitoring thread for the temperature.
         """
         
+        loop_counter = 0
+        
         while self.alive.isSet():
             tStart = time.time()
             
@@ -593,8 +595,8 @@ class ChassisStatus(object):
                         self.ASPCallbackInstance.processUnconfiguredChassis(self.sub20SN)
                         
                 ## Record the board temperatures and power consumption while we are at it
-                if self.pic_monitoring:
-                    status, temps = rs485Temperature(self.mapping)
+                if self.pic_monitoring and loop_counter == 0:
+                    status, temps = rs485Temperature(self.mapping, maxRetry=MAX_RS485_RETRY)
                     
                     if status:
                         try:
@@ -604,7 +606,7 @@ class ChassisStatus(object):
                         except Exception as e:
                             aspThreadsLogger.error("%s: monitorThread failed to update board temperature log - %s", type(self).__name__, str(e))
                             
-                    status, fees = rs485Power(self.mapping)
+                    status, fees = rs485Power(self.mapping, maxRetry=MAX_RS485_RETRY)
                         
                     if status:
                         self.fee_currents = fees
@@ -631,6 +633,9 @@ class ChassisStatus(object):
                     
                 self.lastError = str(e)
                 
+            loop_counter += 1
+            loop_counter %= 5
+            
             # Stop time
             tStop = time.time()
             aspThreadsLogger.debug('Finished updating chassis status for SUB-20 S/N %s in %.3f seconds', self.sub20SN, tStop - tStart)
