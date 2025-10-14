@@ -369,19 +369,23 @@ def rs485Reset(sub20Mapper2, maxRetry=0, waitRetry=0.2):
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s RSET' % (sub20SN, board), shell=True,
-                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
                     try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
-                    if p.returncode == 0:
-                        board_success = True
-                        break
-                    else:
+                        p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s RSET' % (sub20SN, board), shell=True,
+                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        output, output2 = p.communicate()
+                        try:
+                            output = output.decode('ascii')
+                            output2 = output2.decode('ascii')
+                        except AttributeError:
+                            pass
+                            
+                        if p.returncode == 0:
+                            board_success = True
+                            break
+                        else:
+                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            
+                    except Exception as e:
                         aspSUB20Logger.warning("Could not reset board %s: %s", board_key, str(e))
                         time.sleep(waitRetry)
                 success &= board_success
@@ -407,19 +411,23 @@ def rs485Sleep(sub20Mapper2, maxRetry=0, waitRetry=0.2):
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s SLEP' % (sub20SN, board), shell=True,
-                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
                     try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
-                    if p.returncode == 0:
-                        board_success = True
-                        break
-                    else:
+                        p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s SLEP' % (sub20SN, board), shell=True,
+                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        output, output2 = p.communicate()
+                        try:
+                            output = output.decode('ascii')
+                            output2 = output2.decode('ascii')
+                        except AttributeError:
+                            pass
+                            
+                        if p.returncode == 0:
+                            board_success = True
+                            break
+                        else:
+                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            
+                    except Exception as e:
                         aspSUB20Logger.warning("Could not sleep board %s: %s", board_key, str(e))
                         time.sleep(waitRetry)
                 success &= board_success
@@ -440,19 +448,23 @@ def rs485Wake(sub20Mapper2, maxRetry=0, waitRetry=0.2):
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s WAKE' % (sub20SN, board), shell=True,
-                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
                     try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
-                    if p.returncode == 0:
-                        board_success = True
-                        break
-                    else:
+                        p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s WAKE' % (sub20SN, board), shell=True,
+                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        output, output2 = p.communicate()
+                        try:
+                            output = output.decode('ascii')
+                            output2 = output2.decode('ascii')
+                        except AttributeError:
+                            pass
+                            
+                        if p.returncode == 0:
+                            board_success = True
+                            break
+                        else:
+                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            
+                    except Exception as e:
                         aspSUB20Logger.warning("Could not wake board %s: %s", board_key, str(e))
                         time.sleep(waitRetry)
                 success &= board_success
@@ -483,19 +495,23 @@ def rs485Check(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s ECHO%s' % (sub20SN, board, data), shell=True,
-                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
                     try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
-                    if p.returncode == 0 and output.find():
-                        board_success = True
-                        break
-                    else:
+                        p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s ECHO%s' % (sub20SN, board, data), shell=True,
+                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        output, output2 = p.communicate()
+                        try:
+                            output = output.decode('ascii')
+                            output2 = output2.decode('ascii')
+                        except AttributeError:
+                            pass
+                            
+                        if p.returncode == 0 and output.find():
+                            board_success = True
+                            break
+                        else:
+                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            
+                    except Exception as e:
                         if verbose:
                             aspSUB20Logger.warning("Could not echo '%s' to board %s: %s", data, board_key, str(e))
                         time.sleep(waitRetry)
@@ -524,19 +540,23 @@ def rs485SetTime(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s STIM%s' % (sub20SN, board, data), shell=True,
-                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
                     try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
-                    if p.returncode == 0:
-                        board_success = True
-                        break
-                    else:
+                        p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s STIM%s' % (sub20SN, board, data), shell=True,
+                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        output, output2 = p.communicate()
+                        try:
+                            output = output.decode('ascii')
+                            output2 = output2.decode('ascii')
+                        except AttributeError:
+                            pass
+                            
+                        if p.returncode == 0:
+                            board_success = True
+                            break
+                        else:
+                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            
+                    except Exception as e:
                         if verbose:
                             aspSUB20Logger.warning("Could not set time to '%s' on board %s: %s", data, board_key, str(e))
                         time.sleep(waitRetry)
@@ -567,22 +587,26 @@ def rs485GetTime(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s GTIM' % (sub20SN, board), shell=True,
-                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
                     try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
-                    mtch = gtimRE.search(output)
-                    if mtch is not None:
-                        gtim_data = mtch.group('gtim')
-                        data.append(int(gtim_data, 10))
-                        board_success = True
-                        break
-                    else:
+                        p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s GTIM' % (sub20SN, board), shell=True,
+                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        output, output2 = p.communicate()
+                        try:
+                            output = output.decode('ascii')
+                            output2 = output2.decode('ascii')
+                        except AttributeError:
+                            pass
+                            
+                        mtch = gtimRE.search(output)
+                        if mtch is not None:
+                            gtim_data = mtch.group('gtim')
+                            data.append(int(gtim_data, 10))
+                            board_success = True
+                            break
+                        else:
+                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            
+                    except Exception as e:
                         if verbose:
                             aspSUB20Logger.warning("Could not get time from board %s: %s", board_key, str(e))
                         time.sleep(waitRetry)
@@ -611,25 +635,29 @@ def rs485Power(sub20Mapper2, maxRetry=0, waitRetry=0.2):
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s CURA' % (sub20SN, board), shell=True,
-                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
                     try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
-                    if p.returncode == 0:
-                        for line in filter(lambda x: x.find(' mA') != -1, output.split('\n')):
-                            mtch = curaRE.search(line)
-                            if mtch is not None:
-                                fees.append(float(mtch.group('curr')))
-                            else:
-                                fees.append(-1.0)
-                        board_success = True
-                        break
-                    else:
+                        p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s CURA' % (sub20SN, board), shell=True,
+                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        output, output2 = p.communicate()
+                        try:
+                            output = output.decode('ascii')
+                            output2 = output2.decode('ascii')
+                        except AttributeError:
+                            pass
+                            
+                        if p.returncode == 0:
+                            for line in filter(lambda x: x.find(' mA') != -1, output.split('\n')):
+                                mtch = curaRE.search(line)
+                                if mtch is not None:
+                                    fees.append(float(mtch.group('curr')))
+                                else:
+                                    fees.append(-1.0)
+                            board_success = True
+                            break
+                        else:
+                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            
+                    except Exception as e:
                         aspSUB20Logger.warning("Could not get power info. for board %s: %s", board_key, str(e))
                         time.sleep(waitRetry)
                 success &= board_success
@@ -674,6 +702,9 @@ def rs485RFPower(sub20Mapper2, maxRetry=0, waitRetry=0.2):
                                     rf_powers.append(-1.0)
                             board_success = True
                             break
+                        else:
+                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            
                     except Exception as e:
                         aspSUB20Logger.warning("Could not get RF power info. for board %s: %s", board_key, str(e))
                         time.sleep(waitRetry)
@@ -700,25 +731,29 @@ def rs485Temperature(sub20Mapper2, maxRetry=0, waitRetry=0.2):
                 board = int(board_key)
                 board_success = False
                 for attempt in range(maxRetry+1):
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s OWTE' % (sub20SN, board), shell=True,
-                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
                     try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
-                    if p.returncode == 0:
-                        for line in filter(lambda x: x.find(' C') != -1, output.split('\n')):
-                            mtch = owteRE.search(line)
-                            if mtch is not None:
-                                temps.append(float(mtch.group('temp')))
-                            else:
-                                temps.append(-99.0)
-                        board_success = True
-                        break
-                    else:
+                        p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s OWTE' % (sub20SN, board), shell=True,
+                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        output, output2 = p.communicate()
+                        try:
+                            output = output.decode('ascii')
+                            output2 = output2.decode('ascii')
+                        except AttributeError:
+                            pass
+                            
+                        if p.returncode == 0:
+                            for line in filter(lambda x: x.find(' C') != -1, output.split('\n')):
+                                mtch = owteRE.search(line)
+                                if mtch is not None:
+                                    temps.append(float(mtch.group('temp')))
+                                else:
+                                    temps.append(-99.0)
+                            board_success = True
+                            break
+                        else:
+                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            
+                    except Exception as e:
                         aspSUB20Logger.warning("Could not get temperature info. for board %s: %s", board_key, str(e))
                         time.sleep(waitRetry)
                 success &= board_success
