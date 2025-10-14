@@ -514,6 +514,7 @@ class ChassisStatus(object):
         if config is None:
             return True
             
+        self.mapping = config['sub20_antenna_mapping']
         self.monitorPeriod = config['chassis_period']
         
     def start(self):
@@ -590,7 +591,7 @@ class ChassisStatus(object):
                         self.ASPCallbackInstance.processUnconfiguredChassis(self.sub20SN)
                         
                 ## Record the board temperatures and power consumption while we are at it
-                status, temps = rs485Temperature(config['sub20_antenna_mapping'][self.sub20SN])
+                status, temps = rs485Temperature(self.mapping[self.sub20SN])
                 
                 if status:
                     try:
@@ -600,7 +601,7 @@ class ChassisStatus(object):
                     except Exception as e:
                         aspThreadsLogger.error("%s: monitorThread failed to update board temperature log - %s", type(self).__name__, str(e))
                         
-                status, fees = rs485Power(config['sub20_antenna_mapping'][self.sub20SN])
+                status, fees = rs485Power(self.mapping[self.sub20SN])
                     
                 if status:
                     self.fee_currents = fees
