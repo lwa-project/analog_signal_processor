@@ -596,7 +596,8 @@ class ChassisStatus(object):
                         
                 ## Record the board temperatures and power consumption while we are at it
                 if self.pic_monitoring and loop_counter == 0:
-                    status, temps = rs485Temperature(self.mapping, maxRetry=MAX_RS485_RETRY)
+                    #status, temps = rs485Temperature(self.mapping, maxRetry=MAX_RS485_RETRY)
+                    status, temps = False, []
                     
                     if status:
                         try:
