@@ -209,9 +209,14 @@ class AnalogProcessor(object):
                                          maxRetry=self.config['max_spi_retry'],
                                          waitRetry=self.config['wait_spi_retry'])
             boardsFound2 = rs485CountBoards(self.config['sub20_antenna_mapping'],
-                                           maxRetry=self.config['max_spi_retry'],
-                                           waitRetry=self.config['wait_spi_retry'])
-            
+                                            maxRetry=self.config['max_spi_retry'],
+                                            waitRetry=self.config['wait_spi_retry'])
+            if boardsFound2 != boardsFound:
+                ## Try again...
+                boardsFound2 = rs485CountBoards(self.config['sub20_antenna_mapping'],
+                                                maxRetry=self.config['max_spi_retry'],
+                                                waitRetry=self.config['wait_spi_retry'])
+                
             if boardsFound == boardsFound2 and boardsFound == nBoards:
                 # Board and stand counts.  NOTE: Stand counts are capped at 260
                 self.num_boards = nBoards
@@ -293,11 +298,11 @@ class AnalogProcessor(object):
                     aspFunctionsLogger.critical("INI failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
             else:
                 self.currentState['status'] = 'ERROR'
-                self.currentState['info'] = 'SUMMARY! 0x%02X %s - Found %i boards on SPI, %s on RS485, expected %i on both' % (0x09, subsystemErrorCodes[0x09], boardsFound, boardsFound2, nBoards)
+                self.currentState['info'] = 'SUMMARY! 0x%02X %s - Found %i boards on SPI; %i on RS485, expected %i on both' % (0x09, subsystemErrorCodes[0x09], boardsFound, boardsFound2, nBoards)
                 self.currentState['lastLog'] = 'INI: finished with error'
                 self.currentState['ready'] = False
                 
-                aspFunctionsLogger.critical("INI failed; found %i boards, expected %i", boardsFound, nBoards)
+                aspFunctionsLogger.critical("INI failed; found %i boards on SPI; %i on RS485, expected %i on both", boardsFound, boardsFound2, nBoards)
                 
         else:
             # Oops, the SUB-20 is missing...
