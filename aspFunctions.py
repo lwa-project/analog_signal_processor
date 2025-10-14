@@ -293,7 +293,7 @@ class AnalogProcessor(object):
                     aspFunctionsLogger.critical("INI failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
             else:
                 self.currentState['status'] = 'ERROR'
-                self.currentState['info'] = 'SUMMARY! 0x%02X %s - Found %i boards, expected %i' % (0x09, subsystemErrorCodes[0x09], boardsFound, nBoards)
+                self.currentState['info'] = 'SUMMARY! 0x%02X %s - Found %i boards on SPI, %s on RS485, expected %i on both' % (0x09, subsystemErrorCodes[0x09], boardsFound, boardsFound2, nBoards)
                 self.currentState['lastLog'] = 'INI: finished with error'
                 self.currentState['ready'] = False
                 
