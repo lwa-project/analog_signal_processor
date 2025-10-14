@@ -151,25 +151,13 @@ class MCSCommunicate(Communicate):
                     self.logger.debug('%s = exited with status %s', data, str(status))
                     
                 ## Analog gain state - FEE power
-                elif data[0:11] == 'FEEPOL1PWR_':
+                elif data[0:11] in ('FEEPOL1PWR_', 'FEEPOL2PWR_'):
                     stand = int(data[11:])
+                    pol = int(data[6]) - 1
                     
                     status, power = self.SubSystemInstance.getFEEPowerState(stand)
                     if status:
-                        if power[0]:
-                            packed_data = 'ON '
-                        else:
-                            packed_data = 'OFF'
-                    else:
-                        packed_data = self.SubSystemInstance.currentState['lastLog']
-                        
-                    self.logger.debug('%s = exited with status %s', data, str(status))
-                elif data[0:11] == 'FEEPOL2PWR_':
-                    stand = int(data[11:])
-                    
-                    status, power = self.SubSystemInstance.getFEEPowerState(stand)
-                    if status:
-                        if power[1]:
+                        if power[pol]:
                             packed_data = 'ON '
                         else:
                             packed_data = 'OFF'
@@ -178,6 +166,19 @@ class MCSCommunicate(Communicate):
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
                 
+                ## Analog gain state - FEE current draw in mA
+                elif data[0:11] in ('FEEPOL1CUR_', 'FEEPOL2CUR_'):
+                    stand = int(data[11:])
+                    pol = int(data[6]) - 1
+                    
+                    status, current = self.SubSystemInstance.getFEECurrentDraw(stand)
+                    if status:
+                        packed_data = "%.1f" % (current[pol]*1e3,)
+                    else:
+                        packed_data = self.SubSystemInstance.currentState['lastLog']
+                        
+                    self.logger.debug('%s = exited with status %s', data, str(status))
+                    
                 ## ARX power supplies
                 elif data == 'ARXSUPPLY':
                     status, value = self.SubSystemInstance.getARXPowerSupplyStatus()

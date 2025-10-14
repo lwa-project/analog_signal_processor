@@ -827,6 +827,25 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
             return False, ()
             
+    def getFEECurrentDraw(self, stand):
+        """
+        Return the FEE current draw (pol 1, pol 2) for a given stand as a two-element tuple 
+        (success, values) where success is a boolean related to if the attenuator values were 
+        found.  See the currentState['lastLog'] entry for the reason for failure if the 
+        returned success value is False.
+        """
+        
+        if stand > 0 and stand <= self.num_stands:
+            if self.currentState['chassisThreads'] is None:
+                self.currentState['lastLog'] = 'FEEPOL1CUR: Monitoring processes are not running'
+                return False, ()
+                
+            fees = self.currentState['chassisThreads'][0].getFEECurrent(stand)
+            return True, tuple(fees)
+        else:
+            self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
+            return False, ()
+            
     def getARXPowerSupplyStatus(self):
         """
         Return the overall ARX power supply status as a two-element tuple (success, values) 
