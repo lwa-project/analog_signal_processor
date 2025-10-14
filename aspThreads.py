@@ -516,7 +516,7 @@ class ChassisStatus(object):
         if config is None:
             return True
             
-        self.mapping = config['sub20_antenna_mapping']
+        self.mapping = config['sub20_rs485_mapping']
         self.monitorPeriod = config['chassis_period']
         
     def start(self):
