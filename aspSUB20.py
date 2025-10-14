@@ -383,7 +383,7 @@ def rs485Reset(sub20Mapper2, maxRetry=0, waitRetry=0.2):
                             board_success = True
                             break
                         else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
                             
                     except Exception as e:
                         aspSUB20Logger.warning("Could not reset board %s: %s", board_key, str(e))
@@ -425,7 +425,7 @@ def rs485Sleep(sub20Mapper2, maxRetry=0, waitRetry=0.2):
                             board_success = True
                             break
                         else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
                             
                     except Exception as e:
                         aspSUB20Logger.warning("Could not sleep board %s: %s", board_key, str(e))
@@ -462,7 +462,7 @@ def rs485Wake(sub20Mapper2, maxRetry=0, waitRetry=0.2):
                             board_success = True
                             break
                         else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
                             
                     except Exception as e:
                         aspSUB20Logger.warning("Could not wake board %s: %s", board_key, str(e))
@@ -509,7 +509,7 @@ def rs485Check(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
                             board_success = True
                             break
                         else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
                             
                     except Exception as e:
                         if verbose:
@@ -554,7 +554,7 @@ def rs485SetTime(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
                             board_success = True
                             break
                         else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
                             
                     except Exception as e:
                         if verbose:
@@ -604,7 +604,7 @@ def rs485GetTime(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
                             board_success = True
                             break
                         else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
                             
                     except Exception as e:
                         if verbose:
@@ -655,7 +655,7 @@ def rs485Power(sub20Mapper2, maxRetry=0, waitRetry=0.2):
                             board_success = True
                             break
                         else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
                             
                     except Exception as e:
                         aspSUB20Logger.warning("Could not get power info. for board %s: %s", board_key, str(e))
@@ -703,7 +703,7 @@ def rs485RFPower(sub20Mapper2, maxRetry=0, waitRetry=0.2):
                             board_success = True
                             break
                         else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
                             
                     except Exception as e:
                         aspSUB20Logger.warning("Could not get RF power info. for board %s: %s", board_key, str(e))
@@ -751,7 +751,7 @@ def rs485Temperature(sub20Mapper2, maxRetry=0, waitRetry=0.2):
                             board_success = True
                             break
                         else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.replace('\n', ' - '))
+                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
                             
                     except Exception as e:
                         aspSUB20Logger.warning("Could not get temperature info. for board %s: %s", board_key, str(e))
