@@ -22,7 +22,7 @@ __all__ = ['spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread', 'psuSe
            'SPI_P20_on', 'SPI_P20_off', 'SPI_P21_on', 'SPI_P21_off', 'SPI_P22_on', 'SPI_P22_off', 'SPI_P23_on', 'SPI_P23_off',
            'SPI_P24_on', 'SPI_P24_off', 'SPI_P25_on', 'SPI_P25_off', 'SPI_P26_on', 'SPI_P26_off', 'SPI_P27_on', 'SPI_P27_off',
            'SPI_P28_on', 'SPI_P28_off', 'SPI_P29_on', 'SPI_P29_off', 'SPI_P30_on', 'SPI_P30_off', 'SPI_P31_on', 'SPI_P31_off',
-           'SPI_NoOp', 'SUB20_LOCKS', 'MAX_SPI_RETRY']
+           'SPI_NoOp', 'SUB20_LOCKS', 'MAX_SPI_RETRY', 'MAX_RS485_RETRY']
 
 
 aspSUB20Logger = logging.getLogger('__main__')
@@ -57,7 +57,6 @@ SUB20_LOCKS = LockLocker()
 # SPI control
 MAX_SPI_RETRY = 2
 WAIT_SPI_RETRY = 0.2
-
 
 # SPI constants
 SPI_cfg_normal = 0x0104
@@ -111,6 +110,10 @@ SPI_P31_on  = 0x013F
 SPI_P31_off = 0x003F
 
 SPI_NoOp = 0x0000
+
+# RS485 control
+MAX_RS485_RETRY = 2
+WAIT_RS485_RETRY = 0.2
 
 
 def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
@@ -316,7 +319,7 @@ def psuSend(sub20SN, psuAddress, state):
     return True
 
 
-def rs485CountBoards(sub20Mapper, maxRetry=0, waitRetry=0.2):
+def rs485CountBoards(sub20Mapper, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
     """
     Count the number of PIC devices on all known SUB-20s.
     """
@@ -356,7 +359,7 @@ def rs485CountBoards(sub20Mapper, maxRetry=0, waitRetry=0.2):
     return nBoards
 
 
-def rs485Reset(sub20Mapper2, maxRetry=0, waitRetry=0.2):
+def rs485Reset(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
     """
     Set a reset command to all of the ARX boards connected to the RS485 bus.
     Returns True if all of the boards have been reset, False otherwise.
@@ -398,7 +401,7 @@ def rs485Reset(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     return success
 
 
-def rs485Sleep(sub20Mapper2, maxRetry=0, waitRetry=0.2):
+def rs485Sleep(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
     """
     Set a sleep command to all of the ARX boards connected to the RS485 bus.
     Returns True if all of the boards have been put to bed, False otherwise.
@@ -435,7 +438,7 @@ def rs485Sleep(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     return success
 
 
-def rs485Wake(sub20Mapper2, maxRetry=0, waitRetry=0.2):
+def rs485Wake(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
     """
     Set a wake command to all ARX boards connected to the RS485 bus.  Returns
     True if all of the boards have woken up, False otherwise.
@@ -477,7 +480,7 @@ def rs485Wake(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     return success
 
 
-def rs485Check(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
+def rs485Check(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY, verbose=False):
     """
     Ping each of the ARX boards connected to the RS485 bus.  Returns a two-
     element tuple of:
@@ -522,7 +525,7 @@ def rs485Check(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
     return success, failed
 
 
-def rs485SetTime(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
+def rs485SetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY, verbose=False):
     """
     Get the board time on all ARX boards connected to the RS485 bus. Returns a
     three-element tuple of:
@@ -567,7 +570,7 @@ def rs485SetTime(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
     return success, failed, int(data, 16)
 
 
-def rs485GetTime(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
+def rs485GetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY, verbose=False):
     """
     Poll all of the Rev H ARX boards on the RS485 bus and return a two-element
     tuple of:
@@ -617,7 +620,7 @@ def rs485GetTime(sub20Mapper2, maxRetry=0, waitRetry=0.2, verbose=False):
     return success, data
 
 
-def rs485Power(sub20Mapper2, maxRetry=0, waitRetry=0.2):
+def rs485Power(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
     """
     Poll all of the ARX boards connected to the RS485 bus and return a two-
     element tuple of:
@@ -665,7 +668,7 @@ def rs485Power(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     return success, fees
 
 
-def rs485RFPower(sub20Mapper2, maxRetry=0, waitRetry=0.2):
+def rs485RFPower(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
     """
     Poll all of the ARX boards connected to the RS485 bus and return a two-
     element tuple of:
@@ -713,7 +716,7 @@ def rs485RFPower(sub20Mapper2, maxRetry=0, waitRetry=0.2):
     return success, rf_powers
 
 
-def rs485Temperature(sub20Mapper2, maxRetry=0, waitRetry=0.2):
+def rs485Temperature(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
     """
     Poll all of the Rev H ARX boards connected to the RS485 bus and return a
     two-element tuple of:
