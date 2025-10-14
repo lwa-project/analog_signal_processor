@@ -487,12 +487,14 @@ class ChassisStatus(object):
     """
     
     def __init__(self, sub20SN, config, temp_logfile='/data/board-temp.txt',
-                       fee_logfile='/data/fee-power.txt', ASPCallbackInstance=None):
+                       fee_logfile='/data/fee-power.txt', pic_monitoring=True, 
+                       ASPCallbackInstance=None):
         self.sub20SN = str(sub20SN)
         self.register = 0x000C
         self.updateConfig(config)
         self.temp_logfile = temp_logfile
         self.fee_logfile = fee_logfile
+        self.pic_monitoring = pic_monitoring
         
         # Total number of devices on the chassis
         dStart, dStop = config['sub20_antenna_mapping'][self.sub20SN]
@@ -591,28 +593,29 @@ class ChassisStatus(object):
                         self.ASPCallbackInstance.processUnconfiguredChassis(self.sub20SN)
                         
                 ## Record the board temperatures and power consumption while we are at it
-                status, temps = rs485Temperature(self.mapping[self.sub20SN])
-                
-                if status:
-                    try:
-                        with open(self.temp_logfile, 'a') as fh:
-                            fh.write('%s,' % time.time())
-                            fh.write('%s\n' % ','.join(['%.2f' % t for t in temps]))
-                    except Exception as e:
-                        aspThreadsLogger.error("%s: monitorThread failed to update board temperature log - %s", type(self).__name__, str(e))
-                        
-                status, fees = rs485Power(self.mapping[self.sub20SN])
+                if self.pic_monitoring:
+                    status, temps = rs485Temperature(self.mapping)
                     
-                if status:
-                    self.fee_currents = fees
-                    
-                    try:
-                        with open(self.fee_logfile, 'a') as fh:
-                            fh.write('%s,' % time.time())
-                            fh.write('%s\n' % ','.join(['%.3f' % v for v in self.fee_currents]))
-                    except Exception as e:
-                        aspThreadsLogger.error("%s: monitorThread failed to update FEE power log - %s", type(self).__name__, str(e))
+                    if status:
+                        try:
+                            with open(self.temp_logfile, 'a') as fh:
+                                fh.write('%s,' % time.time())
+                                fh.write('%s\n' % ','.join(['%.2f' % t for t in temps]))
+                        except Exception as e:
+                            aspThreadsLogger.error("%s: monitorThread failed to update board temperature log - %s", type(self).__name__, str(e))
+                            
+                    status, fees = rs485Power(self.mapping)
                         
+                    if status:
+                        self.fee_currents = fees
+                        
+                        try:
+                            with open(self.fee_logfile, 'a') as fh:
+                                fh.write('%s,' % time.time())
+                                fh.write('%s\n' % ','.join(['%.3f' % v for v in self.fee_currents]))
+                        except Exception as e:
+                            aspThreadsLogger.error("%s: monitorThread failed to update FEE power log - %s", type(self).__name__, str(e))
+                            
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread SUB-20 S/N %s failed with: %s at line %i", type(self).__name__, self.sub20SN, str(e), exc_traceback.tb_lineno)
