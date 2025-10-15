@@ -99,7 +99,7 @@ bool ATmega::open() {
     double elapsed_time = 0.0;
     auto start_time = std::chrono::steady_clock::now();
     while( sem_trywait(_lock) == -1 ) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(100);
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
       
       auto current_time = std::chrono::steady_clock::now();
       elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time).count();
