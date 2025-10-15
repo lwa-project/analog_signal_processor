@@ -3,6 +3,7 @@
 #include <thread>
 #include <chrono>
 #include <filesystem>
+#include <fcntl.h>
 #include <sys/stat.h>
 
 #include "aspCommon.hpp"
@@ -51,6 +52,8 @@ bool ATmega::open() {
   bool found = false;
   atmega::handle fd = -1;
   if( _sn.find("/dev") == 0 ) {
+    std::cerr << "Warning: Running without device access locking" << std::endl;
+    
     struct stat sb;
     if( stat(_sn.c_str(), &sb) == -1 || !S_ISCHR(sb.st_mode) ) {
       return false;
@@ -87,6 +90,13 @@ bool ATmega::open() {
     
     return found;
   } else {
+    _lock = sem_open(_sn.c_str(), O_CREAT);
+    if( _lock == SEM_FAILED ) {
+      _lock = NULL;
+      return false;
+    }
+    sem_wait(_lock);
+    
     for(std::string const& dev_name: atmega::find_devices()) {
       int open_attempts = 0;
       while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
@@ -110,18 +120,18 @@ bool ATmega::open() {
         
         int n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
         if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
-  	std::string sn;
-  	for(int i=0; i<resp.size; i++) {
-  	  sn.push_back((char) resp.buffer[i]);
-  	}
-  	
-  	if( _sn.compare(sn) == 0 ) {
-  	  found = true;
-  	  _fd = fd;
-  	  break;
-  	} else {
-  	  _fd = -1;
-  	}
+          std::string sn;
+          for(int i=0; i<resp.size; i++) {
+            sn.push_back((char) resp.buffer[i]);
+          }
+          
+          if( _sn.compare(sn) == 0 ) {
+            found = true;
+            _fd = fd;
+            break;
+          } else {
+            _fd = -1;
+          }
         }
       } catch(const std::exception& e) {}
       
@@ -130,6 +140,12 @@ bool ATmega::open() {
       } else {
         atmega::close(fd);
       }
+    }
+    
+    if( !found ) {
+      sem_post(_lock);
+      sem_close(_lock);
+      _lock = NULL;
     }
   }
   

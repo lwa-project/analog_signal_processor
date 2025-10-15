@@ -72,15 +72,7 @@ class TemperatureSensors(object):
         if self.thread is not None:
             self.stop()
             
-        attempt = 0
-        while self.nTemps == 0 and attempt <= 2:
-            if attempt > 0:
-                time.sleep(0.2)
-                
-            with SUB20_LOCKS[self.sub20SN]:
-                self.nTemps = os.system("/usr/local/bin/countThermometers %s" % self.sub20SN) // 256
-            attempt += 1
-            
+        self.nTemps = psuCountTemperature(self.sub20SN)
         self.description = ["UNK" for i in range(self.nTemps)]
         self.temp = [0.0 for i in range(self.nTemps)]
         self.coldCount = 0
@@ -116,17 +108,25 @@ class TemperatureSensors(object):
             tStart = time.time()
             
             try:
-                missingSUB20 = False
+                temps = psuTemperature(self.sub20SN)
+                if temps:
+                    missingSUB20 = False
+                    
+                    for entry in temps:
+                        self.description[i] = '%s %s' % (entry['address'], entry['description'])
+                        self.temp[i] = entry['temp_C']
+                else:
+                    missingSUB20 = True
                 
-                with SUB20_LOCKS[self.sub20SN]:
-                    p = subprocess.Popen('/usr/local/bin/readThermometers %s' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
+                
+                p = subprocess.Popen('/usr/local/bin/readThermometers %s' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                output, output2 = p.communicate()
+                try:
+                    output = output.decode('ascii')
+                    output2 = output2.decode('ascii')
+                except AttributeError:
+                    pass
+                    
                 if p.returncode != 0:
                     aspThreadsLogger.warning("readThermometers: command returned %i; '%s;%s'", p.returncode, output, output2)
                     self.lastError = str(output2)
@@ -356,15 +356,14 @@ class PowerStatus(object):
             try:
                 missingSUB20 = False
                 
-                with SUB20_LOCKS[self.sub20SN]:
-                    p = subprocess.Popen('/usr/local/bin/readPSU %s 0x%02X' % (self.sub20SN, self.deviceAddress), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
+                p = subprocess.Popen('/usr/local/bin/readPSU %s 0x%02X' % (self.sub20SN, self.deviceAddress), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                output, output2 = p.communicate()
+                try:
+                    output = output.decode('ascii')
+                    output2 = output2.decode('ascii')
+                except AttributeError:
+                    pass
+                    
                 if p.returncode != 0:
                     aspThreadsLogger.warning("readPSU: command returned %i; '%s;%s'", p.returncode, output, output2)
                     self.voltage = 0.0
@@ -559,15 +558,14 @@ class ChassisStatus(object):
             try:
                 missingSUB20 = False
                 
-                with SUB20_LOCKS[self.sub20SN]:
-                    p = subprocess.Popen('/usr/local/bin/readARXDevice %s %i 1 0x%04X' % (self.sub20SN, self.totalDevs, self.register), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
+                p = subprocess.Popen('/usr/local/bin/readARXDevice %s %i 1 0x%04X' % (self.sub20SN, self.totalDevs, self.register), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                output, output2 = p.communicate()
+                try:
+                    output = output.decode('ascii')
+                    output2 = output2.decode('ascii')
+                except AttributeError:
+                    pass
+                    
                 if p.returncode != 0:
                     aspThreadsLogger.warning("readARXDevice: command returned %i; '%s;%s'", p.returncode, output, output2)
                     

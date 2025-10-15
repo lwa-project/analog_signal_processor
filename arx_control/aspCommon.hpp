@@ -14,6 +14,7 @@
 #include <cstring>
 #include <cstdint>
 #include <stdexcept>
+#include <semaphore.h>
 
 #include "libatmega.hpp"
 
@@ -46,6 +47,7 @@
 // Uncomment the next line to use input rather than the module outuput current
 //#define __USE_INPUT_CURRENT__
 
+
 // Get a list of all ATmega serial numbers
 std::list<std::string> list_atmegas();
 
@@ -55,13 +57,18 @@ class ATmega {
 private:
   std::string    _sn;
   atmega::handle _fd;
+  sem_t*         _lock;
   
 public:
-  ATmega(std::string sn): _sn(""), _fd(-1) {
+  ATmega(std::string sn): _sn(""), _fd(-1), _lock(NULL) {
     _sn = sn;
   }
   ~ATmega() {
     atmega::close(_fd);
+    if( _lock != NULL ) {
+      sem_post(_lock);
+      sem_close(_lock);
+    }
   }
   bool open();
   std::string get_version();

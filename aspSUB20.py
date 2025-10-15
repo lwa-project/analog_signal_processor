@@ -11,8 +11,9 @@ import threading
 import subprocess
 from collections import deque
 
-__version__ = '0.5'
-__all__ = ['spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread', 'psuSend',
+__version__ = '0.6'
+__all__ = ['spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread',
+           'psuSend', 'psuCountTemperature', 'psuTemperature',
            'rs485CountBoards', 'rs485Reset', 'rs485Sleep', 'rs485Wake', 'rs485Check',
            'rs485SetTime', 'rs485GetTime', 'rs485Power', 'rs485RFPower', 'rs485Temperature',
            'SPI_cfg_normal', 'SPI_cfg_shutdown', 
@@ -22,36 +23,11 @@ __all__ = ['spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread', 'psuSe
            'SPI_P20_on', 'SPI_P20_off', 'SPI_P21_on', 'SPI_P21_off', 'SPI_P22_on', 'SPI_P22_off', 'SPI_P23_on', 'SPI_P23_off',
            'SPI_P24_on', 'SPI_P24_off', 'SPI_P25_on', 'SPI_P25_off', 'SPI_P26_on', 'SPI_P26_off', 'SPI_P27_on', 'SPI_P27_off',
            'SPI_P28_on', 'SPI_P28_off', 'SPI_P29_on', 'SPI_P29_off', 'SPI_P30_on', 'SPI_P30_off', 'SPI_P31_on', 'SPI_P31_off',
-           'SPI_NoOp', 'SUB20_LOCKS', 'MAX_SPI_RETRY', 'MAX_RS485_RETRY']
+           'SPI_NoOp',
+           'MAX_SPI_RETRY', 'MAX_I2C_RETRY', 'MAX_RS485_RETRY']
 
 
 aspSUB20Logger = logging.getLogger('__main__')
-
-
-# Device access locks
-class LockLocker(dict):
-    """
-    Class to automatically generate threading.Lock objects for any key that
-    might be requested.
-    """
-    
-    _access_lock = threading.RLock()
-    
-    def __getitem__(self, name):
-        with self._access_lock:
-            try:
-                lock = dict.__getitem__(self, name)
-            except KeyError:
-                lock = threading.Lock()
-                dict.__setitem__(self, name, lock)
-        return lock
-        
-    def __setitem__(self, name, value):
-        with self._access_lock:
-            dict.__setitem__(self, name, value)
-
-
-SUB20_LOCKS = LockLocker()
 
 
 # SPI control
@@ -111,6 +87,10 @@ SPI_P31_off = 0x003F
 
 SPI_NoOp = 0x0000
 
+# I2C control
+MAX_I2C_RETRY = 2
+WAIT_I2C_RETRY = 0.2
+
 # RS485 control
 MAX_RS485_RETRY = 2
 WAIT_RS485_RETRY = 0.2
@@ -124,29 +104,28 @@ def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY
     nBoards = 0
     overallStatus = True
     for sub20SN in sorted(sub20Mapper):
-        with SUB20_LOCKS[sub20SN]:
-            attempt = 0
-            status = False
-            while ((not status) and (attempt <= maxRetry)):
-                if attempt != 0:
-                    time.sleep(waitRetry)
-                    
-                p = subprocess.Popen('/usr/local/bin/countBoards %s' % sub20SN, shell=True,
-                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                output, output2 = p.communicate()
-                try:
-                    output = output.decode('ascii')
-                    output2 = output2.decode('ascii')
-                except AttributeError:
-                    pass
-                    
-                if p.returncode == 0:
-                    aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
-                    status = False
-                else:
-                    nBoards += p.returncode
-                    status = True
-                attempt += 1
+        attempt = 0
+        status = False
+        while ((not status) and (attempt <= maxRetry)):
+            if attempt != 0:
+                time.sleep(waitRetry)
+                
+            p = subprocess.Popen('/usr/local/bin/countBoards %s' % sub20SN, shell=True,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output, output2 = p.communicate()
+            try:
+                output = output.decode('ascii')
+                output2 = output2.decode('ascii')
+            except AttributeError:
+                pass
+                
+            if p.returncode == 0:
+                aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
+                status = False
+            else:
+                nBoards += p.returncode
+                status = True
+            attempt += 1
                 
         overallStatus &= status
         
@@ -208,26 +187,25 @@ class SPIProcessingThread(object):
             
     @staticmethod
     def _run_command(sub20SN, device_count, devices, spi_commands, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
-        with SUB20_LOCKS[sub20SN]:
-            command = ["/usr/local/bin/sendARXDevice", sub20SN, str(device_count)]
-            for dev,cmd in zip(devices,spi_commands):
-                command.append(str(dev))
-                command.append("0x%04X" % cmd)
+        command = ["/usr/local/bin/sendARXDevice", sub20SN, str(device_count)]
+        for dev,cmd in zip(devices,spi_commands):
+            command.append(str(dev))
+            command.append("0x%04X" % cmd)
+            
+        attempt = 0
+        status = False
+        while ((not status) and (attempt <= maxRetry)):
+            if attempt != 0:
+                time.sleep(waitRetry)
                 
-            attempt = 0
-            status = False
-            while ((not status) and (attempt <= maxRetry)):
-                if attempt != 0:
-                    time.sleep(waitRetry)
-                    
-                try:
-                    subprocess.check_call(command)
-                    status = True
-                    
-                except subprocess.CalledProcessError:
-                    pass
-                attempt += 1
+            try:
+                subprocess.check_call(command)
+                status = True
                 
+            except subprocess.CalledProcessError:
+                pass
+            attempt += 1
+            
         return status
             
     def process_command(self, device, command, callback=None):
@@ -297,26 +275,107 @@ class SPIProcessingThread(object):
             time.sleep(self._pollInterval)
 
 
-def psuSend(sub20SN, psuAddress, state):
+def psuSend(sub20SN, psuAddress, state, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY):
     """
     Set the state of the power supply unit at the provided I2C address.
     """
     
-    with SUB20_LOCKS[sub20SN]:
-        p = subprocess.Popen('/usr/local/bin/onoffPSU %s 0x%02X %s' % (sub20SN, psuAddress, str(state)), shell=True,
-                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output, output2 = p.communicate()
-        try:
-            output = output.decode('ascii')
-            output2 = output2.decode('ascii')
-        except AttributeError:
-            pass
+    status = False
+    for attempt in range(maxRetry+1):
+        if attempt != 0:
+            time.sleep(waitRetry)
             
-    if p.returncode != 0:
-        aspSUB20Logger.warning("psuSend: command returned %i; '%s;%s'", p.returncode, output, output2)
-        return False
-        
-    return True
+        try:
+            p = subprocess.Popen('/usr/local/bin/onoffPSU %s 0x%02X %s' % (sub20SN, psuAddress, str(state)), shell=True,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output, output2 = p.communicate()
+            try:
+                output = output.decode('ascii')
+                output2 = output2.decode('ascii')
+            except AttributeError:
+                pass
+                
+            if p.returncode == 0:
+                status = True
+                break
+            else:
+                aspSUB20Logger.warning("psuSend: command returned %i; '%s;%s'", p.returncode, output, output2)
+                
+        except Exception as e:
+            aspSUB20Logger.warning("Could not send command to PSU %s: %s", psuAddress, str(e))
+            
+    return status
+
+
+def psuCountTemperature(sub20SN, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY):
+    """
+    Return the number of temperature sensors associated with the power supply units.
+    """
+    
+    ntemp = 0
+    for attempt in range(maxRetry+1):
+        if attempt != 0:
+            time.sleep(waitRetry)
+            
+        try:
+            p = subprocess.Popen('/usr/local/bin/countThermometers %s' % sub20SN, shell=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output, output2 = p.communicate()
+            try:
+                output = output.decode('ascii')
+                output2 = output2.decode('ascii')
+            except AttributeError:
+                pass
+            
+            if p.returncode == 0:
+                aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
+            else:
+                ntemp = p.returncode // 256
+                break;
+                
+        except Exception as e:
+            aspSUB20Logger.warning("Could not count PSU temperature sensors: %s", str(e))
+            
+    return ntemp
+
+
+def psuTemperature(sub20SN, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY):
+    """
+    Return a list of dictionaries containing power supply unit info and temperatures.
+    """
+    
+    temps = []
+    for attempt in range(maxRetry+1):
+        if attempt == 0:
+            time.sleep(waitRetry)
+            
+        try:
+            p = subprocess.Popen('/usr/local/bin/readThermometers %s' % sub20SN, shell=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output, output2 = p.communicate()
+            try:
+                output = output.decode('ascii')
+                output2 = output2.decode('ascii')
+            except AttributeError:
+                pass
+                
+            if p.returncode != 0:
+                aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
+            else:
+                for i,line in enumerate(output.split('\n')):
+                    if len(line) < 4:
+                        continue
+                    psu, desc, tempC = line.split(None, 2)
+                    temps.append({'address': psu,
+                                'description': desc,
+                                'temp_C': float(tempC)
+                                })
+                break
+                
+        except Exception as e:
+            aspSUB20Logger.warning("Could not poll PSU temperature sensors: %s", str(e))
+            
+    return temps
 
 
 def rs485CountBoards(sub20Mapper, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
@@ -327,30 +386,29 @@ def rs485CountBoards(sub20Mapper, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485
     nBoards = 0
     overallStatus = True
     for sub20SN in sorted(sub20Mapper):
-        with SUB20_LOCKS[sub20SN]:
-            attempt = 0
-            status = False
-            while ((not status) and (attempt <= maxRetry)):
-                if attempt != 0:
-                    time.sleep(waitRetry)
-                    
-                p = subprocess.Popen('/usr/local/bin/countPICs %s' % sub20SN, shell=True,
-                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                output, output2 = p.communicate()
-                try:
-                    output = output.decode('ascii')
-                    output2 = output2.decode('ascii')
-                except AttributeError:
-                    pass
-                    
-                if p.returncode == 0:
-                    aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
-                    status = False
-                else:
-                    nBoards += p.returncode
-                    status = True
-                attempt += 1
+        attempt = 0
+        status = False
+        while ((not status) and (attempt <= maxRetry)):
+            if attempt != 0:
+                time.sleep(waitRetry)
                 
+            p = subprocess.Popen('/usr/local/bin/countPICs %s' % sub20SN, shell=True,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output, output2 = p.communicate()
+            try:
+                output = output.decode('ascii')
+                output2 = output2.decode('ascii')
+            except AttributeError:
+                pass
+                
+            if p.returncode == 0:
+                aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
+                status = False
+            else:
+                nBoards += p.returncode
+                status = True
+            attempt += 1
+            
         overallStatus &= status
         
     if not overallStatus:
@@ -367,32 +425,31 @@ def rs485Reset(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
     
     success = True
     for sub20SN in sorted(sub20Mapper2.keys()):
-        with SUB20_LOCKS[sub20SN]:
-            for board_key in sub20Mapper2[sub20SN]:
-                board = (int(board_key) % 126) or 126
-                board_success = False
-                for attempt in range(maxRetry+1):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s RSET' % (sub20SN, board), shell=True,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    output, output2 = p.communicate()
                     try:
-                        p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s RSET' % (sub20SN, board), shell=True,
-                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        output, output2 = p.communicate()
-                        try:
-                            output = output.decode('ascii')
-                            output2 = output2.decode('ascii')
-                        except AttributeError:
-                            pass
-                            
-                        if p.returncode == 0:
-                            board_success = True
-                            break
-                        else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
-                            
-                    except Exception as e:
-                        aspSUB20Logger.warning("Could not reset board %s: %s", board_key, str(e))
-                        time.sleep(waitRetry)
-                success &= board_success
-                
+                        output = output.decode('ascii')
+                        output2 = output2.decode('ascii')
+                    except AttributeError:
+                        pass
+                        
+                    if p.returncode == 0:
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    aspSUB20Logger.warning("Could not reset board %s: %s", board_key, str(e))
+                    time.sleep(waitRetry)
+            success &= board_success
+            
     # Check for completion of reset
     time.sleep(10) # Wait a little bit
     reset_check, failed = rs485Check(portName, antennaMapping, verbose=False)
@@ -409,32 +466,31 @@ def rs485Sleep(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
     
     success = True
     for sub20SN in sorted(sub20Mapper2.keys()):
-        with SUB20_LOCKS[sub20SN]:
-            for board_key in sub20Mapper2[sub20SN]:
-                board = (int(board_key) % 126) or 126
-                board_success = False
-                for attempt in range(maxRetry+1):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s SLEP' % (sub20SN, board), shell=True,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    output, output2 = p.communicate()
                     try:
-                        p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s SLEP' % (sub20SN, board), shell=True,
-                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        output, output2 = p.communicate()
-                        try:
-                            output = output.decode('ascii')
-                            output2 = output2.decode('ascii')
-                        except AttributeError:
-                            pass
-                            
-                        if p.returncode == 0:
-                            board_success = True
-                            break
-                        else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
-                            
-                    except Exception as e:
-                        aspSUB20Logger.warning("Could not sleep board %s: %s", board_key, str(e))
-                        time.sleep(waitRetry)
-                success &= board_success
-                
+                        output = output.decode('ascii')
+                        output2 = output2.decode('ascii')
+                    except AttributeError:
+                        pass
+                        
+                    if p.returncode == 0:
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    aspSUB20Logger.warning("Could not sleep board %s: %s", board_key, str(e))
+                    time.sleep(waitRetry)
+            success &= board_success
+            
     return success
 
 
@@ -446,32 +502,31 @@ def rs485Wake(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY
     
     success = True
     for sub20SN in sorted(sub20Mapper2.keys()):
-        with SUB20_LOCKS[sub20SN]:
-            for board_key in sub20Mapper2[sub20SN]:
-                board = (int(board_key) % 126) or 126
-                board_success = False
-                for attempt in range(maxRetry+1):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s WAKE' % (sub20SN, board), shell=True,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    output, output2 = p.communicate()
                     try:
-                        p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s WAKE' % (sub20SN, board), shell=True,
-                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        output, output2 = p.communicate()
-                        try:
-                            output = output.decode('ascii')
-                            output2 = output2.decode('ascii')
-                        except AttributeError:
-                            pass
-                            
-                        if p.returncode == 0:
-                            board_success = True
-                            break
-                        else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
-                            
-                    except Exception as e:
-                        aspSUB20Logger.warning("Could not wake board %s: %s", board_key, str(e))
-                        time.sleep(waitRetry)
-                success &= board_success
-                
+                        output = output.decode('ascii')
+                        output2 = output2.decode('ascii')
+                    except AttributeError:
+                        pass
+                        
+                    if p.returncode == 0:
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    aspSUB20Logger.warning("Could not wake board %s: %s", board_key, str(e))
+                    time.sleep(waitRetry)
+            success &= board_success
+            
     # Check for completion of wake
     time.sleep(10) # Wait a little bit
     wake_check, failed = rs485Check(portName, antennaMapping, verbose=False)
@@ -493,35 +548,34 @@ def rs485Check(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
     success = True
     failed = []
     for sub20SN in sorted(sub20Mapper2.keys()):
-        with SUB20_LOCKS[sub20SN]:
-            for board_key in sub20Mapper2[sub20SN]:
-                board = (int(board_key) % 126) or 126
-                board_success = False
-                for attempt in range(maxRetry+1):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s ECHO%s' % (sub20SN, board, data), shell=True,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    output, output2 = p.communicate()
                     try:
-                        p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s ECHO%s' % (sub20SN, board, data), shell=True,
-                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        output, output2 = p.communicate()
-                        try:
-                            output = output.decode('ascii')
-                            output2 = output2.decode('ascii')
-                        except AttributeError:
-                            pass
-                            
-                        if p.returncode == 0 and output.find():
-                            board_success = True
-                            break
-                        else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
-                            
-                    except Exception as e:
-                        if verbose:
-                            aspSUB20Logger.warning("Could not echo '%s' to board %s: %s", data, board_key, str(e))
-                        time.sleep(waitRetry)
-                success &= board_success
-                if not board_success:
-                    failed.append(antennaMapping[board_key])
-                    
+                        output = output.decode('ascii')
+                        output2 = output2.decode('ascii')
+                    except AttributeError:
+                        pass
+                        
+                    if p.returncode == 0 and output.find(data) != -1:
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    if verbose:
+                        aspSUB20Logger.warning("Could not echo '%s' to board %s: %s", data, board_key, str(e))
+                    time.sleep(waitRetry)
+            success &= board_success
+            if not board_success:
+                failed.append(antennaMapping[board_key])
+                
     return success, failed
 
 
@@ -538,35 +592,34 @@ def rs485SetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
     success = True
     failed = []
     for sub20SN in sorted(sub20Mapper2.keys()):
-        with SUB20_LOCKS[sub20SN]:
-            for board_key in sub20Mapper2[sub20SN]:
-                board = (int(board_key) % 126) or 126
-                board_success = False
-                for attempt in range(maxRetry+1):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s STIM%s' % (sub20SN, board, data), shell=True,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    output, output2 = p.communicate()
                     try:
-                        p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s STIM%s' % (sub20SN, board, data), shell=True,
-                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        output, output2 = p.communicate()
-                        try:
-                            output = output.decode('ascii')
-                            output2 = output2.decode('ascii')
-                        except AttributeError:
-                            pass
-                            
-                        if p.returncode == 0:
-                            board_success = True
-                            break
-                        else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
-                            
-                    except Exception as e:
-                        if verbose:
-                            aspSUB20Logger.warning("Could not set time to '%s' on board %s: %s", data, board_key, str(e))
-                        time.sleep(waitRetry)
-                success &= board_success
-                if not board_success:
-                    failed.append(antennaMapping[board_key])
-                    
+                        output = output.decode('ascii')
+                        output2 = output2.decode('ascii')
+                    except AttributeError:
+                        pass
+                        
+                    if p.returncode == 0:
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    if verbose:
+                        aspSUB20Logger.warning("Could not set time to '%s' on board %s: %s", data, board_key, str(e))
+                    time.sleep(waitRetry)
+            success &= board_success
+            if not board_success:
+                failed.append(antennaMapping[board_key])
+                
     return success, failed, int(data, 16)
 
 
@@ -585,38 +638,37 @@ def rs485GetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
     success = True
     data = []
     for sub20SN in sorted(sub20Mapper2.keys()):
-        with SUB20_LOCKS[sub20SN]:
-            for board_key in sub20Mapper2[sub20SN]:
-                board = (int(board_key) % 126) or 126
-                board_success = False
-                for attempt in range(maxRetry+1):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s GTIM' % (sub20SN, board), shell=True,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    output, output2 = p.communicate()
                     try:
-                        p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s GTIM' % (sub20SN, board), shell=True,
-                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        output, output2 = p.communicate()
-                        try:
-                            output = output.decode('ascii')
-                            output2 = output2.decode('ascii')
-                        except AttributeError:
-                            pass
-                            
-                        mtch = gtimRE.search(output)
-                        if mtch is not None:
-                            gtim_data = mtch.group('gtim')
-                            data.append(int(gtim_data, 10))
-                            board_success = True
-                            break
-                        else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
-                            
-                    except Exception as e:
-                        if verbose:
-                            aspSUB20Logger.warning("Could not get time from board %s: %s", board_key, str(e))
-                        time.sleep(waitRetry)
-                success &= board_success
-                if not board_success:
-                    data.append(0)
-                    
+                        output = output.decode('ascii')
+                        output2 = output2.decode('ascii')
+                    except AttributeError:
+                        pass
+                        
+                    mtch = gtimRE.search(output)
+                    if mtch is not None:
+                        gtim_data = mtch.group('gtim')
+                        data.append(int(gtim_data, 10))
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    if verbose:
+                        aspSUB20Logger.warning("Could not get time from board %s: %s", board_key, str(e))
+                    time.sleep(waitRetry)
+            success &= board_success
+            if not board_success:
+                data.append(0)
+                
     return success, data
 
 
@@ -633,38 +685,37 @@ def rs485Power(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
     success = True
     fees = []
     for sub20SN in sorted(sub20Mapper2.keys()):
-        with SUB20_LOCKS[sub20SN]:
-            for board_key in sub20Mapper2[sub20SN]:
-                board = (int(board_key) % 126) or 126
-                board_success = False
-                for attempt in range(maxRetry+1):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s CURA' % (sub20SN, board), shell=True,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    output, output2 = p.communicate()
                     try:
-                        p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s CURA' % (sub20SN, board), shell=True,
-                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        output, output2 = p.communicate()
-                        try:
-                            output = output.decode('ascii')
-                            output2 = output2.decode('ascii')
-                        except AttributeError:
-                            pass
-                            
-                        if p.returncode == 0:
-                            for line in filter(lambda x: x.find(' mA') != -1, output.split('\n')):
-                                mtch = curaRE.search(line)
-                                if mtch is not None:
-                                    fees.append(float(mtch.group('curr')))
-                                else:
-                                    fees.append(-1.0)
-                            board_success = True
-                            break
-                        else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
-                            
-                    except Exception as e:
-                        aspSUB20Logger.warning("Could not get power info. for board %s: %s", board_key, str(e))
-                        time.sleep(waitRetry)
-                success &= board_success
-                
+                        output = output.decode('ascii')
+                        output2 = output2.decode('ascii')
+                    except AttributeError:
+                        pass
+                        
+                    if p.returncode == 0:
+                        for line in filter(lambda x: x.find(' mA') != -1, output.split('\n')):
+                            mtch = curaRE.search(line)
+                            if mtch is not None:
+                                fees.append(float(mtch.group('curr')))
+                            else:
+                                fees.append(-1.0)
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    aspSUB20Logger.warning("Could not get power info. for board %s: %s", board_key, str(e))
+                    time.sleep(waitRetry)
+            success &= board_success
+            
     return success, fees
 
 
@@ -681,38 +732,37 @@ def rs485RFPower(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
     success = True
     rf_powers = []
     for sub20SN in sorted(sub20Mapper2.keys()):
-        with SUB20_LOCKS[sub20SN]:
-            for board_key in sub20Mapper2[sub20SN]:
-                board = (int(board_key) % 126) or 126
-                board_success = False
-                for attempt in range(maxRetry+1):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s CURA' % (sub20SN, board), shell=True,
+                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    output, output2 = p.communicate()
                     try:
-                        p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s CURA' % (sub20SN, board), shell=True,
-                                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        output, output2 = p.communicate()
-                        try:
-                            output = output.decode('ascii')
-                            output2 = output2.decode('ascii')
-                        except AttributeError:
-                            pass
-                            
-                        if p.returncode == 0:
-                            for line in filter(lambda x: x.find(' uW') != -1, output.split('\n')):
-                                mtch = powaRE.search(line)
-                                if mtch is not None:
-                                    rf_powers.append(float(mtch.group('pow')))
-                                else:
-                                    rf_powers.append(-1.0)
-                            board_success = True
-                            break
-                        else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
-                            
-                    except Exception as e:
-                        aspSUB20Logger.warning("Could not get RF power info. for board %s: %s", board_key, str(e))
-                        time.sleep(waitRetry)
-                success &= board_success
-                
+                        output = output.decode('ascii')
+                        output2 = output2.decode('ascii')
+                    except AttributeError:
+                        pass
+                        
+                    if p.returncode == 0:
+                        for line in filter(lambda x: x.find(' uW') != -1, output.split('\n')):
+                            mtch = powaRE.search(line)
+                            if mtch is not None:
+                                rf_powers.append(float(mtch.group('pow')))
+                            else:
+                                rf_powers.append(-1.0)
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    aspSUB20Logger.warning("Could not get RF power info. for board %s: %s", board_key, str(e))
+                    time.sleep(waitRetry)
+            success &= board_success
+            
     return success, rf_powers
 
 
@@ -729,36 +779,35 @@ def rs485Temperature(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS48
     success = True
     temps = []
     for sub20SN in sorted(sub20Mapper2.keys()):
-        with SUB20_LOCKS[sub20SN]:
-            for board_key in sub20Mapper2[sub20SN]:
-                board = (int(board_key) % 126) or 126
-                board_success = False
-                for attempt in range(maxRetry+1):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s OWTE' % (sub20SN, board), shell=True,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    output, output2 = p.communicate()
                     try:
-                        p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s OWTE' % (sub20SN, board), shell=True,
-                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        output, output2 = p.communicate()
-                        try:
-                            output = output.decode('ascii')
-                            output2 = output2.decode('ascii')
-                        except AttributeError:
-                            pass
-                            
-                        if p.returncode == 0:
-                            for line in filter(lambda x: x.find(' C') != -1, output.split('\n')):
-                                mtch = owteRE.search(line)
-                                if mtch is not None:
-                                    temps.append(float(mtch.group('temp')))
-                                else:
-                                    temps.append(-99.0)
-                            board_success = True
-                            break
-                        else:
-                            raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
-                            
-                    except Exception as e:
-                        aspSUB20Logger.warning("Could not get temperature info. for board %s: %s", board_key, str(e))
-                        time.sleep(waitRetry)
-                success &= board_success
-                
+                        output = output.decode('ascii')
+                        output2 = output2.decode('ascii')
+                    except AttributeError:
+                        pass
+                        
+                    if p.returncode == 0:
+                        for line in filter(lambda x: x.find(' C') != -1, output.split('\n')):
+                            mtch = owteRE.search(line)
+                            if mtch is not None:
+                                temps.append(float(mtch.group('temp')))
+                            else:
+                                temps.append(-99.0)
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    aspSUB20Logger.warning("Could not get temperature info. for board %s: %s", board_key, str(e))
+                    time.sleep(waitRetry)
+            success &= board_success
+            
     return success, temps
