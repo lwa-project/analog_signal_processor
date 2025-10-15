@@ -90,12 +90,25 @@ bool ATmega::open() {
     
     return found;
   } else {
-    _lock = sem_open(_sn.c_str(), O_CREAT);
+    _lock = sem_open(_sn.c_str(), O_CREAT, 0660, 1);
     if( _lock == SEM_FAILED ) {
       _lock = NULL;
       return false;
     }
-    sem_wait(_lock);
+    
+    double elapsed_time = 0.0;
+    auto start_time = std::chrono::steady_clock::now();
+    while( sem_trywait(_lock) == -1 ) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100);
+      
+      auto current_time = std::chrono::steady_clock::now();
+      elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time).count();
+      
+      if( elapsed_time > 10000 ) {
+        std::cerr << "Failed to acquire lock within 10 s" << std::endl;
+        return false;
+      }
+    }
     
     for(std::string const& dev_name: atmega::find_devices()) {
       int open_attempts = 0;

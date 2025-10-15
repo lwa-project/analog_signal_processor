@@ -36,7 +36,7 @@ CXXFLAGS  := -O2 -Wall -std=c++17
 #------------------------------------------------------------------------------
 LDFLAGS := -Llibatmega -latmega_static
 CXXFLAGS += -Ilibatmega
-LDFLAGS += -lm
+LDFLAGS += -lm -lpthread
 ifeq ($(OS),Linux)
   LDFLAGS += -ludev
 else ifeq ($(OS),Darwin)
