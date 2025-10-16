@@ -419,7 +419,7 @@ def psuCountTemperature(sub20SN, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETR
             if p.returncode == 0:
                 aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
             else:
-                ntemp = p.returncode // 256
+                ntemp = p.returncode
                 break;
                 
         except Exception as e:
