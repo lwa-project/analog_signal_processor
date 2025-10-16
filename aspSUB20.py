@@ -273,21 +273,21 @@ class SPIProcessingThread(object):
     @staticmethod
     def _read_register(sub20SN, device_count, devices, spi_registers, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
         command = ["/usr/local/bin/readARXDevice", str(sub20SN), str(device_count)]
-        for dev,cmd in zip(devices,spi_commands):
+        for dev,reg in zip(devices,spi_registers):
             command.append(str(dev))
-            command.append("0x%04X" % cmd)
+            command.append("0x%04X" % reg)
             
         regRE = re.compile(r'(?P<device>\d*): (?P<register>0x[0-9a-fA-F]*)')
         
         attempt = 0
-        status = True
+        status = False
         data = {}
         while ((not status) and (attempt <= maxRetry)):
             if attempt != 0:
                 time.sleep(waitRetry)
                 
             try:
-                resp = subprocess.check_output(command)
+                resp = subprocess.check_output(command, text=True)
                 for line in resp.split('\n'):
                     mtch = regRE.search(line)
                     if mtch:
@@ -323,16 +323,16 @@ class SPIProcessingThread(object):
                     
                     if device >= self._sub20Mapper[sub20SN][0] and device <= self._sub20Mapper[sub20SN][1]:
                         devices = [device - self._sub20Mapper[sub20SN][0] + 1,]
-                        commands = [command,]
-                        sub_data = self._run_command(sub20SN, device_count, devices, commands, maxRetry=self._maxRetry, waitRetry=self._waitRetry)
+                        commands = [register,]
+                        sub_data = self._read_register(sub20SN, device_count, devices, commands, maxRetry=self._maxRetry, waitRetry=self._waitRetry)
                         data.update(sub_data)
                         
         if not data:
             data = False
         elif len(data.keys()) == 1:
-            data = data.items()[]
+            data = list(data.values())[0]
             
-    return data
+        return data
 
 
 def psuSend(sub20SN, psuAddress, state, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY):
