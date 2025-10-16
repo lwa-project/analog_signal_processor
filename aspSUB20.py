@@ -13,7 +13,7 @@ from collections import deque
 
 __version__ = '0.6'
 __all__ = ['spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread',
-           'psuSend', 'psuCountTemperature', 'psuTemperature',
+           'psuSend', 'psuRead', 'psuCountTemperature', 'psuTemperature',
            'rs485CountBoards', 'rs485Reset', 'rs485Sleep', 'rs485Wake', 'rs485Check',
            'rs485SetTime', 'rs485GetTime', 'rs485Power', 'rs485RFPower', 'rs485Temperature',
            'SPI_cfg_normal', 'SPI_cfg_shutdown', 
@@ -307,9 +307,50 @@ def psuSend(sub20SN, psuAddress, state, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I
     return status
 
 
+def psuRead(sub20SN, psuAddress, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY):
+    """
+    Read the status, voltage, and current of the power supply unit at the
+    provided I2C address.
+    """
+    
+    data = {}
+    for attempt in range(maxRetry+1):
+        if attempt != 0:
+            time.sleep(waitRetry)
+            
+        try:
+            p = subprocess.Popen('/usr/local/bin/readPSU %s 0x%02X' % (self.sub20SN, self.deviceAddress), shell=True,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output, output2 = p.communicate()
+            try:
+                output = output.decode('ascii')
+                output2 = output2.decode('ascii')
+            except AttributeError:
+                pass
+                
+            if p.returncode == 0:
+                psu, desc, onoffHuh, statusHuh, voltageV, currentA, = output.replace('\n', '').split(None, 5)
+                data = {'address': psu,
+                        'description': desc,
+                        'voltage': float(voltageV)
+                        'current': float(currentA)
+                        'onoff': self.onoff = '%-3s' % onoffHuh
+                        'status': statusHuh
+                       }
+                break;
+            else:
+                aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
+                
+        except Exception as e:
+            aspSUB20Logger.warning("Could not read PSU status: %s", str(e))
+            
+    return data
+                
+
 def psuCountTemperature(sub20SN, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY):
     """
-    Return the number of temperature sensors associated with the power supply units.
+    Return the number of temperature sensors associated with the power supply
+    units.
     """
     
     ntemp = 0
