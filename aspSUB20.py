@@ -110,15 +110,11 @@ def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY
             if attempt != 0:
                 time.sleep(waitRetry)
                 
-            p = subprocess.Popen('/usr/local/bin/countBoards %s' % sub20SN, shell=True,
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p = subprocess.Popen(['/usr/local/bin/countBoards', str(sub20SN),
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 text=True)
             output, output2 = p.communicate()
-            try:
-                output = output.decode('ascii')
-                output2 = output2.decode('ascii')
-            except AttributeError:
-                pass
-                
+            
             if p.returncode == 0:
                 aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
                 status = False
@@ -187,7 +183,7 @@ class SPIProcessingThread(object):
             
     @staticmethod
     def _run_command(sub20SN, device_count, devices, spi_commands, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
-        command = ["/usr/local/bin/sendARXDevice", sub20SN, str(device_count)]
+        command = ["/usr/local/bin/sendARXDevice", str(sub20SN), str(device_count)]
         for dev,cmd in zip(devices,spi_commands):
             command.append(str(dev))
             command.append("0x%04X" % cmd)
@@ -286,15 +282,11 @@ def psuSend(sub20SN, psuAddress, state, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I
             time.sleep(waitRetry)
             
         try:
-            p = subprocess.Popen('/usr/local/bin/onoffPSU %s 0x%02X %s' % (sub20SN, psuAddress, str(state)), shell=True,
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p = subprocess.Popen(['/usr/local/bin/onoffPSU', str(sub20SN), '0x%02X' % psuAddress, str(state)],
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    text=True)
             output, output2 = p.communicate()
-            try:
-                output = output.decode('ascii')
-                output2 = output2.decode('ascii')
-            except AttributeError:
-                pass
-                
+            
             if p.returncode == 0:
                 status = True
                 break
@@ -319,22 +311,18 @@ def psuRead(sub20SN, psuAddress, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETR
             time.sleep(waitRetry)
             
         try:
-            p = subprocess.Popen('/usr/local/bin/readPSU %s 0x%02X' % (self.sub20SN, self.deviceAddress), shell=True,
-                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p = subprocess.Popen(['/usr/local/bin/readPSU', str(sub20SN), '0x%02X' % deviceAddress],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 text=True)
             output, output2 = p.communicate()
-            try:
-                output = output.decode('ascii')
-                output2 = output2.decode('ascii')
-            except AttributeError:
-                pass
-                
+            
             if p.returncode == 0:
                 psu, desc, onoffHuh, statusHuh, voltageV, currentA, = output.replace('\n', '').split(None, 5)
                 data = {'address': psu,
                         'description': desc,
                         'voltage': float(voltageV)
                         'current': float(currentA)
-                        'onoff': self.onoff = '%-3s' % onoffHuh
+                        'onoff': '%-3s' % onoffHuh
                         'status': statusHuh
                        }
                 break;
@@ -359,14 +347,10 @@ def psuCountTemperature(sub20SN, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETR
             time.sleep(waitRetry)
             
         try:
-            p = subprocess.Popen('/usr/local/bin/countThermometers %s' % sub20SN, shell=True,
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p = subprocess.Popen(['/usr/local/bin/countThermometers', str(sub20SN)],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                text=True)
             output, output2 = p.communicate()
-            try:
-                output = output.decode('ascii')
-                output2 = output2.decode('ascii')
-            except AttributeError:
-                pass
             
             if p.returncode == 0:
                 aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
@@ -391,15 +375,11 @@ def psuTemperature(sub20SN, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY):
             time.sleep(waitRetry)
             
         try:
-            p = subprocess.Popen('/usr/local/bin/readThermometers %s' % sub20SN, shell=True,
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p = subprocess.Popen(['/usr/local/bin/readThermometers', str(sub20SN)],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                text=True)
             output, output2 = p.communicate()
-            try:
-                output = output.decode('ascii')
-                output2 = output2.decode('ascii')
-            except AttributeError:
-                pass
-                
+            
             if p.returncode != 0:
                 aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
             else:
@@ -433,15 +413,11 @@ def rs485CountBoards(sub20Mapper, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485
             if attempt != 0:
                 time.sleep(waitRetry)
                 
-            p = subprocess.Popen('/usr/local/bin/countPICs %s' % sub20SN, shell=True,
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p = subprocess.Popen(['/usr/local/bin/countPICs', str(sub20SN)],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 text=True)
             output, output2 = p.communicate()
-            try:
-                output = output.decode('ascii')
-                output2 = output2.decode('ascii')
-            except AttributeError:
-                pass
-                
+            
             if p.returncode == 0:
                 aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
                 status = False
@@ -471,15 +447,11 @@ def rs485Reset(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s RSET' % (sub20SN, board), shell=True,
-                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', str(sub20SN), str(board), ' RSET'],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
                     output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
+                    
                     if p.returncode == 0:
                         board_success = True
                         break
@@ -512,15 +484,11 @@ def rs485Sleep(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s SLEP' % (sub20SN, board), shell=True,
-                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', str(sub20SN), str(board), ' SLEP'],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
                     output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
+                    
                     if p.returncode == 0:
                         board_success = True
                         break
@@ -548,15 +516,11 @@ def rs485Wake(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s WAKE' % (sub20SN, board), shell=True,
-                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', str(sub20SN), str(board), 'WAKE'],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
                     output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
+                    
                     if p.returncode == 0:
                         board_success = True
                         break
@@ -594,15 +558,11 @@ def rs485Check(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s ECHO%s' % (sub20SN, board, data), shell=True,
-                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'ECHO%s' % data],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
                     output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
+                    
                     if p.returncode == 0 and output.find(data) != -1:
                         board_success = True
                         break
@@ -638,15 +598,11 @@ def rs485SetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice %s %s STIM%s' % (sub20SN, board, data), shell=True,
-                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', str(sub20SN), str(board), ' STIM%s' % data],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
                     output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
+                    
                     if p.returncode == 0:
                         board_success = True
                         break
@@ -684,15 +640,11 @@ def rs485GetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s GTIM' % (sub20SN, board), shell=True,
-                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'GTIM'],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
                     output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
+                    
                     mtch = gtimRE.search(output)
                     if mtch is not None:
                         gtim_data = mtch.group('gtim')
@@ -731,15 +683,11 @@ def rs485Power(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s CURA' % (sub20SN, board), shell=True,
-                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'CURA'],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
                     output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
+                    
                     if p.returncode == 0:
                         for line in filter(lambda x: x.find(' mA') != -1, output.split('\n')):
                             mtch = curaRE.search(line)
@@ -778,15 +726,11 @@ def rs485RFPower(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s CURA' % (sub20SN, board), shell=True,
-                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'POWA'],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
                     output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
+                    
                     if p.returncode == 0:
                         for line in filter(lambda x: x.find(' uW') != -1, output.split('\n')):
                             mtch = powaRE.search(line)
@@ -825,15 +769,11 @@ def rs485Temperature(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS48
             board_success = False
             for attempt in range(maxRetry+1):
                 try:
-                    p = subprocess.Popen('/usr/local/bin/sendPICDevice -v -d %s %s OWTE' % (sub20SN, board), shell=True,
-                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'OWTE'],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
                     output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
+                    
                     if p.returncode == 0:
                         for line in filter(lambda x: x.find(' C') != -1, output.split('\n')):
                             mtch = owteRE.search(line)
