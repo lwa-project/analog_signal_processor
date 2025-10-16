@@ -461,8 +461,7 @@ class ChassisStatus(object):
         self.pic_monitoring = pic_monitoring
         
         # SPI setup and data variables
-        mini_mapping = {self.sub20SN: self.config['sub20_antenna_mapping'][self.sub20SN]}
-        self._spi = SPIProcessingThread(mini_mapping)
+        self._spi = SPIProcessingThread(self.spi_mini_mapping)
         self.configured = False
         self.fee_currents = []
         
@@ -480,7 +479,8 @@ class ChassisStatus(object):
         if config is None:
             return True
             
-        self.mapping = config['sub20_rs485_mapping']
+        self.spi_mini_mapping = {self.sub20SN: config['sub20_antenna_mapping'][self.sub20SN]}
+        self.rs485_mapping = config['sub20_rs485_mapping']
         self.monitorPeriod = config['chassis_period']
         
     def start(self):
@@ -545,7 +545,7 @@ class ChassisStatus(object):
                         
                 ## Record the board temperatures and power consumption while we are at it
                 if self.pic_monitoring and loop_counter == 0:
-                    #status, temps = rs485Temperature(self.mapping, maxRetry=MAX_RS485_RETRY)
+                    #status, temps = rs485Temperature(self.rs485_mapping, maxRetry=MAX_RS485_RETRY)
                     status, temps = False, []
                     
                     if status:
@@ -557,7 +557,7 @@ class ChassisStatus(object):
                         except Exception as e:
                             aspThreadsLogger.error("%s: monitorThread failed to update board temperature log - %s", type(self).__name__, str(e))
                             
-                    status, fees = rs485Power(self.mapping, maxRetry=MAX_RS485_RETRY)
+                    status, fees = rs485Power(self.rs485_mapping, maxRetry=MAX_RS485_RETRY)
                         
                     if status:
                         self.fee_currents = fees
