@@ -460,9 +460,9 @@ class ChassisStatus(object):
         self.fee_logfile = fee_logfile
         self.pic_monitoring = pic_monitoring
         
-        # Total number of devices on the chassis
-        dStart, dStop = config['sub20_antenna_mapping'][self.sub20SN]
-        self.totalDevs = dStop - dStart + 1
+        # SPI setup and data variables
+        mini_mapping = {self.sub20SN: self.config['sub20_antenna_mapping'][self.sub20SN]}
+        self._spi = SPIProcessingThread(mini_mapping)
         self.configured = False
         self.fee_currents = []
         
@@ -521,27 +521,9 @@ class ChassisStatus(object):
             tStart = time.time()
             
             try:
-                missingSUB20 = False
-                
-                p = subprocess.Popen('/usr/local/bin/readARXDevice %s %i 1 0x%04X' % (self.sub20SN, self.totalDevs, self.register), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                output, output2 = p.communicate()
-                try:
-                    output = output.decode('ascii')
-                    output2 = output2.decode('ascii')
-                except AttributeError:
-                    pass
-                    
-                if p.returncode != 0:
-                    aspThreadsLogger.warning("readARXDevice: command returned %i; '%s;%s'", p.returncode, output, output2)
-                    
-                    missingSUB20 = True
-                    if p.returncode == 3:
-                        self.configured = False
-                        
-                else:
-                    output = output.split('\n')[:-1]
-                    dev, resp = output[-1].split(': ', 1)
-                    resp = int(resp, 16)
+                resp = self._spi.read_register(1, self.register)
+                if resp is not None:
+                    missingSUB20 = False
                     
                     if resp == (self.register | 0x5500):
                         self.configured = True
@@ -549,7 +531,11 @@ class ChassisStatus(object):
                         self.configured = False
                         
                         aspThreadsLogger.error("%s: SUB-20 S/N %s lost SPI port configuation", type(self).__name__, self.sub20SN)
-                        
+                else:
+                    missingSUB20 = True
+                    
+                    self.configured = False
+                    
                 if self.ASPCallbackInstance is not None:
                     if missingSUB20:
                         self.ASPCallbackInstance.processMissingSUB20()

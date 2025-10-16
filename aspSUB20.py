@@ -269,6 +269,70 @@ class SPIProcessingThread(object):
                                 aspSUB20Logger.warning("Failed to process callback for device %i, comamnd %04X: %s", device, command, str(e))
                                 
             time.sleep(self._pollInterval)
+            
+    @staticmethod
+    def _read_register(sub20SN, device_count, devices, spi_registers, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+        command = ["/usr/local/bin/readARXDevice", str(sub20SN), str(device_count)]
+        for dev,cmd in zip(devices,spi_commands):
+            command.append(str(dev))
+            command.append("0x%04X" % cmd)
+            
+        regRE = re.compile(r'(?P<device>\d*): (?P<register>0x[0-9a-fA-F]*)')
+        
+        attempt = 0
+        status = True
+        data = {}
+        while ((not status) and (attempt <= maxRetry)):
+            if attempt != 0:
+                time.sleep(waitRetry)
+                
+            try:
+                resp = subprocess.check_output(command)
+                for line in resp.split('\n'):
+                    mtch = regRE.search(line)
+                    if mtch:
+                        dev = int(mtch.group('device'), 10)
+                        reg = int(mtch.group('register'), 16)
+                        data[dev] = reg
+                        status = True
+                        
+            except subprocess.CalledProcessError:
+                pass
+            attempt += 1
+            
+        return data
+        
+    def read_register(self, device, register):
+        data = {}
+        
+        with self._lock:
+            if device == 0:
+                for sub20SN in sorted(self._sub20Mapper):
+                    device_count = self._sub20Mapper[sub20SN][1] - self._sub20Mapper[sub20SN][0] + 1
+                    
+                    devices, commands = [], []
+                    for dev in range(self._sub20Mapper[sub20SN][0], self._sub20Mapper[sub20SN][1]+1):
+                        devices.append(dev - self._sub20Mapper[sub20SN][0] + 1)
+                        commands.append(register)
+                    sub_data = self._read_register(sub20SN, device_count, devices, commands, maxRetry=self._maxRetry, waitRetry=self._waitRetry)
+                    data.update(sub_data)
+                        
+            else:
+                for sub20SN in self._sub20Mapper:
+                    device_count = self._sub20Mapper[sub20SN][1] - self._sub20Mapper[sub20SN][0] + 1
+                    
+                    if device >= self._sub20Mapper[sub20SN][0] and device <= self._sub20Mapper[sub20SN][1]:
+                        devices = [device - self._sub20Mapper[sub20SN][0] + 1,]
+                        commands = [command,]
+                        sub_data = self._run_command(sub20SN, device_count, devices, commands, maxRetry=self._maxRetry, waitRetry=self._waitRetry)
+                        data.update(sub_data)
+                        
+        if not data:
+            data = False
+        elif len(data.keys()) == 1:
+            data = data.items()[]
+            
+    return data
 
 
 def psuSend(sub20SN, psuAddress, state, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY):
