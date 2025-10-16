@@ -117,37 +117,13 @@ class TemperatureSensors(object):
                         self.temp[i] = entry['temp_C']
                 else:
                     missingSUB20 = True
-                
-                
-                p = subprocess.Popen('/usr/local/bin/readThermometers %s' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                output, output2 = p.communicate()
-                try:
-                    output = output.decode('ascii')
-                    output2 = output2.decode('ascii')
-                except AttributeError:
-                    pass
                     
-                if p.returncode != 0:
-                    aspThreadsLogger.warning("readThermometers: command returned %i; '%s;%s'", p.returncode, output, output2)
-                    self.lastError = str(output2)
-                    
-                    missingSUB20 = True
-                    
-                else:
-                    for i,line in enumerate(output.split('\n')):
-                        if len(line) < 4:
-                            continue
-                        psu, desc, tempC = line.split(None, 2)
-                        self.description[i] = '%s %s' % (psu, desc)
-                        self.temp[i] = float(tempC)
-                        
                 # Open the log file and save the temps
                 try:
-                    log = open(self.logfile, 'a+')
-                    log.write('%s,' % time.time())
-                    log.write('%s\n' % ','.join(["%.2f" % t for t in self.temp]))
-                    log.flush()
-                    log.close()
+                    with open(self.logfile, 'a+') as log:
+                        log.write('%s,' % time.time())
+                        log.write('%s\n' % ','.join(["%.2f" % t for t in self.temp]))
+                        log.flush()
                 except IOError:
                     aspThreadsLogger.error("%s: could not open flag logfile %s for writing", type(self).__name__, self.logfile)
                     pass
@@ -354,40 +330,29 @@ class PowerStatus(object):
             tStart = time.time()
             
             try:
-                missingSUB20 = False
-                
-                p = subprocess.Popen('/usr/local/bin/readPSU %s 0x%02X' % (self.sub20SN, self.deviceAddress), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                output, output2 = p.communicate()
-                try:
-                    output = output.decode('ascii')
-                    output2 = output2.decode('ascii')
-                except AttributeError:
-                    pass
+                data = psuRead(self.sub20SN, self.deviceAddress)
+                if data:
+                    missingSUB20 = False
                     
-                if p.returncode != 0:
-                    aspThreadsLogger.warning("readPSU: command returned %i; '%s;%s'", p.returncode, output, output2)
+                    self.description = '%s - %s' % (data['address'], data['description'])
+                    self.voltage = data['voltage']
+                    self.current = data['current']
+                    self.onoff = data['onoff']
+                    self.status = data['status']
+                else:
+                    missingSUB20 = True
+                    
                     self.voltage = 0.0
                     self.current = 0.0
                     self.onoff = "UNK"
                     self.status = "UNK"
-                    self.lastError = str(output2)
-                    
-                    missingSUB20 = True
-                    
-                else:
-                    psu, desc, onoffHuh, statusHuh, voltageV, currentA, = output.replace('\n', '').split(None, 5)
-                    self.description = '%s - %s' % (psu, desc)
-                    self.voltage = float(voltageV)
-                    self.current = float(currentA)
-                    self.onoff = '%-3s' % onoffHuh
-                    self.status = statusHuh
+                    self.lastError = 'No data returned'
                     
                 try:
-                    log = open(self.logfile, 'a+')
-                    log.write('%s,' % time.time())
-                    log.write('%s\n' % ','.join(["%.2f" % self.voltage, "%.3f" % self.current, self.onoff, self.status]))
-                    log.flush()
-                    log.close()
+                    with open(self.logfile, 'a+') as log:
+                        log.write('%s,' % time.time())
+                        log.write('%s\n' % ','.join(["%.2f" % self.voltage, "%.3f" % self.current, self.onoff, self.status]))
+                        log.flush()
                 except IOError:
                     aspThreadsLogger.error("%s: could not open flag logfile %s for writing", type(self).__name__, self.logfile)
                     pass
@@ -599,9 +564,10 @@ class ChassisStatus(object):
                     
                     if status:
                         try:
-                            with open(self.temp_logfile, 'a') as fh:
-                                fh.write('%s,' % time.time())
-                                fh.write('%s\n' % ','.join(['%.2f' % t for t in temps]))
+                            with open(self.temp_logfile, 'a') as log:
+                                log.write('%s,' % time.time())
+                                log.write('%s\n' % ','.join(['%.2f' % t for t in temps]))
+                                log.flush()
                         except Exception as e:
                             aspThreadsLogger.error("%s: monitorThread failed to update board temperature log - %s", type(self).__name__, str(e))
                             
@@ -611,9 +577,10 @@ class ChassisStatus(object):
                         self.fee_currents = fees
                         
                         try:
-                            with open(self.fee_logfile, 'a') as fh:
-                                fh.write('%s,' % time.time())
-                                fh.write('%s\n' % ','.join(['%.3f' % v for v in self.fee_currents]))
+                            with open(self.fee_logfile, 'a') as log:
+                                log.write('%s,' % time.time())
+                                log.write('%s\n' % ','.join(['%.3f' % v for v in self.fee_currents]))
+                                log.flush()
                         except Exception as e:
                             aspThreadsLogger.error("%s: monitorThread failed to update FEE power log - %s", type(self).__name__, str(e))
                             
@@ -633,7 +600,7 @@ class ChassisStatus(object):
                 self.lastError = str(e)
                 
             loop_counter += 1
-            loop_counter %= 5
+            loop_counter %= 3
             
             # Stop time
             tStop = time.time()
