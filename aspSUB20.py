@@ -110,7 +110,7 @@ def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY
             if attempt != 0:
                 time.sleep(waitRetry)
                 
-            p = subprocess.Popen(['/usr/local/bin/countBoards', str(sub20SN),
+            p = subprocess.Popen(['/usr/local/bin/countBoards', str(sub20SN)],
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                  text=True)
             output, output2 = p.communicate()
@@ -311,7 +311,7 @@ def psuRead(sub20SN, psuAddress, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETR
             time.sleep(waitRetry)
             
         try:
-            p = subprocess.Popen(['/usr/local/bin/readPSU', str(sub20SN), '0x%02X' % deviceAddress],
+            p = subprocess.Popen(['/usr/local/bin/readPSU', str(sub20SN), '0x%02X' % psuAddress],
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                  text=True)
             output, output2 = p.communicate()
@@ -320,12 +320,12 @@ def psuRead(sub20SN, psuAddress, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETR
                 psu, desc, onoffHuh, statusHuh, voltageV, currentA, = output.replace('\n', '').split(None, 5)
                 data = {'address': psu,
                         'description': desc,
-                        'voltage': float(voltageV)
-                        'current': float(currentA)
-                        'onoff': '%-3s' % onoffHuh
+                        'voltage': float(voltageV),
+                        'current': float(currentA),
+                        'onoff': '%-3s' % onoffHuh,
                         'status': statusHuh
                        }
-                break;
+                break
             else:
                 aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
                 
