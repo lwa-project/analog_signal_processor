@@ -90,7 +90,7 @@ bool ATmega::open() {
     
     return found;
   } else {
-    _lock = sem_open(_sn.c_str(), O_CREAT, 0660, 1);
+    _lock = sem_open(_sn.c_str(), O_CREAT, 0666, 1);
     if( _lock == SEM_FAILED ) {
       _lock = NULL;
       return false;
