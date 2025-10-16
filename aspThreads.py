@@ -112,7 +112,7 @@ class TemperatureSensors(object):
                 if temps:
                     missingSUB20 = False
                     
-                    for entry in temps:
+                    for i,entry in enumerate(temps):
                         self.description[i] = '%s %s' % (entry['address'], entry['description'])
                         self.temp[i] = entry['temp_C']
                 else:
