@@ -90,10 +90,16 @@ bool ATmega::open() {
     
     return found;
   } else {
-    _lock = sem_open(_sn.c_str(), O_CREAT, 0666, 1);
+    mode_t omsk = umask(0);
+    _lock = sem_open(_sn.c_str(), O_CREAT | O_EXCL, 0666, 1);
+    umask(omsk);
     if( _lock == SEM_FAILED ) {
-      _lock = NULL;
-      return false;
+      if( errno == EEXIST ) {
+        _lock = sem_open(_sn.c_str(), 0);
+      } else {
+        _lock = NULL;
+        return false;
+      }
     }
     
     double elapsed_time = 0.0;
