@@ -32,8 +32,8 @@ aspSUB20Logger = logging.getLogger('__main__')
 
 
 # SPI control
-MAX_SPI_RETRY = 2
-WAIT_SPI_RETRY = 0.2
+MAX_SPI_RETRY = 4
+WAIT_SPI_RETRY = 0.25
 
 # SPI constants
 SPI_cfg_normal = 0x0104
@@ -89,12 +89,12 @@ SPI_P31_off = 0x003F
 SPI_NoOp = 0x0000
 
 # I2C control
-MAX_I2C_RETRY = 2
-WAIT_I2C_RETRY = 0.2
+MAX_I2C_RETRY = 4
+WAIT_I2C_RETRY = 0.25
 
 # RS485 control
-MAX_RS485_RETRY = 2
-WAIT_RS485_RETRY = 0.2
+MAX_RS485_RETRY = 4
+WAIT_RS485_RETRY = 0.25
 
 
 def _sleep(interval, margin_percent=5):
