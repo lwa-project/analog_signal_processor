@@ -5,13 +5,14 @@ Module for storing the various SUB-20 function calls
 
 import re
 import time
+import random
 import inspect
 import logging
 import threading
 import subprocess
 from collections import deque
 
-__version__ = '0.6'
+__version__ = '0.7'
 __all__ = ['spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread',
            'psuSend', 'psuRead', 'psuCountTemperature', 'psuTemperature',
            'rs485CountBoards', 'rs485Reset', 'rs485Sleep', 'rs485Wake', 'rs485Check',
@@ -31,8 +32,8 @@ aspSUB20Logger = logging.getLogger('__main__')
 
 
 # SPI control
-MAX_SPI_RETRY = 2
-WAIT_SPI_RETRY = 0.2
+MAX_SPI_RETRY = 4
+WAIT_SPI_RETRY = 0.25
 
 # SPI constants
 SPI_cfg_normal = 0x0104
@@ -88,12 +89,21 @@ SPI_P31_off = 0x003F
 SPI_NoOp = 0x0000
 
 # I2C control
-MAX_I2C_RETRY = 2
-WAIT_I2C_RETRY = 0.2
+MAX_I2C_RETRY = 4
+WAIT_I2C_RETRY = 0.25
 
 # RS485 control
-MAX_RS485_RETRY = 2
-WAIT_RS485_RETRY = 0.2
+MAX_RS485_RETRY = 4
+WAIT_RS485_RETRY = 0.25
+
+
+def _sleep(interval, margin_percent=5):
+    """
+    Helper function to give a slightly random sleep time to help break things
+    up.
+    """
+    
+    time.sleep(interval * random.uniform(1-margin_percent/100., 1+margin_percent/100.))
 
 
 def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
@@ -108,7 +118,7 @@ def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY
         status = False
         while ((not status) and (attempt <= maxRetry)):
             if attempt != 0:
-                time.sleep(waitRetry)
+                _sleep(waitRetry)
                 
             p = subprocess.Popen(['/usr/local/bin/countBoards', str(sub20SN)],
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -192,7 +202,7 @@ class SPIProcessingThread(object):
         status = False
         while ((not status) and (attempt <= maxRetry)):
             if attempt != 0:
-                time.sleep(waitRetry)
+                _sleep(waitRetry)
                 
             try:
                 subprocess.check_call(command)
@@ -284,7 +294,7 @@ class SPIProcessingThread(object):
         data = {}
         while ((not status) and (attempt <= maxRetry)):
             if attempt != 0:
-                time.sleep(waitRetry)
+                _sleep(waitRetry)
                 
             try:
                 resp = subprocess.check_output(command, text=True)
@@ -343,7 +353,7 @@ def psuSend(sub20SN, psuAddress, state, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I
     status = False
     for attempt in range(maxRetry+1):
         if attempt != 0:
-            time.sleep(waitRetry)
+            _sleep(waitRetry)
             
         try:
             p = subprocess.Popen(['/usr/local/bin/onoffPSU', str(sub20SN), '0x%02X' % psuAddress, str(state)],
@@ -372,7 +382,7 @@ def psuRead(sub20SN, psuAddress, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETR
     data = {}
     for attempt in range(maxRetry+1):
         if attempt != 0:
-            time.sleep(waitRetry)
+            _sleep(waitRetry)
             
         try:
             p = subprocess.Popen(['/usr/local/bin/readPSU', str(sub20SN), '0x%02X' % psuAddress],
@@ -408,7 +418,7 @@ def psuCountTemperature(sub20SN, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETR
     ntemp = 0
     for attempt in range(maxRetry+1):
         if attempt != 0:
-            time.sleep(waitRetry)
+            _sleep(waitRetry)
             
         try:
             p = subprocess.Popen(['/usr/local/bin/countThermometers', str(sub20SN)],
@@ -436,7 +446,7 @@ def psuTemperature(sub20SN, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY):
     temps = []
     for attempt in range(maxRetry+1):
         if attempt == 0:
-            time.sleep(waitRetry)
+            _sleep(waitRetry)
             
         try:
             p = subprocess.Popen(['/usr/local/bin/readThermometers', str(sub20SN)],
@@ -475,7 +485,7 @@ def rs485CountBoards(sub20Mapper, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485
         status = False
         while ((not status) and (attempt <= maxRetry)):
             if attempt != 0:
-                time.sleep(waitRetry)
+                _sleep(waitRetry)
                 
             p = subprocess.Popen(['/usr/local/bin/countPICs', str(sub20SN)],
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -524,7 +534,7 @@ def rs485Reset(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                         
                 except Exception as e:
                     aspSUB20Logger.warning("Could not reset board %s: %s", board_key, str(e))
-                    time.sleep(waitRetry)
+                    _sleep(waitRetry)
             success &= board_success
             
     # Check for completion of reset
@@ -561,7 +571,7 @@ def rs485Sleep(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                         
                 except Exception as e:
                     aspSUB20Logger.warning("Could not sleep board %s: %s", board_key, str(e))
-                    time.sleep(waitRetry)
+                    _sleep(waitRetry)
             success &= board_success
             
     return success
@@ -593,7 +603,7 @@ def rs485Wake(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY
                         
                 except Exception as e:
                     aspSUB20Logger.warning("Could not wake board %s: %s", board_key, str(e))
-                    time.sleep(waitRetry)
+                    _sleep(waitRetry)
             success &= board_success
             
     # Check for completion of wake
@@ -636,7 +646,7 @@ def rs485Check(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                 except Exception as e:
                     if verbose:
                         aspSUB20Logger.warning("Could not echo '%s' to board %s: %s", data, board_key, str(e))
-                    time.sleep(waitRetry)
+                    _sleep(waitRetry)
             success &= board_success
             if not board_success:
                 failed.append(antennaMapping[board_key])
@@ -676,7 +686,7 @@ def rs485SetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
                 except Exception as e:
                     if verbose:
                         aspSUB20Logger.warning("Could not set time to '%s' on board %s: %s", data, board_key, str(e))
-                    time.sleep(waitRetry)
+                    _sleep(waitRetry)
             success &= board_success
             if not board_success:
                 failed.append(antennaMapping[board_key])
@@ -721,7 +731,7 @@ def rs485GetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
                 except Exception as e:
                     if verbose:
                         aspSUB20Logger.warning("Could not get time from board %s: %s", board_key, str(e))
-                    time.sleep(waitRetry)
+                    _sleep(waitRetry)
             success &= board_success
             if not board_success:
                 data.append(0)
@@ -766,7 +776,7 @@ def rs485Power(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                         
                 except Exception as e:
                     aspSUB20Logger.warning("Could not get power info. for board %s: %s", board_key, str(e))
-                    time.sleep(waitRetry)
+                    _sleep(waitRetry)
             success &= board_success
             
     return success, fees
@@ -809,7 +819,7 @@ def rs485RFPower(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
                         
                 except Exception as e:
                     aspSUB20Logger.warning("Could not get RF power info. for board %s: %s", board_key, str(e))
-                    time.sleep(waitRetry)
+                    _sleep(waitRetry)
             success &= board_success
             
     return success, rf_powers
@@ -852,7 +862,7 @@ def rs485Temperature(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS48
                         
                 except Exception as e:
                     aspSUB20Logger.warning("Could not get temperature info. for board %s: %s", board_key, str(e))
-                    time.sleep(waitRetry)
+                    _sleep(waitRetry)
             success &= board_success
             
     return success, temps

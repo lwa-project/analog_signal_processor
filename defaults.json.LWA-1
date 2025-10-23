@@ -62,8 +62,8 @@
     }
   },
   
-  "max_spi_retry": 2,
-  "wait_spi_retry": 0.2,
+  "max_spi_retry": 4,
+  "wait_spi_retry": 0.25,
   
   "arx_ps_address": 31,
   "fee_ps_address": 30
