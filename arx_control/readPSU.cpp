@@ -26,7 +26,7 @@ Options:
 #include "ivsCommon.hpp"
 
 std::string getModuleName(uint16_t module, uint8_t moduleCode) {
-	// Decode the power rating of the current module
+  // Decode the power rating of the current module
   std::string output = std::string("Module")+std::to_string(module);
   switch((moduleCode >> 4 ) & 0xF) {
     case 0: output = output+std::string("_210W");  break;
@@ -36,9 +36,9 @@ std::string getModuleName(uint16_t module, uint8_t moduleCode) {
     case 4: output = output+std::string("_750W");  break;
     case 5: output = output+std::string("_1500W"); break;
     default: output = output+std::string("_UNK");
-	}
-  	
-	// Decode the voltage range of the current module
+  }
+    
+  // Decode the voltage range of the current module
   switch(moduleCode & 0xF) {
     case  0: output = output+std::string("_2to5.5V"); break;
     case  1: output = output+std::string("_6to12V");  break;
@@ -53,71 +53,71 @@ std::string getModuleName(uint16_t module, uint8_t moduleCode) {
     case 10: output = output+std::string("_33to60V"); break;
     default: output = std::string("UNK");
   }
-	
+  
   return output;
 }
 
 
 std::string getModulePower(uint8_t statusCode) {
-	// Decode the output enabled flag
+  // Decode the output enabled flag
   std::string output;
-	if( statusCode & 1 ) {
-		output = std::string("ON");
-	} else {
-		output = std::string("OFF");
-	}
+  if( statusCode & 1 ) {
+    output = std::string("ON");
+  } else {
+    output = std::string("OFF");
+  }
   
   return output;
 }
 
 
 std::string getModuleStatus(uint8_t statusCode) {
-	// Decode the various status and fault flags
+  // Decode the various status and fault flags
   std::string output;
-	if( (statusCode >> 1) & 1 ) {
+  if( (statusCode >> 1) & 1 ) {
     output = std::string("UnderVolt");
-	}
-	if( (statusCode >> 2) & 1 ) {
+  }
+  if( (statusCode >> 2) & 1 ) {
     if( output.size() > 0 ) {
       output = output+std::string("&");
     }
     output = output+std::string("OK");
-	}
-	if( (statusCode >> 3) & 1 ) {
+  }
+  if( (statusCode >> 3) & 1 ) {
     if( output.size() > 0 ) {
       output = output+std::string("&");
     }
     output = output+std::string("OverCurrent");
-	}
-	if( (statusCode >> 4) & 1 ) {
+  }
+  if( (statusCode >> 4) & 1 ) {
     if( output.size() > 0 ) {
       output = output+std::string("&");
     }
     output = output+std::string("OverTemperature");
-	}
-	if( (statusCode >> 5) & 1 ) {
+  }
+  if( (statusCode >> 5) & 1 ) {
     if( output.size() > 0 ) {
       output = output+std::string("&");
     }
     output = output+std::string("WarningTemperature");
-	}
-	if( (statusCode >> 6) & 1 ) {
+  }
+  if( (statusCode >> 6) & 1 ) {
     if( output.size() > 0 ) {
       output = output+std::string("&");
     }
     output = output+std::string("OverVolt");
-	}
-	if( (statusCode >> 7) & 1 ) {
+  }
+  if( (statusCode >> 7) & 1 ) {
     if( output.size() > 0 ) {
       output = output+std::string("&");
     }
     output = output+std::string("ModuleFault");
-	}
-	
-	// Make sure we return something...
-	if( output.size() == 0 ) {
-		output = std::string("UNK");
-	}
+  }
+  
+  // Make sure we return something...
+  if( output.size() == 0 ) {
+    output = std::string("UNK");
+  }
   
   return output;
 }
@@ -145,12 +145,12 @@ int main(int argc, char** argv) {
   bool success = atm->open();
   if( !success ) {
     std::cout << "readPSU - failed to open " << requestedSN << std::endl;
-		std::exit(EXIT_FAILURE);
+    std::exit(EXIT_FAILURE);
   }
   
   /********************
-	* Read from the I2C *
-	********************/
+  * Read from the I2C *
+  ********************/
   std::list<uint8_t> i2c_devices = atm->list_i2c_devices();
   
   uint16_t data;
@@ -160,148 +160,148 @@ int main(int argc, char** argv) {
       continue;
     }
     
-		// Get a list of smart modules for polling
+    // Get a list of smart modules for polling
     std::list<uint8_t> modules = ivs_get_smart_modules(atm, addr);
-		
-		// Enable writing to all of the supported command so we can change 
-		// modules/poll module type
-		success = ivs_enable_all_writes(atm, addr);
-		if( !success ) {
-			std::cout << "readPSU - write settings failed" << std::endl;
-			continue;
-		}
+    
+    // Enable writing to all of the supported command so we can change 
+    // modules/poll module type
+    success = ivs_enable_all_writes(atm, addr);
+    if( !success ) {
+      std::cout << "readPSU - write settings failed" << std::endl;
+      continue;
+    }
 
-		// Loop over modules 0 through 15
+    // Loop over modules 0 through 15
     int nMod = 0;
-		std::string moduleName, modulePower, moduleStatus;
+    std::string moduleName, modulePower, moduleStatus;
     float voltage = 0.0, current = 0.0;
     for(uint8_t& module: modules) {
-			success = ivs_select_module(atm, addr, module);
+      success = ivs_select_module(atm, addr, module);
       if( !success ) {
         std::cerr << "readPSU - page change failed" << std::endl;
         continue;
       }
       nMod++;
       
-			/***********************
-			* Module Name and Type *
-			***********************/
-			
-			#ifdef __DECODE_MODULE_TYPE__
+      /***********************
+      * Module Name and Type *
+      ***********************/
+      
+      #ifdef __DECODE_MODULE_TYPE__
         uint32_t wide_data;
         uint8_t code;
-				data = 0;
-				success = atm->write_i2c(addr, 0xDE, (char *) &data, 1);
-				if( !success ) {
-					std::cout << "readPSU - get type failed" << std::endl;
-					delete atm;
+        data = 0;
+        success = atm->write_i2c(addr, 0xDE, (char *) &data, 1);
+        if( !success ) {
+          std::cout << "readPSU - get type failed" << std::endl;
+          delete atm;
           std::exit(EXIT_FAILURE);
-				}
-				
-				std::this_thread::sleep_for(std::chrono::milliseconds(10));
-				
-				success = atm->read_i2c(addr, 0xDF, (char *) &wide_data, 4);
-				if( !success ) {
-					std::cout << "readPSU - get type failed" << std::endl;
-					continue;
-				}
-				code = (uint8_t) (wide_data & 0xFF);
+        }
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        
+        success = atm->read_i2c(addr, 0xDF, (char *) &wide_data, 4);
+        if( !success ) {
+          std::cout << "readPSU - get type failed" << std::endl;
+          continue;
+        }
+        code = (uint8_t) (wide_data & 0xFF);
         if( moduleName.size() > 0 ) {
           moduleName = moduleName+std::string("|");
         }
-				moduleName = moduleName+getModuleName(module, code);
-			#else
-				if( moduleName.size() > 0 ) {
-					moduleName = moduleName+std::string("|");
-				}
+        moduleName = moduleName+getModuleName(module, code);
+      #else
+        if( moduleName.size() > 0 ) {
+          moduleName = moduleName+std::string("|");
+        }
         moduleName = moduleName+std::string("Module")+std::to_string(module);
-			#endif
+      #endif
 
-			/*************************
-			* Power State and Status *
-			*************************/
-			
+      /*************************
+      * Power State and Status *
+      *************************/
+      
       data = 0;
-			success = atm->read_i2c(addr, 0xDB, (char *) &data, 1);
-			if( !success ) {
-				std::cout << "readPSU - get status failed" << std::endl;
-				continue;
-			}
+      success = atm->read_i2c(addr, 0xDB, (char *) &data, 1);
+      if( !success ) {
+        std::cout << "readPSU - get status failed" << std::endl;
+        continue;
+      }
       data &= 0xFF;
-			modulePower = getModulePower((uint8_t) data);
+      modulePower = getModulePower((uint8_t) data);
       if( moduleStatus.size() > 0 ) {
         moduleStatus = moduleStatus+std::string("|");
       }
-			moduleStatus = moduleStatus+getModuleStatus((uint8_t) data);
+      moduleStatus = moduleStatus+getModuleStatus((uint8_t) data);
 
-			/*****************
-			* Output Voltage *
-			*****************/
-			
-			success = atm->read_i2c(addr, 0x8B, (char *) &data, 2);
-			if( !success ) {
-				std::cout << "readPSU - get output voltage failed" << std::endl;
-				continue;
-			}
-			voltage += (float) data /100.0;
+      /*****************
+      * Output Voltage *
+      *****************/
+      
+      success = atm->read_i2c(addr, 0x8B, (char *) &data, 2);
+      if( !success ) {
+        std::cout << "readPSU - get output voltage failed" << std::endl;
+        continue;
+      }
+      voltage += (float) data /100.0;
 
-			/*****************
-			* Output Current *
-			*****************/
-			
-			#ifdef __USE_INPUT_CURRENT__
-				success = atm->read_i2c(addr, 0x89, (char *) &data, 2);
-				if( !success ) {
-					std::cout << "readPSU - get input current failed" << std::endl;
-					continue;
-				}
-				current = (float) data /100.0 * 0.95;		// Removes the ~5% power conversion loss
-			#else
-				success = atm->read_i2c(addr, 0x8C, (char *) &data, 2);
-				if( !success ) {
-					std::cout << "readPSU - get output current failed" << std::endl;
-					continue;
-				}
-				current += (float) data /100.0;
-			#endif
-		}
-		
-		// Print mean output voltage and the total current
-		if( nMod != 0 ) {
-			voltage /= (float) nMod;
-		}
+      /*****************
+      * Output Current *
+      *****************/
+      
+      #ifdef __USE_INPUT_CURRENT__
+        success = atm->read_i2c(addr, 0x89, (char *) &data, 2);
+        if( !success ) {
+          std::cout << "readPSU - get input current failed" << std::endl;
+          continue;
+        }
+        current = (float) data /100.0 * 0.95;    // Removes the ~5% power conversion loss
+      #else
+        success = atm->read_i2c(addr, 0x8C, (char *) &data, 2);
+        if( !success ) {
+          std::cout << "readPSU - get output current failed" << std::endl;
+          continue;
+        }
+        current += (float) data /100.0;
+      #endif
+    }
+    
+    // Print mean output voltage and the total current
+    if( nMod != 0 ) {
+      voltage /= (float) nMod;
+    }
     std::cout << std::uppercase << std::hex << "0x" << (int) addr << std::nouppercase << std::dec 
               << " " << moduleName << " " << modulePower << " " << moduleStatus
               << " " << voltage << " " << current << std::endl;
-		
-		// Set the module number back to 0
-		data = 0;
-		success = atm->write_i2c(addr, 0x00, (char *) &data, 1);
-		if( !success ) {
-			std::cout << "readPSU - page change failed" << std::endl;
-			continue;
-		}
+    
+    // Set the module number back to 0
+    data = 0;
+    success = atm->write_i2c(addr, 0x00, (char *) &data, 1);
+    if( !success ) {
+      std::cout << "readPSU - page change failed" << std::endl;
+      continue;
+    }
 
-		// Write-protect all entries but WRITE_PROTECT (0x10)
-		success = ivs_disable_writes(atm, addr);
-		if( !success ) {
-			std::cout << "readPSU - write settings failed" << std::endl;
-			continue;
-		}
+    // Write-protect all entries but WRITE_PROTECT (0x10)
+    success = ivs_disable_writes(atm, addr);
+    if( !success ) {
+      std::cout << "readPSU - write settings failed" << std::endl;
+      continue;
+    }
     
     // Mark that we have sone something
-		found = true;
-	}
-	
-	/*******************
-	* Cleanup and exit *
-	*******************/
-	delete atm;
-	
-  if( !found ) {
-		std::cout << "readPSU - Cannot find device at address " << std::uppercase << std::hex << "0x" << i2c_device << std::endl;
-		std::exit(EXIT_FAILURE);
-	}
+    found = true;
+  }
   
-	std::exit(EXIT_SUCCESS);
+  /*******************
+  * Cleanup and exit *
+  *******************/
+  delete atm;
+  
+  if( !found ) {
+    std::cout << "readPSU - Cannot find device at address " << std::uppercase << std::hex << "0x" << i2c_device << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  
+  std::exit(EXIT_SUCCESS);
 }

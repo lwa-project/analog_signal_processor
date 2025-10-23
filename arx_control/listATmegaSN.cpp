@@ -23,12 +23,12 @@ Options:
 
 int main(int argc, char* argv[]) {
   /*************************
-	* Command line parsing   *
-	*************************/
+  * Command line parsing   *
+  *************************/
   
   /************************
-	* ATmega device listing *
-	*************************/
+  * ATmega device listing *
+  *************************/
   for(std::string const& dev_name: atmega::find_devices()) {
     int open_attempts = 0;
     atmega::handle fd = -1;
@@ -64,9 +64,9 @@ int main(int argc, char* argv[]) {
     atmega::close(fd);
   }
   
-	/*******************
-	* Cleanup and exit *
-	*******************/
-	
-	std::exit(EXIT_SUCCESS);
+  /*******************
+  * Cleanup and exit *
+  *******************/
+  
+  std::exit(EXIT_SUCCESS);
 }

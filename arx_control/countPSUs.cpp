@@ -25,8 +25,8 @@ Options:
 
 int main(int argc, char** argv) {
   /************************************
-	* ATmega device selection and ready *
-	************************************/
+  * ATmega device selection and ready *
+  ************************************/
   std::list<std::string> atmegas = list_atmegas();
   
   int total = 0;
@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
     bool success = atm->open();
     if( !success ) {
       std::cerr << "countPSUs - failed to open " << sn << std::endl;
-  	  continue;
+      continue;
     }
     
     std::cout << "Found ATmega device S/N: " << sn << std::endl;
@@ -56,27 +56,27 @@ int main(int argc, char** argv) {
       }
       
       std::cout << " -> " << std::uppercase << std::hex << "0x" << (int) addr << std::nouppercase << std::dec << std::endl;
-		  
-			// Get a list of smart modules for polling
+      
+      // Get a list of smart modules for polling
       std::list<uint8_t> modules = ivs_get_smart_modules(atm, addr);
       num = modules.size();
-		}
-	
-		if( num > 0 ) {
+    }
+  
+    if( num > 0 ) {
       std::cout << "-> " << num << " PSU modules" << std::endl;
       
-			i2cSN = sn;
-		}
+      i2cSN = sn;
+    }
 
-		total += num;
+    total += num;
     
-		/**********
-		* Cleanup *
-		**********/
-		delete atm;
-	}
+    /**********
+    * Cleanup *
+    **********/
+    delete atm;
+  }
 
-	std::cout << "I2C devices appear to be on " << i2cSN << std::endl;
+  std::cout << "I2C devices appear to be on " << i2cSN << std::endl;
   
-	return total;
+  return total;
 }
