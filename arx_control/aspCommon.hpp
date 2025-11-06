@@ -72,6 +72,7 @@ public:
   }
   bool open();
   std::string get_version();
+  float get_temperature();
   bool transfer_spi(const char* inputs, char* outputs, int size);
   std::list<uint8_t> list_rs485_devices();
   bool read_rs485(uint8_t addr, char* data, int* size);

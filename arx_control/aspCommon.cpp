@@ -195,6 +195,31 @@ std::string ATmega::get_version() {
 }
 
 
+float ATmega::get_temperature() {
+  float temp_C = -99.0;
+  if( _fd < 0 ) {
+    return temp_C;
+  }
+  
+  atmega::buffer cmd, resp;
+  cmd.command = atmega::COMMAND_READ_TEMPERATURE;
+  cmd.size = 0;
+  
+  int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+  if( (n == 0) || (resp.command & atmega::COMMAND_FAILURE) ) {
+    std::cerr << "Warning: " << atmega::strerror(resp.command) << std::endl;
+    return temp_C;
+  }
+  
+  if( resp.size != sizeof(float) ) {
+    std::cerr << "Warning: response is not float sized" << std::endl;
+    return temp_C;
+  }
+  
+  ::memcpy(&temp_C, resp.buffer, sizeof(float));
+  return temp_C;
+}
+
 bool ATmega::transfer_spi(const char* inputs, char* outputs, int size) {
   if( _fd < 0 ) {
     return false;
