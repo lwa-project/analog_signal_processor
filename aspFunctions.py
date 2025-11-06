@@ -1247,7 +1247,7 @@ class AnalogProcessor(object):
         """
         
         # Try it out
-        if os.system('lsusb -d 04d8: >/dev/null') == 0:
+        if os.system('lsusb -d 2886: >/dev/null') == 0:
             # Nope, it's really there
             return False
             

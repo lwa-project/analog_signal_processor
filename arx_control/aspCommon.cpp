@@ -63,10 +63,10 @@ bool ATmega::open() {
     while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
       try {
         fd = atmega::open(_sn);
-      	break;
+        break;
       } catch(const std::exception& e) {
-      	open_attempts++;
-      	std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
+        open_attempts++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
       }
     }
     
@@ -78,8 +78,8 @@ bool ATmega::open() {
         
         int n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
         if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
-        	found = true;
-        	_fd = fd;
+          found = true;
+          _fd = fd;
         }
       } catch(const std::exception& e) {}
       
@@ -120,11 +120,11 @@ bool ATmega::open() {
       int open_attempts = 0;
       while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
         try {
-        	fd = atmega::open(dev_name);
-        	break;
+          fd = atmega::open(dev_name);
+          break;
         } catch(const std::exception& e) {
-        	open_attempts++;
-        	std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
+          open_attempts++;
+          std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
         }
       }
       

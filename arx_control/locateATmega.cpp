@@ -22,25 +22,25 @@ Options:
 
 int main(int argc, char* argv[]) {
   /*************************
-	* Command line parsing   *
-	*************************/
+  * Command line parsing   *
+  *************************/
   // Make sure we have the right number of arguments to continue
-	if( argc < 1+1 ) {
-		std::cerr << "locateATmega - Need at least 1 arguments, " << argc-1 << " provided" << std::endl;
-		std::exit(EXIT_FAILURE);
-	}
+  if( argc < 1+1 ) {
+    std::cerr << "locateATmega - Need at least 1 arguments, " << argc-1 << " provided" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   
   std::string requestedSN = std::string(argv[1]);
   
   /************************************
-	* ATmega device selection and ready *
-	************************************/
+  * ATmega device selection and ready *
+  ************************************/
   ATmega *atm = new ATmega(requestedSN);
   
   bool success = atm->open();
   if( !success ) {
     std::cerr << "locateATmega - failed to open " << requestedSN << std::endl;
-	  std::exit(EXIT_FAILURE);
+    std::exit(EXIT_FAILURE);
   }
   
   /*********
@@ -53,9 +53,9 @@ int main(int argc, char* argv[]) {
     std::exit(EXIT_FAILURE);
   }
   
-	/*******************
-	* Cleanup and exit *
-	*******************/
+  /*******************
+  * Cleanup and exit *
+  *******************/
   delete atm;
   
   std::exit(EXIT_SUCCESS);

@@ -60,11 +60,11 @@ void config_to_raw(chan_config& config, uint16_t* raw) {
 
 
 int main(int argc, char** argv) {
-	/*************************
-	* Command line parsing   *
-	*************************/
+  /*************************
+   * Command line parsing   *
+   *************************/
   // Make sure we have the right number of arguments to continue
-	std::list<std::string> arg_str;
+  std::list<std::string> arg_str;
   bool verbose = true;
   bool decode = false;
   for(int i=1; i<argc; i++) {
@@ -80,28 +80,28 @@ int main(int argc, char** argv) {
     }
   }
   if( (arg_str.size() < 3) || (arg_str.size() % 2 == 0) ) {
-		std::cerr << "sendPICDevice - Need at 3 arguments, " << arg_str.size() << " provided" << std::endl;
-		std::exit(EXIT_FAILURE);
-	}
+    std::cerr << "sendPICDevice - Need at 3 arguments, " << arg_str.size() << " provided" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   
   // Partially unpack
   std::string requestedSN = arg_str.front();
   arg_str.pop_front();
   
   /************************************
-	* ATmega device selection and ready *
-	************************************/
+   * ATmega device selection and ready *
+   ************************************/
   ATmega *atm = new ATmega(requestedSN);
   
   bool success = atm->open();
   if( !success ) {
     std::cerr << "sendPICDevice - failed to open " << requestedSN << std::endl;
-	  std::exit(EXIT_FAILURE);
+    std::exit(EXIT_FAILURE);
   }
   
   /****************************************
-	* Send the command and get the response *
-	****************************************/
+  * Send the command and get the response *
+  ****************************************/
   // Process the commands
   while( arg_str.size() > 0 ) {
     // Grab the next address/command pair
@@ -119,7 +119,7 @@ int main(int argc, char** argv) {
     if( !success ) {
       std::cerr << "sendPICDevice - send failed " << std::endl;
       delete atm;
-  	  std::exit(EXIT_FAILURE);
+      std::exit(EXIT_FAILURE);
     }
     
     if( verbose ) {
@@ -263,10 +263,10 @@ int main(int argc, char** argv) {
     }
   }
   
-	/*******************
-	* Cleanup and exit *
-	*******************/
-	delete atm;
+  /*******************
+  * Cleanup and exit *
+  *******************/
+  delete atm;
   
-	std::exit(EXIT_SUCCESS);
+  std::exit(EXIT_SUCCESS);
 }

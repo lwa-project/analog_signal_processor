@@ -42,12 +42,12 @@ int main(int argc, char** argv) {
   bool success = atm->open();
   if( !success ) {
     std::cerr << "countThermometers - failed to open " << requestedSN << std::endl;
-	  return 0;
+    return 0;
   }
   
   /********************
-	* Read from the I2C *
-	********************/
+  * Read from the I2C *
+  ********************/
   std::list<uint8_t> i2c_devices = atm->list_i2c_devices();
   
   int num = 0;
@@ -57,21 +57,21 @@ int main(int argc, char** argv) {
     }
 
 #ifdef __INCLUDE_MODULE_TEMPS__
-			// Get a list of smart modules for polling
+      // Get a list of smart modules for polling
       std::list<uint8_t> modules = ivs_get_smart_modules(atm, addr);
       num += modules.size();
 #endif
   
-		// And there are two overall sensors per PSU
-		num += 2;
-	}
-	
-	std::cout << "Found " << num << " PSU thermometers" << std::endl;
-	
-	/*******************
-	* Cleanup and exit *
-	*******************/
-	delete atm;
+    // And there are two overall sensors per PSU
+    num += 2;
+  }
+  
+  std::cout << "Found " << num << " PSU thermometers" << std::endl;
+  
+  /*******************
+  * Cleanup and exit *
+  *******************/
+  delete atm;
 
-	return num;
+  return num;
 }

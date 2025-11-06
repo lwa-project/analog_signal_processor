@@ -26,14 +26,14 @@ Options:
 
 
 int main(int argc, char** argv) {
-	/*************************
-	* Command line parsing   *
-	*************************/
+  /*************************
+  * Command line parsing   *
+  *************************/
   // Make sure we have the right number of arguments to continue
-	if( argc < 4+1 ) {
-		std::cerr << "sendARXDevice - Need at least 4 arguments, " << argc-1 << " provided" << std::endl;
-		std::exit(EXIT_FAILURE);
-	}
+  if( argc < 4+1 ) {
+    std::cerr << "sendARXDevice - Need at least 4 arguments, " << argc-1 << " provided" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   
   char *endptr;
   std::string requestedSN = std::string(argv[1]);
@@ -53,19 +53,19 @@ int main(int argc, char** argv) {
   }
   
   /************************************
-	* ATmega device selection and ready *
-	************************************/
+  * ATmega device selection and ready *
+  ************************************/
   ATmega *atm = new ATmega(requestedSN);
   
   bool success = atm->open();
   if( !success ) {
     std::cerr << "sendARXDevice - failed to open " << requestedSN << std::endl;
-	  std::exit(EXIT_FAILURE);
+    std::exit(EXIT_FAILURE);
   }
   
   /****************************************
-	* Send the command and get the response *
-	****************************************/
+  * Send the command and get the response *
+  ****************************************/
   // Process the commands
   uint16_t *commands, *responses;
   responses = (uint16_t*) calloc(sizeof(uint16_t), device_count+1);
@@ -73,14 +73,14 @@ int main(int argc, char** argv) {
     commands = queue->get_commands();
     
     success = atm->transfer_spi((char*) commands, (char*) responses, 2*device_count+2);
-  	if( !success ) {
-  		std::cerr << "sendARXDevice - SPI write failed" << std::endl;
+    if( !success ) {
+      std::cerr << "sendARXDevice - SPI write failed" << std::endl;
       ::free(commands);
       ::free(responses);
       delete atm;
       delete queue;
-  		std::exit(EXIT_FAILURE);
-  	}
+      std::exit(EXIT_FAILURE);
+    }
     
     if( responses[device_count] != SPI_COMMAND_MARKER ) {
       std::cerr << "sendARXDevice - SPI write returned a marker of "
@@ -90,19 +90,19 @@ int main(int argc, char** argv) {
       ::free(responses);
       delete atm;
       delete queue;
-  		std::exit(EXIT_FAILURE);
-  	}
+      std::exit(EXIT_FAILURE);
+    }
     
     ::free(commands);
   }
-	
-	/*******************
-	* Cleanup and exit *
-	*******************/
-	::free(responses);
+  
+  /*******************
+  * Cleanup and exit *
+  *******************/
+  ::free(responses);
   
   delete atm;
   delete queue;
   
-	std::exit(EXIT_SUCCESS);
+  std::exit(EXIT_SUCCESS);
 }

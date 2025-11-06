@@ -24,13 +24,13 @@ Options:
 
 int main(int argc, char* argv[]) {
   /*************************
-	* Command line parsing   *
-	*************************/
+  * Command line parsing   *
+  *************************/
   // Make sure we have the right number of arguments to continue
-	if( argc < 1+1 ) {
-		std::cerr << "setATmegaSA - Need at least 1 argument, " << argc-1 << " provided" << std::endl;
-		std::exit(EXIT_FAILURE);
-	}
+  if( argc < 1+1 ) {
+    std::cerr << "setATmegaSA - Need at least 1 argument, " << argc-1 << " provided" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   
   std::string device_name = std::string(argv[1]);
   
@@ -132,8 +132,8 @@ int main(int argc, char* argv[]) {
   std::cout << device_name << " -> " << device_sn.substr(0, 8) << std::endl;
   
   /******************************************
-	* ATmega device selection and programming *
-	*******************************************/
+  * ATmega device selection and programming *
+  *******************************************/
   int open_attempts = 0;
   atmega::handle fd = -1;
   while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
@@ -151,8 +151,8 @@ int main(int argc, char* argv[]) {
   }
   
   /************************
-	* Set the serial number *
-	*************************/
+  * Set the serial number *
+  *************************/
   int n = 0;
   atmega::buffer cmd, resp;
   cmd.command = atmega::COMMAND_UNLOCK;
@@ -186,10 +186,10 @@ int main(int argc, char* argv[]) {
     std::exit(EXIT_FAILURE);
   }
   
-	/*******************
-	* Cleanup and exit *
-	*******************/
-	atmega::close(fd);
-	
-	std::exit(EXIT_SUCCESS);
+  /*******************
+  * Cleanup and exit *
+  *******************/
+  atmega::close(fd);
+  
+  std::exit(EXIT_SUCCESS);
 }

@@ -24,8 +24,8 @@ Options:
 
 int main(int argc, char* argv[]) {
   /*************************
-	* Command line parsing   *
-	*************************/
+  * Command line parsing   *
+  *************************/
   bool temps = false;
   for(int i=1; i<argc; i++) {
     std::string temp = std::string(argv[i]);
@@ -37,8 +37,8 @@ int main(int argc, char* argv[]) {
   }
   
   /************************
-	* ATmega device listing *
-	*************************/
+  * ATmega device listing *
+  *************************/
   for(std::string const& dev_name: atmega::find_devices()) {
     int open_attempts = 0;
     atmega::handle fd = -1;
@@ -91,9 +91,9 @@ int main(int argc, char* argv[]) {
     atmega::close(fd);
   }
   
-	/*******************
-	* Cleanup and exit *
-	*******************/
-	
-	std::exit(EXIT_SUCCESS);
+  /*******************
+  * Cleanup and exit *
+  *******************/
+  
+  std::exit(EXIT_SUCCESS);
 }
