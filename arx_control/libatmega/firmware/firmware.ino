@@ -1,6 +1,7 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <FlashStorage_SAMD.h>
+#include <TemperatureZero.h>
 
 // Chip select pin for SPI operations
 #define SPI_SS_PIN D3
@@ -49,6 +50,9 @@ uint8_t locked = 1;
 char device_sn[MAX_SN_LEN] = {'\0'};
 uint8_t locate = 0;
 uint8_t lstate = 0;
+
+// Internal temperature sensor readout
+TemperatureZero MCU_TEMP = TemperatureZero();
 
 void serial_sendresp(uint8_t status, uint16_t sze, uint8_t *data) {
   // Send a response to a command
@@ -125,6 +129,19 @@ void read_version(uint16_t nargs, uint8_t* argv) {
     const char* version = VERSION;
 
     serial_sendresp(0, strlen(VERSION), (uint8_t*) &version[0]);
+  }
+}
+
+void read_temperature(uint16_t nargs, uint8_t* argv) {
+  // Return the version string for this firmware
+  //   Input: 0 arguments
+  //   Output: strlen(VERSION) characters
+  if( nargs > 0) {
+    invalid_arguments(nargs, argv);
+  } else {
+    float temp = MCU_TEMP.readInternalTemperature();
+
+    serial_sendresp(0, sizeof(float), (uint8_t*) &temp);
   }
 }
 
@@ -547,6 +564,22 @@ void toggle_locate(uint16_t nargs, uint8_t* argv) {
 void(* reset) (void) = 0; //declare reset function @ address 0
 
 void setup() {
+  // Setup BOD33 - the brown out detector
+  // See https://blog.thea.codes/sam-d21-brown-out-detector/ for details
+  SYSCTRL->BOD33.bit.ENABLE = 0;
+  while( !SYSCTRL->PCLKSR.bit.B33SRDY ) {};
+  SYSCTRL->BOD33.reg = SYSCTRL_BOD33_LEVEL(48) \
+                       | SYSCTRL_BOD33_ACTION_NONE \
+                       | SYSCTRL_BOD33_HYST;
+  SYSCTRL->BOD33.bit.ENABLE = 1;
+  while( !SYSCTRL->PCLKSR.bit.BOD33RDY ) {};
+  while( SYSCTRL->PCLKSR.bit.BOD33DET ) {};
+
+  SYSCTRL->BOD33.bit.ENABLE = 0;
+  while( !SYSCTRL->PCLKSR.bit.B33SRDY ) {};
+  SYSCTRL->BOD33.reg |= SYSCTRL_BOD33_ACTION_RESET;
+  SYSCTRL->BOD33.bit.ENABLE = 1;
+
   // Serial setup
   Serial.begin(115200);
   
@@ -566,6 +599,9 @@ void setup() {
   // LEDs
   pinMode(FAULT_PIN, OUTPUT);   // Fault
   pinMode(LOCATE_PIN, OUTPUT);   // Locate
+
+  // MCU temperature sensor
+  MCU_TEMP.init();
 }
 
 void loop() {
@@ -606,6 +642,7 @@ void loop() {
       case 0x02: read_version(nargs, &buffer[3]); break; 
       case 0x03: read_max_cmd_len(nargs, &buffer[3]); break; 
       case 0x04: echo(nargs, &buffer[3]); break;
+      case 0x05: read_temperature(nargs, &buffer[3]); break;
       case 0x11: transfer_spi(nargs, &buffer[3]); break;
       case 0x21: scan_rs485(nargs, &buffer[3]); break;
       case 0x22: read_rs485(nargs, &buffer[3]); break;
