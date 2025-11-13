@@ -19,7 +19,7 @@ __all__ = ['modeDict', 'commandExitCodes', 'AnalogProcessor']
 aspFunctionsLogger = logging.getLogger('__main__')
 
 
-modeDict = {1: 'AT1', 2: 'AT2', 3: 'ATS'}
+modeDict = {1: 'AT1', 2: 'AT2', 3: 'AT3'}
 
 
 commandExitCodes = {0x00: 'Process accepted without error', 
@@ -117,7 +117,7 @@ class AnalogProcessor(object):
         self.currentState['filter'] = ASPSettingsList([0  for i in range(max_nstand)])
         self.currentState['at1']    = ASPSettingsList([30 for i in range(max_nstand)])
         self.currentState['at2']    = ASPSettingsList([30 for i in range(max_nstand)])
-        self.currentState['ats']    = ASPSettingsList([30 for i in range(max_nstand)])
+        self.currentState['at3']    = ASPSettingsList([15.5 for i in range(max_nstand)])
         
         ## Monitoring and background threads
         self.currentState['spiThread'] = None
@@ -261,7 +261,7 @@ class AnalogProcessor(object):
                     self.currentState['filter'][i] = 0
                     self.currentState['at1'][i] = 30
                     self.currentState['at2'][i] = 30
-                    self.currentState['ats'][i] = 30
+                    self.currentState['at3'][i] = 15.5
                     
                 # Start the SPI command processor
                 self.currentState['spiThread'].start()
@@ -498,7 +498,7 @@ class AnalogProcessor(object):
     
     def __atnProcess(self, mode, stand, attenSetting):
         """
-        Background process for AT1/AT2/ATS commands so that other commands can keep on running.
+        Background process for AT1/AT2/AT3 commands so that other commands can keep on running.
         """
         
         # Do SPI bus stuff
@@ -800,7 +800,7 @@ class AnalogProcessor(object):
     
     def getAttenuators(self, stand):
         """
-        Return the attenuator settings (AT1, AT2, ATS) for a given stand as a two-element 
+        Return the attenuator settings (AT1, AT2, AT3) for a given stand as a two-element 
         tuple (success, values) where success is a boolean related to if the attenuator 
         values were found.  See the currentState['lastLog'] entry for the reason for 
         failure if the returned success value is False.
@@ -809,8 +809,8 @@ class AnalogProcessor(object):
         if  stand > 0 and stand <= self.num_stands:
             at1 = self.currentState['at1'][stand]
             at2 = self.currentState['at2'][stand]
-            ats = self.currentState['ats'][stand]
-            return True, (at1, at2, ats)
+            at3 = self.currentState['at3'][stand]
+            return True, (at1, at2, at3)
             
         else:
             self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
