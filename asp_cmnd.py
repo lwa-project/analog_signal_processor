@@ -139,7 +139,7 @@ class MCSCommunicate(Communicate):
                         packed_data = self.SubSystemInstance.currentState['lastLog']
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
-                elif data[0:8] == 'ATSPLIT_':
+                elif data[0:4] == 'AT3_':
                     stand = int(data[8:])
                     
                     status, attens = self.SubSystemInstance.getAttenuators(stand)
