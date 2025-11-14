@@ -718,7 +718,7 @@ class AnalogProcessor(object):
         if locSetting:
             self.currentState['spiThread'].queue_command(stand, SPI_P12_on)
         else:
-            self.currentState['spiThread'].queue_command(stand, SPI_P12_on)
+            self.currentState['spiThread'].queue_command(stand, SPI_P12_off)
 
         self.currentState['lastLog'] = '%s: Set locate state to %i for stand %i' % (locSetting, stand)
         aspFunctionsLogger.debug('%s - Set locate state to %i for stand %i', locSetting, stand)
