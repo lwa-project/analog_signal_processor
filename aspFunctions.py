@@ -1015,7 +1015,7 @@ class AnalogProcessor(object):
                 self.currentState['lastLog'] = 'Invalid ARX power supply (%i)' % psNumb
                 return False, None
             
-    def getFEECurrentDraw(self):
+    def getFEEPowerSupplyCurrentDraw(self):
         """
         Return the FEE power supply current draw (in mA) as a two-element tuple (success, values) 
         where success is a boolean related to if the current value was found.  See the 
@@ -1035,7 +1035,7 @@ class AnalogProcessor(object):
                     
             return True, curr*1000.0
         
-    def getFEEVoltage(self):
+    def getFEEPowerSupplyVoltage(self):
         """
         Return the ARX output voltage (in V) as a two-element tuple (success, value) where
         success is a boolean related to if the current value was found.  See the 

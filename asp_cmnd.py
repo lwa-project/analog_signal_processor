@@ -257,7 +257,7 @@ class MCSCommunicate(Communicate):
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
                 elif data == 'FEECURR':
-                    status, value = self.SubSystemInstance.getFEECurrentDraw()
+                    status, value = self.SubSystemInstance.getFEEPowerSupplyCurrentDraw()
                     if status:
                         packed_data = "%-7i" % value
                         
@@ -266,7 +266,7 @@ class MCSCommunicate(Communicate):
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
                 elif data == 'FEEVOLT':
-                    status, value = self.SubSystemInstance.getFEEVoltage()
+                    status, value = self.SubSystemInstance.getFEEPowerSupplyVoltage()
                     if status:
                         packed_data = "%-7.3f" % value
                         
