@@ -698,7 +698,7 @@ class AnalogProcessor(object):
         if stand < 0 or stand > self.num_stands:
             self.currentState['lastLog'] = 'LOC: %s' % commandExitCodes[0x02]
             return False, 0x02
-        if locSetting not in (0, 1):
+        if locSetting not in (0, 11):
             self.currentState['lastLog'] = 'LOC: %s' % commandExitCodes[0x05]
             return False, 0x05
 
@@ -715,7 +715,7 @@ class AnalogProcessor(object):
         """
 
         # Do SPI bus stuff
-        if locSetting:
+        if locSetting == 11:
             self.currentState['spiThread'].queue_command(stand, SPI_P12_on)
         else:
             self.currentState['spiThread'].queue_command(stand, SPI_P12_off)
