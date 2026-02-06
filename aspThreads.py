@@ -484,6 +484,7 @@ class ChassisStatus(object):
         self.spi_mini_mapping = {self.sub20SN: config['sub20_antenna_mapping'][self.sub20SN]}
         self.rs485_mapping = config['sub20_rs485_mapping']
         self.monitorPeriod = config['chassis_period']
+        self.poll_rf_power = config.get('has_rf_power', False)
         
     def start(self):
         """
@@ -572,19 +573,20 @@ class ChassisStatus(object):
                         except Exception as e:
                             aspThreadsLogger.error("%s: monitorThread failed to update FEE power log - %s", type(self).__name__, str(e))
                             
-                    status, powers = rs485RFPower(self.rs485_mapping, maxRetry=MAX_RS485_RETRY)
-                        
-                    if status:
-                        self.rf_powers = powers
-                        
-                        try:
-                            with open(self.rf_logfile, 'a') as log:
-                                log.write('%s,' % time.time())
-                                log.write('%s\n' % ','.join(['%.3f' % v for v in self.fee_currents]))
-                                log.flush()
-                        except Exception as e:
-                            aspThreadsLogger.error("%s: monitorThread failed to update RF power log - %s", type(self).__name__, str(e))
+                    if self.poll_rf_power:
+                        status, powers = rs485RFPower(self.rs485_mapping, maxRetry=MAX_RS485_RETRY)
                             
+                        if status:
+                            self.rf_powers = powers
+                            
+                            try:
+                                with open(self.rf_logfile, 'a') as log:
+                                    log.write('%s,' % time.time())
+                                    log.write('%s\n' % ','.join(['%.3f' % v for v in self.fee_currents]))
+                                    log.flush()
+                            except Exception as e:
+                                aspThreadsLogger.error("%s: monitorThread failed to update RF power log - %s", type(self).__name__, str(e))
+                                
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread SUB-20 S/N %s failed with: %s at line %i", type(self).__name__, self.sub20SN, str(e), exc_traceback.tb_lineno)
