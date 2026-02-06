@@ -859,13 +859,13 @@ class AnalogProcessor(object):
         returned success value is False.
         """
         
+        if not self.config.get('has_rf_power', False):
+             self.currentState['lastLog'] = 'RFPWR: Not available'
+            return False, ()
+            
         if stand > 0 and stand <= self.num_stands:
             if self.currentState['chassisThreads'] is None:
                 self.currentState['lastLog'] = 'RFPWR: Monitoring processes are not running'
-                return False, ()
-                
-            if True:
-                self.currentState['lastLog'] = 'RFPWR: Not available'
                 return False, ()
                 
             rf_power = self.currentState['chassisThreads'][0].getRFPower(stand)
