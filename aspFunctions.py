@@ -851,6 +851,29 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
             return False, ()
             
+    def getRFPower(self, stand):
+        """
+        Returns the RF power into a 50 ohm load (pol 1, pol 2) for a given stand as a two-
+        element tuple (sucess, values) where success is a boolean related to if the RF powers
+        were found.  See the currentState['lastLog'] entry for the reason for failure if the 
+        returned success value is False.
+        """
+        
+        if stand > 0 and stand <= self.num_stands:
+            if self.currentState['chassisThreads'] is None:
+                self.currentState['lastLog'] = 'RFPWR: Monitoring processes are not running'
+                return False, ()
+                
+            if True:
+                self.currentState['lastLog'] = 'RFPWR: Not available'
+                return False, ()
+                
+            rf_power = self.currentState['chassisThreads'][0].getRFPower(stand)
+            return True, tuple(rf_power)
+        else:
+            self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
+            return False, ()
+            
     def getARXPowerSupplyStatus(self):
         """
         Return the overall ARX power supply status as a two-element tuple (success, values) 

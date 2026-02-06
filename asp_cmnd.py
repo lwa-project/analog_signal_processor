@@ -178,7 +178,18 @@ class MCSCommunicate(Communicate):
                         packed_data = self.SubSystemInstance.currentState['lastLog']
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
+                ## Analog gain state - RMS RF power into a 50 Ohm load in uW
+                elif data[0:6] == 'RFPWR_':
+                    stand = int(data[6:])
                     
+                    status, rf_power = self.SubSystemInstance.getRFPower(stand)
+                    if status:
+                        packed_data = "%.1f %.1f" % (rf_power[0]*1e6, rf_power[1]*1e6)
+                    else:
+                        packed_data = self.SubSystemInstance.currentState['lastLog']
+                        
+                    self.logger.debug('%s = exited with status %s', data, str(status))
+                
                 ## ARX power supplies
                 elif data == 'ARXSUPPLY':
                     status, value = self.SubSystemInstance.getARXPowerSupplyStatus()

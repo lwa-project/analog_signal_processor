@@ -451,19 +451,21 @@ class ChassisStatus(object):
     """
     
     def __init__(self, sub20SN, config, temp_logfile='/data/board-temp.txt',
-                       fee_logfile='/data/fee-power.txt', pic_monitoring=True, 
-                       ASPCallbackInstance=None):
+                       fee_logfile='/data/fee-power.txt', rf_logfile='/data/rf-power.txt',
+                       pic_monitoring=True, ASPCallbackInstance=None):
         self.sub20SN = str(sub20SN)
         self.register = 0x000C
         self.updateConfig(config)
         self.temp_logfile = temp_logfile
         self.fee_logfile = fee_logfile
+        self.rf_logfile = rf_logfile
         self.pic_monitoring = pic_monitoring
         
         # SPI setup and data variables
         self._spi = SPIProcessingThread(self.spi_mini_mapping)
         self.configured = False
         self.fee_currents = []
+        self.rf_powers = []
         
         # Setup the callback
         self.ASPCallbackInstance = ASPCallbackInstance
@@ -570,6 +572,19 @@ class ChassisStatus(object):
                         except Exception as e:
                             aspThreadsLogger.error("%s: monitorThread failed to update FEE power log - %s", type(self).__name__, str(e))
                             
+                    status, powers = rs485RFPower(self.rs485_mapping, maxRetry=MAX_RS485_RETRY)
+                        
+                    if status:
+                        self.rf_powers = powers
+                        
+                        try:
+                            with open(self.rf_logfile, 'a') as log:
+                                log.write('%s,' % time.time())
+                                log.write('%s\n' % ','.join(['%.3f' % v for v in self.fee_currents]))
+                                log.flush()
+                        except Exception as e:
+                            aspThreadsLogger.error("%s: monitorThread failed to update RF power log - %s", type(self).__name__, str(e))
+                            
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 aspThreadsLogger.error("%s: monitorThread SUB-20 S/N %s failed with: %s at line %i", type(self).__name__, self.sub20SN, str(e), exc_traceback.tb_lineno)
@@ -608,3 +623,24 @@ class ChassisStatus(object):
             return "Configured"
         else:
             return "Unconfigured"
+            
+    def getFEECurrent(self, stand):
+        """
+        Convenience function to get the current draw of a FEE in amps.
+        """
+        
+        try:
+            return self.fee_currents[2*(stand-1):2*(stand-1)+2]
+        except IndexError:
+            return (None, None)
+            
+    def getRFPower(self, stand):
+        """
+        Convenience function to get the RF power from the square law detector in
+        Watts.
+        """
+        
+        try:
+            return self.rf_powers[2*(stand-1):2*(stand-1)+2]
+        except IndexError:
+            return (None, None)
