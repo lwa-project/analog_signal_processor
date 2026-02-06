@@ -451,8 +451,8 @@ class ChassisStatus(object):
     """
     
     def __init__(self, sub20SN, config, temp_logfile='/data/board-temp.txt',
-                       fee_logfile='/data/fee-power.txt',
-                       pic_monitoring=True, ASPCallbackInstance=None):
+                       fee_logfile='/data/fee-power.txt', pic_monitoring=True,
+                       ASPCallbackInstance=None):
         self.sub20SN = str(sub20SN)
         self.register = 0x000C
         self.updateConfig(config)
