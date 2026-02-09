@@ -860,7 +860,7 @@ class AnalogProcessor(object):
         """
         
         if not self.config.get('has_rf_power', False):
-             self.currentState['lastLog'] = 'RFPWR: Not available'
+            self.currentState['lastLog'] = 'RFPWR: Not available'
             return False, ()
             
         if stand > 0 and stand <= self.num_stands:
