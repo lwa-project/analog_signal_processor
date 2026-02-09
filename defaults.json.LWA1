@@ -17,8 +17,8 @@
   "chassis_period": 120,
   
   "stands_per_board": 8,
-  "max_boards": 33,
-  "max_stands": 264,
+  "max_boards": 32,
+  "max_stands": 256,
   "max_atten": [15, 15, 31],
   
   "sub20_i2c_mapping": "1479EF21",
