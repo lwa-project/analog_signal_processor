@@ -1,0 +1,693 @@
+% 04-monitor-control.tex - Section 4: Monitor and Control Interface
+
+\chapter{Monitor and Control Interface}
+\label{sec:monitor-control}
+
+\section{Overview}
+
+The ASP subsystem communicates with the Monitor and Control System (MCS) via UDP messages. Commands are received on port 1740 and responses are sent to port 1741.
+
+\section{Message Format}
+
+\subsection{Command Message Format}
+
+Commands from MCS to ASP follow the standard LWA message format, as shown in Table~\ref{tab:cmd-format}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Command Message Format}
+    \label{tab:cmd-format}
+    \begin{tabular}{llll}
+        \toprule
+        \textbf{Field} & \textbf{Bytes} & \textbf{Position} & \textbf{Description} \\
+        \midrule
+        Destination & 3 & 0--2 & Subsystem ID (``ASP'') \\
+        Sender & 3 & 3--5 & Sender ID (``MCS'') \\
+        Command & 3 & 6--8 & Command code \\
+        Reference & 9 & 9--17 & Reference number \\
+        Data Length & 4 & 18--21 & Length of data section \\
+        MJD & 6 & 22--27 & Modified Julian Date \\
+        MPM & 9 & 28--36 & Milliseconds Past Midnight \\
+        - & 1 & 37 & Space \\
+        Data & Variable & 38+ & Command-specific data \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Response Message Format}
+
+Responses from ASP to MCS include the command status and any requested data (Table~\ref{tab:resp-format}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{Response Message Format}
+    \label{tab:resp-format}
+    \begin{tabular}{llll}
+        \toprule
+        \textbf{Field} & \textbf{Bytes} & \textbf{Position} & \textbf{Description} \\
+        \midrule
+        Destination & 3 & 0--2 & Destination ID \\
+        Sender & 3 & 3--5 & ``ASP'' \\
+        Command & 3 & 6--8 & Echo of command \\
+        Reference & 9 & 9--17 & Echo of reference number \\
+        Data Length & 4 & 18--21 & Length of data section \\
+        MJD & 6 & 22--27 & Response MJD \\
+        MPM & 9 & 28--36 & Response MPM \\
+        - & 1 & 37 & Space \\
+        Status & 1 & 38 & ``A'' (accept) or ``R'' (reject) \\
+        Summary & 7 & 39--45 & System status summary \\
+        Data & Variable & 46+ & Response data \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\section{Management Information Base (MIB)}
+\label{sec:mib}
+
+The following MIB entries can be queried using the \cmd{RPT} command. All MIB values are returned as ASCII text strings.
+
+\subsection{General Information}
+
+General system information is available via the MIB entries listed in Table~\ref{tab:mib-general}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{General MIB Entries}
+    \label{tab:mib-general}
+    \begin{tabular}{lp{8cm}}
+        \toprule
+        \textbf{MIB Entry} & \textbf{Description} \\
+        \midrule
+        \mib{SUMMARY} & Current system status (7 characters) \\
+        \mib{INFO} & Detailed status information (up to 256 characters) \\
+        \mib{LASTLOG} & Last log entry (up to 256 characters) \\
+        \mib{SUBSYSTEM} & Subsystem identifier (``ASP'') \\
+        \mib{SERIALNO} & Serial number of the ASP unit \\
+        \mib{VERSION} & Software version \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Analog Chain State}
+
+The current analog chain settings for each stand are available via the MIB entries listed in Table~\ref{tab:mib-analog}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Analog Chain MIB Entries}
+    \label{tab:mib-analog}
+    \begin{tabular}{lp{8cm}}
+        \toprule
+        \textbf{MIB Entry} & \textbf{Description} \\
+        \midrule
+        \mib{FILTER\_\{n\}} & Current filter code for stand \{n\} (0--7) \\
+        \mib{AT1\_\{n\}} & First attenuator setting for stand \{n\} (0--15) \\
+        \mib{AT2\_\{n\}} & Second attenuator setting for stand \{n\} (0--15) \\
+        \mib{AT3\_\{n\}} & Third attenuator setting for stand \{n\} (0--31) \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{FEE Power State}
+
+FEE power state and current draw information is available via the MIB entries listed in Table~\ref{tab:mib-fee}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{FEE Power MIB Entries}
+    \label{tab:mib-fee}
+    \begin{tabular}{lp{8cm}}
+        \toprule
+        \textbf{MIB Entry} & \textbf{Description} \\
+        \midrule
+        \mib{FEEPOL1PWR\_\{n\}} & FEE power state for stand \{n\}, pol.\ 1 (``ON '' or ``OFF'') \\
+        \mib{FEEPOL2PWR\_\{n\}} & FEE power state for stand \{n\}, pol.\ 2 (``ON '' or ``OFF'') \\
+        \mib{FEEPOL1CUR\_\{n\}} & FEE current draw for stand \{n\}, pol.\ 1 (mA) \\
+        \mib{FEEPOL2CUR\_\{n\}} & FEE current draw for stand \{n\}, pol.\ 2 (mA) \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{newInVersion}{I}
+The \mib{FEEPOL1CUR\_\{n\}} and \mib{FEEPOL2CUR\_\{n\}} entries are new in Version~I. They report the FEE current draw in milliamps for each stand and polarization.
+\end{newInVersion}
+
+\subsection{RF Power}
+
+RF power measurements are available via the MIB entries listed in Table~\ref{tab:mib-rfpwr}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{RF Power MIB Entries}
+    \label{tab:mib-rfpwr}
+    \begin{tabular}{lp{8cm}}
+        \toprule
+        \textbf{MIB Entry} & \textbf{Description} \\
+        \midrule
+        \mib{RFPWR\_\{n\}} & RMS RF power into a 50~$\Omega$ load for stand \{n\}, reported as two space-separated values for pol.\ 1 and pol.\ 2 (\si{\micro\watt}) \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{newInVersion}{I}
+The \mib{RFPWR\_\{n\}} entry is new in Version~I. It is only available on systems equipped with square law detector chips. On systems without these chips, the entry returns an error.
+\end{newInVersion}
+
+\begin{calloutBox}{Rev H System Difference}{orange}
+All Rev H boards have square law detector chips installed.
+\end{calloutBox}
+
+\subsection{ARX Power Supply}
+
+ARX power supply status is available via the MIB entries listed in Table~\ref{tab:mib-arx-psu}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{ARX Power Supply MIB Entries}
+    \label{tab:mib-arx-psu}
+    \begin{tabular}{lp{8cm}}
+        \toprule
+        \textbf{MIB Entry} & \textbf{Description} \\
+        \midrule
+        \mib{ARXSUPPLY} & ARX power supply on/off status (``ON '' or ``OFF'' or ``UNK'') \\
+        \mib{ARXSUPPLY-NO} & Number of ARX power supplies (currently 1) \\
+        \mib{ARXPWRUNIT\_\{n\}} & Info for ARX power supply \{n\} (name -- status) \\
+        \mib{ARXCURR} & ARX total current draw (mA) \\
+        \mib{ARXVOLT} & ARX output voltage (V) \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{FEE Power Supply}
+
+FEE power supply status is available via the MIB entries listed in Table~\ref{tab:mib-fee-psu}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{FEE Power Supply MIB Entries}
+    \label{tab:mib-fee-psu}
+    \begin{tabular}{lp{8cm}}
+        \toprule
+        \textbf{MIB Entry} & \textbf{Description} \\
+        \midrule
+        \mib{FEESUPPLY} & FEE power supply on/off status (``ON '' or ``OFF'' or ``UNK'') \\
+        \mib{FEESUPPLY-NO} & Number of FEE power supplies (currently 1) \\
+        \mib{FEEPWRUNIT\_\{n\}} & Info for FEE power supply \{n\} (name -- status) \\
+        \mib{FEECURR} & FEE total current draw (mA) \\
+        \mib{FEEVOLT} & FEE output voltage (V) \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The \mib{ARXSUPPLY} and \mib{FEESUPPLY} entries report the on/off state of each power supply as a 3-character string: ``ON~'' (padded), ``OFF'', or ``UNK'' (unknown, when monitoring is not running).
+
+The \mib{ARXPWRUNIT\_\{n\}} and \mib{FEEPWRUNIT\_\{n\}} entries return a status string that may include the keywords listed in Table~\ref{tab:psu-detail}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Power Supply Detailed Status Keywords}
+    \label{tab:psu-detail}
+    \begin{tabular}{lp{8cm}}
+        \toprule
+        \textbf{Keyword} & \textbf{Description} \\
+        \midrule
+        \texttt{OK} & Power supply operating normally \\
+        \texttt{OverTemperature} & Power supply is over temperature \\
+        \texttt{OverCurrent} & Power supply is over current \\
+        \texttt{OverVolt} & Power supply output voltage is too high \\
+        \texttt{UnderVolt} & Power supply output voltage is too low \\
+        \texttt{ModuleFault} & Power supply module fault detected \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Temperature Monitoring}
+
+Temperature sensor data is available via the MIB entries listed in Table~\ref{tab:mib-temp}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Temperature MIB Entries}
+    \label{tab:mib-temp}
+    \begin{tabular}{lp{8cm}}
+        \toprule
+        \textbf{MIB Entry} & \textbf{Description} \\
+        \midrule
+        \mib{TEMP-STATUS} & Overall temperature status (``IN\_RANGE'', ``OVER\_TEMP'', or ``UNDER\_TEMP'') \\
+        \mib{TEMP-SENSE-NO} & Number of temperature sensors \\
+        \mib{SENSOR-NAME-\{n\}} & Description of temperature sensor \{n\} \\
+        \mib{SENSOR-DATA-\{n\}} & Temperature reading from sensor \{n\} (\si{\degreeCelsius}) \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Temperature monitoring is performed via sensors associated with the power supply units. The number of sensors depends on the PSU configuration.
+
+\begin{calloutBox}{Rev H System Difference}{orange}
+On the legacy Rev H system, each ARX board has three dedicated temperature sensors. Temperature monitoring uses the RS-485 bus to query board temperatures directly rather than PSU-based sensors.
+\end{calloutBox}
+
+\section{Control Commands}
+\label{sec:commands}
+
+\subsection{PNG --- Ping}
+
+The \cmd{PNG} command tests connectivity with the ASP subsystem (Table~\ref{tab:cmd-png}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{PNG Command}
+    \label{tab:cmd-png}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Field} & \textbf{Value} \\
+        \midrule
+        Command & \cmd{PNG} \\
+        Data & (none) \\
+        Response & Status only \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{INI --- Initialize}
+
+The \cmd{INI} command initializes the ASP subsystem with the specified number of boards (Table~\ref{tab:cmd-ini}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{INI Command}
+    \label{tab:cmd-ini}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Field} & \textbf{Value} \\
+        \midrule
+        Command & \cmd{INI} \\
+        Data & Number of boards (integer) \\
+        Response & Status; on failure: exit code and message \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsubsection{Exit Codes}
+
+\begin{tabular}{cl}
+    \hex{00} & Process accepted without error \\
+    \hex{01} & Invalid number of ARX boards \\
+    \hex{08} & Blocking operation in progress \\
+\end{tabular}
+
+The initialization sequence:
+\begin{enumerate}
+    \item Verify ARX Control Board is present
+    \item Turn off power supplies
+    \item Wait 5 seconds
+    \item Turn on power supplies
+    \item Count boards via SPI and RS-485
+    \item Verify board count matches expected
+    \item Initialize SPI port configuration
+    \item Start monitoring threads (power, temperature, chassis)
+\end{enumerate}
+
+\subsection{SHT --- Shutdown}
+
+The \cmd{SHT} command shuts down the ASP subsystem (Table~\ref{tab:cmd-sht}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{SHT Command}
+    \label{tab:cmd-sht}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Field} & \textbf{Value} \\
+        \midrule
+        Command & \cmd{SHT} \\
+        Data & Mode (optional): ``SCRAM'', ``RESTART'', or ``SCRAM RESTART'' \\
+        Response & Status; on failure: exit code and message \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsubsection{Exit Codes}
+
+\begin{tabular}{cl}
+    \hex{00} & Process accepted without error \\
+    \hex{07} & Invalid command arguments (unknown mode) \\
+    \hex{08} & Blocking operation in progress \\
+\end{tabular}
+
+\subsection{FIL --- Set Filter}
+
+The \cmd{FIL} command sets the filter configuration for a specified stand (Table~\ref{tab:cmd-fil}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{FIL Command}
+    \label{tab:cmd-fil}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Field} & \textbf{Value} \\
+        \midrule
+        Command & \cmd{FIL} \\
+        Data & Stand number + filter code (2 digits) \\
+        Response & Status; on failure: exit code and message \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Example: \cmd{FIL 12305} sets stand 123 to filter code 05.
+
+\subsubsection{Exit Codes}
+
+\begin{tabular}{cl}
+    \hex{00} & Process accepted without error \\
+    \hex{02} & Invalid stand \\
+    \hex{04} & Invalid filter code \\
+    \hex{0A} & Subsystem needs to be initialized \\
+\end{tabular}
+
+\subsubsection{Filter Codes}
+
+The available filter codes are defined in Table~\ref{tab:filter-codes}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Filter Code Definitions}
+    \label{tab:filter-codes}
+    \begin{tabular}{cllp{6cm}}
+        \toprule
+        \textbf{Code} & \textbf{HPF} & \textbf{LPF} & \textbf{Description} \\
+        \midrule
+        0 & HPF30 & LPF83 & Split bandwidth, 10~MHz cutoff \\
+        1 & HPF10 & LPF83 & Full bandwidth, 10~MHz cutoff \\
+        2 & HPF30 & LPF73 & Reduced bandwidth \\
+        3 & HPF3  & LPF73 & Full bandwidth, shifted down \\
+        4 & HPF20 & LPF83 & Split bandwidth, 3~MHz cutoff \\
+        5 & HPF3  & LPF83 & Full bandwidth, 3~MHz cutoff \\
+        6 & HPF10 & LPF73 & Full bandwidth + better FM rejection \\
+        7 & HPF20 & LPF73 & Split @ 3~MHz + better FM rejection \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{newInVersion}{I}
+Filter codes 6 and 7 are new in Version~I. They provide improved FM rejection by using the LPF73 low-pass filter.
+\end{newInVersion}
+
+\subsection{AT1 --- Set First Attenuator}
+
+The \cmd{AT1} command sets the first attenuator for a specified stand (Table~\ref{tab:cmd-at1}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{AT1 Command}
+    \label{tab:cmd-at1}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Field} & \textbf{Value} \\
+        \midrule
+        Command & \cmd{AT1} \\
+        Data & Stand number + attenuator setting (2 digits, 00--15) \\
+        Response & Status; on failure: exit code and message \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{itemize}
+    \item Setting range: 0--15
+    \item Step size: 2~dB
+    \item Attenuation range: 0--30~dB
+    \item Actual attenuation = setting $\times$ 2~dB
+\end{itemize}
+
+Example: \cmd{AT1 12308} sets stand 123 AT1 to setting 08 (16~dB attenuation).
+
+\subsubsection{Exit Codes}
+
+\begin{tabular}{cl}
+    \hex{00} & Process accepted without error \\
+    \hex{02} & Invalid stand \\
+    \hex{05} & Invalid attenuator setting \\
+    \hex{0A} & Subsystem needs to be initialized \\
+\end{tabular}
+
+\subsection{AT2 --- Set Second Attenuator}
+
+The \cmd{AT2} command sets the second attenuator for a specified stand (Table~\ref{tab:cmd-at2}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{AT2 Command}
+    \label{tab:cmd-at2}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Field} & \textbf{Value} \\
+        \midrule
+        Command & \cmd{AT2} \\
+        Data & Stand number + attenuator setting (2 digits, 00--15) \\
+        Response & Status; on failure: exit code and message \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{itemize}
+    \item Setting range: 0--15
+    \item Step size: 2~dB
+    \item Attenuation range: 0--30~dB
+    \item Actual attenuation = setting $\times$ 2~dB
+\end{itemize}
+
+\subsubsection{Exit Codes}
+
+\begin{tabular}{cl}
+    \hex{00} & Process accepted without error \\
+    \hex{02} & Invalid stand \\
+    \hex{05} & Invalid attenuator setting \\
+    \hex{0A} & Subsystem needs to be initialized \\
+\end{tabular}
+
+\subsection{AT3 --- Set Third Attenuator}
+
+The \cmd{AT3} command sets the third attenuator for a specified stand (Table~\ref{tab:cmd-at3}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{AT3 Command}
+    \label{tab:cmd-at3}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Field} & \textbf{Value} \\
+        \midrule
+        Command & \cmd{AT3} \\
+        Data & Stand number + attenuator setting (2 digits, 00--31) \\
+        Response & Status; on failure: exit code and message \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{itemize}
+    \item Setting range: 0--31
+    \item Step size: 0.5~dB
+    \item Attenuation range: 0--15.5~dB
+    \item Actual attenuation = setting $\times$ 0.5~dB
+\end{itemize}
+
+Example: \cmd{AT3 12320} sets stand 123 AT3 to setting 20 (10.0~dB attenuation).
+
+\subsubsection{Exit Codes}
+
+\begin{tabular}{cl}
+    \hex{00} & Process accepted without error \\
+    \hex{02} & Invalid stand \\
+    \hex{05} & Invalid attenuator setting \\
+    \hex{0A} & Subsystem needs to be initialized \\
+\end{tabular}
+
+\begin{calloutBox}{Rev H System Difference}{orange}
+On the legacy Rev H system, this command is named \cmd{ATS} and is a no-op (the command is accepted but has no effect).
+\end{calloutBox}
+
+\subsection{LOC --- Locate LED}
+
+The \cmd{LOC} command controls the locate LED on a specified stand (Table~\ref{tab:cmd-loc}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{LOC Command}
+    \label{tab:cmd-loc}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Field} & \textbf{Value} \\
+        \midrule
+        Command & \cmd{LOC} \\
+        Data & Stand number + locate setting (2 digits, 00 or 11) \\
+        Response & Status; on failure: exit code and message \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{itemize}
+    \item Setting 00: LED off
+    \item Setting 11: LED on
+\end{itemize}
+
+Example: \cmd{LOC 12311} turns on the locate LED for stand 123.
+
+\subsubsection{Exit Codes}
+
+\begin{tabular}{cl}
+    \hex{00} & Process accepted without error \\
+    \hex{02} & Invalid stand \\
+    \hex{05} & Invalid locate setting \\
+    \hex{0A} & Subsystem needs to be initialized \\
+\end{tabular}
+
+\begin{newInVersion}{I}
+The \cmd{LOC} command is new in Version~I. It allows field personnel to identify specific stands by illuminating a locate LED on the ARX board.
+\end{newInVersion}
+
+\begin{calloutBox}{Rev H System Difference}{orange}
+The \cmd{LOC} command is not available on the legacy Rev H system.
+\end{calloutBox}
+
+\subsection{FPW --- FEE Power}
+
+The \cmd{FPW} command controls the FEE power for a specified stand and polarization (Table~\ref{tab:cmd-fpw}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{FPW Command}
+    \label{tab:cmd-fpw}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Field} & \textbf{Value} \\
+        \midrule
+        Command & \cmd{FPW} \\
+        Data & Stand number + polarization (1 or 2) + state (2 digits) \\
+        Response & Status; on failure: exit code and message \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{itemize}
+    \item Polarization: 1 (X) or 2 (Y)
+    \item State 00: Power off
+    \item State 11: Power on
+\end{itemize}
+
+Example: \cmd{FPW 123111} turns on FEE power for stand 123, polarization 1.
+
+\subsubsection{Exit Codes}
+
+\begin{tabular}{cl}
+    \hex{00} & Process accepted without error \\
+    \hex{02} & Invalid stand \\
+    \hex{03} & Invalid polarization \\
+    \hex{06} & Invalid power setting \\
+    \hex{0A} & Subsystem needs to be initialized \\
+\end{tabular}
+
+\subsection{RXP --- ARX Power Supply Control}
+
+The \cmd{RXP} command controls the ARX power supply (Table~\ref{tab:cmd-rxp}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{RXP Command}
+    \label{tab:cmd-rxp}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Field} & \textbf{Value} \\
+        \midrule
+        Command & \cmd{RXP} \\
+        Data & State (00 or 11) \\
+        Response & Status; on failure: exit code and message \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{itemize}
+    \item State 00: Power off (system enters ERROR state)
+    \item State 11: Power on
+\end{itemize}
+
+\subsubsection{Exit Codes}
+
+\begin{tabular}{cl}
+    \hex{00} & Process accepted without error \\
+    \hex{06} & Invalid power setting \\
+    \hex{08} & Blocking operation in progress \\
+\end{tabular}
+
+\subsection{FEP --- FEE Power Supply Control}
+
+The \cmd{FEP} command controls the FEE power supply (Table~\ref{tab:cmd-fep}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{FEP Command}
+    \label{tab:cmd-fep}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Field} & \textbf{Value} \\
+        \midrule
+        Command & \cmd{FEP} \\
+        Data & State (00 or 11) \\
+        Response & Status; on failure: exit code and message \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{itemize}
+    \item State 00: Power off (system enters ERROR state)
+    \item State 11: Power on
+\end{itemize}
+
+\subsubsection{Exit Codes}
+
+\begin{tabular}{cl}
+    \hex{00} & Process accepted without error \\
+    \hex{06} & Invalid power setting \\
+    \hex{08} & Blocking operation in progress \\
+\end{tabular}
+
+\subsection{RPT --- Report MIB Entry}
+
+The \cmd{RPT} command queries a MIB entry (Table~\ref{tab:cmd-rpt}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{RPT Command}
+    \label{tab:cmd-rpt}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Field} & \textbf{Value} \\
+        \midrule
+        Command & \cmd{RPT} \\
+        Data & MIB entry name \\
+        Response & MIB value; on failure: error message \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Example: \cmd{RPT FILTER\_123} returns the filter code for stand 123.
+
+\section{System States}
+
+The ASP subsystem reports one of the status values listed in Table~\ref{tab:sys-status}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{System Status Values}
+    \label{tab:sys-status}
+    \begin{tabular}{lp{10cm}}
+        \toprule
+        \textbf{Status} & \textbf{Description} \\
+        \midrule
+        \texttt{SHUTDWN} & System is shut down or not initialized \\
+        \texttt{BOOTING} & System is initializing \\
+        \texttt{NORMAL} & System is operating normally \\
+        \texttt{WARNING} & Warning condition (e.g., temperature approaching limit) \\
+        \texttt{ERROR} & Error condition requiring attention \\
+        \bottomrule
+    \end{tabular}
+\end{table}
