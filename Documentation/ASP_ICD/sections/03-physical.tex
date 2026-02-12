@@ -1,0 +1,245 @@
+% 03-physical.tex - Section 3: Physical Interfaces
+
+\chapter{Physical Interfaces}
+\label{sec:physical}
+
+\section{Overview}
+
+The ASP subsystem interfaces with the following components:
+\begin{itemize}
+    \item Front End Electronics (FEE) --- signal input
+    \item Next Generation Digital Processor (NDP) --- signal output
+    \item Monitor and Control System (MCS) --- control interface
+    \item Power supplies --- ARX and FEE power
+\end{itemize}
+
+\section{Signal Input from FEE}
+
+The ASP receives analog signals from the FEE via coaxial cables. Each stand provides two polarization signals (X and Y).
+
+\subsection{Connector Specifications}
+
+The FEE signal input connector specifications are listed in Table~\ref{tab:fee-connectors}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{FEE Signal Input Connectors}
+    \label{tab:fee-connectors}
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Parameter} & \textbf{Specification} & \textbf{Notes} \\
+        \midrule
+        Connector Type & QMA Female & \\
+        Impedance & 50~$\Omega$ & \\
+        Signals per Stand & 2 (X and Y polarization) & \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\section{Signal Output to NDP}
+
+The conditioned analog signals are output to the Next Generation Digital Processor for digitization.
+
+\subsection{Connector Specifications}
+
+The NDP signal output connector specifications are listed in Table~\ref{tab:ndp-connectors}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{NDP Signal Output Connectors}
+    \label{tab:ndp-connectors}
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Parameter} & \textbf{Specification} & \textbf{Notes} \\
+        \midrule
+        Connector Type & QMA Female & \\
+        Impedance & 50~$\Omega$ & \\
+        Signals per Stand & 2 (X and Y polarization) & \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\section{Control Interface}
+
+The ASP uses a custom ARX Control Board based on an SAMD21 microcontroller for communication. The control board provides:
+\begin{itemize}
+    \item SPI bus for ARX board control
+    \item I2C bus for power supply monitoring
+    \item RS-485 for board-level communication
+\end{itemize}
+
+The ARX Control Board design is available at:
+\begin{center}
+\url{https://github.com/lwa-project/arx_control_board}
+\end{center}
+
+\begin{calloutBox}{Rev H System Difference}{orange}
+The legacy Rev H system uses a commercial USB-to-RS485 adapter instead of the custom ARX Control Board. Board control commands are sent via RS-485 as the primary control interface.
+\end{calloutBox}
+
+\subsection{ARX Control Board}
+
+The ARX Control Board provides USB connectivity to the control computer and manages communication with all ARX boards. The control board is housed in a Hammond 1590R1 die cast aluminum enclosure with USB-over-Ethernet adapter for connectivity. The control board configuration is summarized in Table~\ref{tab:control-board-config}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Control Board Configuration}
+    \label{tab:control-board-config}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Parameter} & \textbf{Value} \\
+        \midrule
+        Microcontroller & SAMD21 \\
+        Interface & USB 2.0 (via USB-over-Ethernet) \\
+        SPI Clock & Configurable \\
+        I2C Address (FEE PSU) & \texttt{0x1E} (30) \\
+        I2C Address (ARX PSU) & \texttt{0x1F} (31) \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{SPI Bus Connectors}
+
+Each ARX board has two SPI connections (in and out) for daisy-chaining (Table~\ref{tab:spi-connectors}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{SPI Bus Connectors}
+    \label{tab:spi-connectors}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Component} & \textbf{Part Number} \\
+        \midrule
+        Connector & TE 826470-4 \\
+        Housing & TE 926476-4 \\
+        Terminals & TE 1-141708-1 \\
+        \midrule
+        \multicolumn{2}{l}{\textit{Alternative:}} \\
+        Housing & Amphenol 71600-308LF \\
+        Cable & 8-wire ribbon cable \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{RS-485 Bus Connectors}
+
+Each ARX board has one RS-485 connection with paired A/B terminals for daisy-chaining (Table~\ref{tab:rs485-connectors}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{RS-485 Bus Connectors}
+    \label{tab:rs485-connectors}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Component} & \textbf{Part Number} \\
+        \midrule
+        Connector & Molex 22-12-4042 \\
+        Housing & Molex 22-01-2047 \\
+        Terminals & Molex 08-50-0113 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\section{Power Supply Interfaces}
+
+The ASP uses Artesyn iVS series power supplies:
+\begin{itemize}
+    \item 15V supply (FEE power): Artesyn IVS1-5N0-3N0-60-A
+    \item 8V supply (ARX power): Artesyn IVS1-5I0-2I0-60-A
+\end{itemize}
+
+\begin{calloutBox}{Rev H System Difference}{orange}
+The legacy Rev H system uses a single power supply that outputs both 6V (ARX power) and 15V (FEE power).
+\end{calloutBox}
+
+\subsection{Power Supply Connectors}
+
+The power supply connector part numbers are listed in Table~\ref{tab:power-connectors}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Power Connectors}
+    \label{tab:power-connectors}
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Supply} & \textbf{Component} & \textbf{Part Number} \\
+        \midrule
+        15V (FEE) & Connector & Molex 4316-03104 \\
+                  & Housing & Molex 44441-2004 \\
+                  & Terminals & Molex 43375-10001 \\
+        \midrule
+        8V (ARX)  & Connector & Molex 43160-3106 \\
+                  & Housing & Molex 44441-2006 \\
+                  & Terminals & Molex 43375-10001 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{I2C Bus Connectors}
+
+The power supplies are monitored via I2C. Each power supply has a 10-pin I2C connector (Table~\ref{tab:i2c-connectors}).  The 10-pin cable also sets the I2C address for each power supply.
+
+\begin{table}[htbp]
+    \centering
+    \caption{I2C Connectors}
+    \label{tab:i2c-connectors}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Component} & \textbf{Part Number} \\
+        \midrule
+        Connector & JST B10B-PHDSS \\
+        Housing & JST PHDR-10VS \\
+        Pins & JST SPHD-001T-P0.5 \\
+        \midrule
+        \multicolumn{2}{l}{\textit{Alternative:}} \\
+        Cable Assembly & Artesyn 70-841-023 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{calloutBox}{Rev H System Difference}{orange}
+The legacy Rev H system uses different power supplies that do not support I2C monitoring. The I2C bus is not used in Rev H installations.
+\end{calloutBox}
+
+\subsection{ARX Power Supply}
+
+The ARX power supply provides power to the ARX boards. It is controlled via I2C commands and monitored for voltage, current, and status. I2C address: \texttt{0x1F} (31).
+
+\begin{noteBox}
+The ARX power supply is nominally rated at 8V but is configured via I2C to output 8.8V.
+\end{noteBox}
+
+\subsection{FEE Power Supply}
+
+The FEE power supply (15V) provides power to the Front End Electronics. Individual FEE power can be controlled per stand and polarization. I2C address: \texttt{0x1E} (30).
+
+\section{ARX Boards}
+
+The Analog Receiver (ARX) boards condition the signals from the FEE. The current design is Revision I. Design files are available at:
+\begin{center}
+\url{https://github.com/lwa-project/analog_receiver}
+\end{center}
+
+\begin{calloutBox}{Rev H System Difference}{orange}
+The legacy Rev H system uses Revision H ARX boards, which have a different control interface and temperature sensor configuration.
+\end{calloutBox}
+
+\section{Board Configuration}
+
+The ASP board configuration is summarized in Table~\ref{tab:board-config}.  The values for maximum boards and maximum stands are site-configurable (see Section~\ref{sec:configuration}); the defaults shown are for a 256-stand station.
+
+\begin{table}[htbp]
+    \centering
+    \caption{ASP Board Configuration}
+    \label{tab:board-config}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Parameter} & \textbf{Value} \\
+        \midrule
+        Stands per Board & 8 \\
+        Maximum Boards & 32 (configurable) \\
+        Maximum Stands & 256 (configurable) \\
+        Channels per Stand & 2 (polarizations) \\
+        \bottomrule
+    \end{tabular}
+\end{table}

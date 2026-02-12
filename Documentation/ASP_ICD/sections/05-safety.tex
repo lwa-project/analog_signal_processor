@@ -1,0 +1,103 @@
+% 05-safety.tex - Section 5: Safety Interface
+
+\chapter{Safety Interface}
+\label{sec:safety}
+
+\section{Overview}
+
+The ASP subsystem includes several safety features to protect equipment from damage due to temperature or power supply anomalies.
+
+\section{Temperature Monitoring}
+
+The ASP continuously monitors temperature via sensors associated with the power supply units.
+
+\subsection{Temperature Thresholds}
+
+The temperature thresholds and associated actions are listed in Table~\ref{tab:temp-thresholds}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Temperature Thresholds}
+    \label{tab:temp-thresholds}
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Threshold} & \textbf{Value} & \textbf{Action} \\
+        \midrule
+        Minimum & \SI{0.0}{\degreeCelsius} & Under-temperature warning/error \\
+        Warning & \SI{40.0}{\degreeCelsius} & System enters WARNING state \\
+        Maximum & \SI{45.0}{\degreeCelsius} & System enters ERROR state; power supplies turned off \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Temperature Response}
+
+\begin{enumerate}
+    \item \textbf{Warning Condition}: When any temperature sensor exceeds the warning threshold (\SI{40}{\degreeCelsius}), the system enters WARNING state. This is a cautionary indicator.
+
+    \item \textbf{Over-Temperature}: If temperatures exceed the maximum threshold (\SI{45}{\degreeCelsius}) for three consecutive monitoring cycles, the system:
+    \begin{itemize}
+        \item Enters ERROR state
+        \item Turns off ARX power supply
+        \item Turns off FEE power supply
+        \item Sets the ready flag to false
+    \end{itemize}
+
+    \item \textbf{Under-Temperature}: If temperatures drop below the minimum threshold (\SI{0}{\degreeCelsius}) for three consecutive monitoring cycles, the system enters ERROR state but does not turn off power supplies.
+\end{enumerate}
+
+\section{Power Supply Monitoring}
+
+The ASP monitors power supply status for fault conditions.
+
+\subsection{Monitored Conditions}
+
+The power supply fault conditions and their responses are listed in Table~\ref{tab:psu-faults}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Power Supply Fault Conditions}
+    \label{tab:psu-faults}
+    \begin{tabular}{lp{8cm}}
+        \toprule
+        \textbf{Condition} & \textbf{Response} \\
+        \midrule
+        Over Temperature & Shut down affected power supply; enter ERROR state \\
+        Over Current & Shut down affected power supply; enter ERROR state \\
+        Over Voltage & Shut down affected power supply; enter ERROR state \\
+        Under Voltage & Shut down affected power supply; enter ERROR state \\
+        Module Fault & Shut down affected power supply; enter ERROR state \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\section{Control Board Monitoring}
+
+The system periodically verifies that the ARX Control Board USB device is present and responding. If the control board disappears:
+\begin{itemize}
+    \item System enters ERROR state
+    \item INFO field reports device not found
+    \item Ready flag is set to false
+\end{itemize}
+
+\section{Board Configuration Monitoring}
+
+The chassis status monitoring thread periodically verifies that ARX boards maintain their SPI port configuration. The thread reads a known configuration register from the RS485 bus and checks that its value matches the expected configuration pattern. If the bus has lost its SPI port setup (e.g., from a USB reset or power glitch), the register value will differ, indicating that communication with the boards is no longer possible. If a board loses configuration:
+\begin{itemize}
+    \item System enters ERROR state
+    \item INFO field reports which antennas are affected
+    \item Ready flag is set to false
+\end{itemize}
+
+\begin{calloutBox}{Rev H System Difference}{orange}
+On the legacy Rev H system, board configuration monitoring uses a timestamp-based mechanism rather than SPI register checks. During initialization, a reference timestamp is written to all boards via the RS-485 \cmd{STIM} command. The monitoring thread periodically queries each board for its stored time using the \cmd{GTIM} command. If any board has reset or lost power, its stored time will differ from the reference. This approach can identify exactly which individual board(s) have failed, rather than detecting a whole RS485 bus failure.
+\end{calloutBox}
+
+\section{Error Recovery}
+
+To recover from most error conditions, the system must be re-initialized using the \cmd{INI} command. The operator should:
+\begin{enumerate}
+    \item Address the underlying cause of the error (temperature, power supply fault, etc.)
+    \item Issue a \cmd{SHT} command if the system is not already shut down
+    \item Issue an \cmd{INI} command with the appropriate board count
+\end{enumerate}

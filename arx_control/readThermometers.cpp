@@ -7,7 +7,7 @@ polled includes temperatures from:
   * modules
  
 Usage:
-  readThermometers <SUB-20 S/N>
+  readThermometers <ATmega S/N>
 
 Options:
   None
@@ -16,11 +16,13 @@ Options:
 #include <iostream>
 #include <string>
 #include <cstring>
+#include <cstdint>
 #include <chrono>
 #include <thread>
 
-#include "libsub.h"
+#include "libatmega.hpp"
 #include "aspCommon.hpp"
+#include "ivsCommon.hpp"
 
 int main(int argc, char** argv) {
   /*************************
@@ -35,20 +37,20 @@ int main(int argc, char** argv) {
   std::string requestedSN = std::string(argv[1]);
   
   /************************************
-  * SUB-20 device selection and ready *
+  * ATmega device selection and ready *
   ************************************/
-  Sub20 *sub20 = new Sub20(requestedSN);
+  ATmega *atm = new ATmega(requestedSN);
   
-  bool success = sub20->open();
+  bool success = atm->open();
   if( !success ) {
     std::cerr << "readThermometers - failed to open " << requestedSN << std::endl;
-		std::exit(EXIT_FAILURE);
+    std::exit(EXIT_FAILURE);
   }
   
   /********************
-	* Read from the I2C *
-	********************/
-  std::list<uint8_t> i2c_devices = sub20->list_i2c_devices();
+  * Read from the I2C *
+  ********************/
+  std::list<uint8_t> i2c_devices = atm->list_i2c_devices();
   
   uint16_t data;
   for(uint8_t& addr: i2c_devices) {
@@ -56,100 +58,66 @@ int main(int argc, char** argv) {
       continue;
     }
     
-		#ifdef __INCLUDE_MODULE_TEMPS__
-      uint16_t modules, page;
+    #ifdef __INCLUDE_MODULE_TEMPS__
+      std::list<uint8_t> modules = ivs_get_smart_modules(atm, addr);
       
-			// Get a list of smart modules for polling
-			success = sub20->read_i2c(addr, 0xD3, (char *) &data, 2);
-			if( !success ) {
-				std::cerr << "readThermometers - module status - " << sub_strerror(sub_errno) << std::endl;
-				continue;
-			}
-			modules = data;
-			
-			// Enable writing to the PAGE address (0x00) so we can change modules
-      data = ((1 << 6) & 1) << 8;
-			success = sub20->write_i2c(addr, 0x10, (char *) &data, 1);
-			if( !success ) {
-				std::cerr << "readThermometers - write settings - " << sub_strerror(sub_errno) << std::endl;
-				continue;
-			}
-			
-			// Loop over modules 0 through 15
-			for(int j=0; j<16; j++) {
-				// Skip "dumb" modules
-				if( ((modules >> j) & 1) == 0 ) {
-					continue;
-				}
-				
-				// Jump to the correct page and give the PSU a second to get ready
-				data = j << 8;
-				success = sub20->write_i2c(addr, 0x00, (char *) &data, 1);
-				if( !success ) {
-					std::cerr << "readThermometers - page change - " << sub_strerror(sub_errno) << std::endl;
-					continue;
-				}
-				std::this_thread::sleep_for(std::chrono::milliseconds(20));
-				
-				// Verify the current page
-				success = sub20->read_i2c(addr, 0x00, (char *) &data, 1);
-				if( !success ) {
-					std::cerr << "readThermometers - get page - " << sub_strerror(sub_errno) << std::endl;
-					continue;
-				}
-				page = (data >> 8) & 0xFFFF;
-				
-				/******************
-				* Get Temperature *
-				******************/
-				
-				success = sub20->read_i2c(addr, 0x8F, (char *) &data, 2);
-				if( !success ) {
-					std::cerr << "readThermometers - get temperature #3 - " << sub_strerror(sub_errno) << std::endl;
-					continue;
-				}
-				std::cout << "0x" << std::uppercase << std::hex << (int) addr << std::nouppercase << std::dec << " Module" << page << " " << (1.0*data) << std::endl;
-			}
-			
-			// Set the module number back to 0
-			data = 0;
-			success = sub20->write_i2c(addr, 0x00, (char *) &data, 1);
-			if( !success ) {
-				std::cerr << "readThermometers - page change - " << sub_strerror(sub_errno) << std::endl;
-				continue;
-			}
-			
-			// Write-protect all entries but WRITE_PROTECT (0x10)
-			data = ((1 << 7) & 1) << 8;
-			success = sub20->write_i2c(addr, 0x10, (char *) &data, 1);
-			if( !success ) {
-				std::cerr << "readThermometers - write settings - " << sub_strerror(sub_errno) << std::endl;
-				continue;
-			}
-		#endif
-		
-		/**************************
-		* Get System Temperatures *
-		**************************/
-		success = sub20->read_i2c(addr, 0x8D, (char *) &data, 2);
-		if( !success ) {
-			std::cerr << "readThermometers - get temperature #1 - " << sub_strerror(sub_errno) << std::endl;
-			continue;
-		}
-		std::cout << "0x" << std::uppercase << std::hex << (int) addr << std::nouppercase << std::dec << " Case " << (data/4.0) << std::endl;
-		
-		success = sub20->read_i2c(addr, 0x8E, (char *) &data, 2);
-		if( !success ) {
-			std::cerr << "readThermometers - get temperature #2 - " << sub_strerror(sub_errno) << std::endl;
-			continue;
-		}
-		std::cout << "0x" << std::uppercase << std::hex << (int) addr << std::nouppercase << std::dec << " PrimarySide " << (data/4.0) << std::endl;
-	}
-	
-	/*******************
-	* Cleanup and exit *
-	*******************/
-	delete sub20;
+      // Enable writing to the PAGE address (0x00) so we can change modules
+      success = ivs_enable_operation_page_writes(atm, addr);
+      if( !success ) {
+        std::cerr << "readThermometers - write settings failed" << std::endl;
+        continue;
+      }
+      
+      // Loop over modules
+      for(uint8_t& module: modules) {
+        success = ivs_select_module(atm, addr, module);
+        if( !success ) {
+          std::cerr << "readThermometers - page change failed" << std::endl;
+          continue;
+        }
+        
+        /******************
+        * Get Temperature *
+        ******************/
+        
+        success = atm->read_i2c(addr, 0x8F, (char *) &data, 2);
+        if( !success ) {
+          std::cerr << "readThermometers - get temperature #3 failed" << std::endl;
+          continue;
+        }
+        std::cout << "0x" << std::uppercase << std::hex << (int) addr << std::nouppercase << std::dec << " Module" << module << " " << (1.0*data) << std::endl;
+      }
+      
+      // Write-protect all entries but WRITE_PROTECT (0x10)
+      success = ivs_disable_writes(atm, addr);
+      if( !success ) {
+        std::cerr << "readThermometers - write settings failed" << std::endl;
+        continue;
+      }
+    #endif
+    
+    /**************************
+    * Get System Temperatures *
+    **************************/
+    success = atm->read_i2c(addr, 0x8D, (char *) &data, 2);
+    if( !success ) {
+      std::cerr << "readThermometers - get temperature #1 failed" << std::endl;
+      continue;
+    }
+    std::cout << "0x" << std::uppercase << std::hex << (int) addr << std::nouppercase << std::dec << " Case " << (data/4.0) << std::endl;
+    
+    success = atm->read_i2c(addr, 0x8E, (char *) &data, 2);
+    if( !success ) {
+      std::cerr << "readThermometers - get temperature #2 failed" << std::endl;
+      continue;
+    }
+    std::cout << "0x" << std::uppercase << std::hex << (int) addr << std::nouppercase << std::dec << " PrimarySide " << (data/4.0) << std::endl;
+  }
+  
+  /*******************
+  * Cleanup and exit *
+  *******************/
+  delete atm;
 
   std::exit(EXIT_SUCCESS);
 }

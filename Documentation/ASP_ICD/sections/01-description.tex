@@ -1,0 +1,48 @@
+% 01-description.tex - Section 1: Description
+
+\chapter{Description}
+\label{sec:description}
+
+\section{Purpose}
+
+This document describes the interface control for the Analog Signal Processor (ASP) subsystem of the Long Wavelength Array (LWA). The ASP is responsible for conditioning the analog signals from the Front End Electronics (FEE) before digitization by the digital processor.
+
+\section{Scope}
+
+This Interface Control Document (ICD) defines:
+\begin{itemize}
+    \item Physical interfaces to and from ASP
+    \item Monitor and control (M\&C) interfaces
+    \item Safety interfaces
+    \item Command and response message formats
+    \item Management Information Base (MIB) entries
+\end{itemize}
+
+\section{System Overview}
+
+The ASP subsystem performs the following functions:
+\begin{itemize}
+    \item Signal filtering (high-pass and low-pass)
+    \item Signal attenuation (three stages)
+    \item FEE power control
+    \item Temperature and power supply monitoring
+\end{itemize}
+
+The standard ASP implementation uses a custom ARX Control Board based on an SAMD21 microcontroller for communication via SPI and I2C buses. Each chassis contains up to 8 Revision I ARX boards that are controlled through this interface. Up to 4 chassis (32 boards) can be controlled. The system also includes RS-485 communication for board-level monitoring.
+
+\begin{calloutBox}{Rev H System Difference}{orange}
+One legacy system uses the Rev H hardware and software branch with Revision H ARX boards. The Rev H system uses a commercial USB-to-RS485 adapter with RS-485 serial communication as the primary control interface instead of SPI. Temperature monitoring is performed via three sensors per board rather than power supply unit sensors. Where behavior differs, this document notes the Rev H differences.
+\end{calloutBox}
+
+\section{Document Organization}
+
+This document is organized as follows:
+\begin{itemize}
+    \item \textbf{Section~\ref{sec:description}} (this section): General description and scope
+    \item \textbf{Section~\ref{sec:abbreviations}}: Abbreviations and definitions
+    \item \textbf{Section~\ref{sec:physical}}: Physical interface specifications
+    \item \textbf{Section~\ref{sec:monitor-control}}: Monitor and control interface
+    \item \textbf{Section~\ref{sec:safety}}: Safety interface
+    \item \textbf{Section~\ref{sec:references}}: References
+    \item \textbf{Appendix~\ref{app:codes}}: Exit and status codes
+\end{itemize}

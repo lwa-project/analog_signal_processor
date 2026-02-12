@@ -3,17 +3,20 @@
 Module for storing the various SUB-20 function calls
 """
 
+import re
 import time
+import random
 import inspect
 import logging
 import threading
 import subprocess
 from collections import deque
 
-from aspThreads import SUB20_LOCKS
-
-__version__ = '0.3'
-__all__ = ['spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread', 'psuSend', 
+__version__ = '0.7'
+__all__ = ['spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread',
+           'psuSend', 'psuRead', 'psuCountTemperature', 'psuTemperature',
+           'rs485CountBoards', 'rs485Reset', 'rs485Sleep', 'rs485Wake', 'rs485Check',
+           'rs485SetTime', 'rs485GetTime', 'rs485Power', 'rs485RFPower', 'rs485Temperature',
            'SPI_cfg_normal', 'SPI_cfg_shutdown', 
            'SPI_cfg_output_P12_13_14_15', 'SPI_cfg_output_P16_17_18_19', 'SPI_cfg_output_P20_21_22_23', 'SPI_cfg_output_P24_25_26_27', 'SPI_cfg_output_P28_29_30_31',
            'SPI_P12_on', 'SPI_P12_off', 'SPI_P13_on', 'SPI_P13_off', 'SPI_P14_on', 'SPI_P14_off', 'SPI_P15_on', 'SPI_P15_off',
@@ -21,15 +24,16 @@ __all__ = ['spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread', 'psuSe
            'SPI_P20_on', 'SPI_P20_off', 'SPI_P21_on', 'SPI_P21_off', 'SPI_P22_on', 'SPI_P22_off', 'SPI_P23_on', 'SPI_P23_off',
            'SPI_P24_on', 'SPI_P24_off', 'SPI_P25_on', 'SPI_P25_off', 'SPI_P26_on', 'SPI_P26_off', 'SPI_P27_on', 'SPI_P27_off',
            'SPI_P28_on', 'SPI_P28_off', 'SPI_P29_on', 'SPI_P29_off', 'SPI_P30_on', 'SPI_P30_off', 'SPI_P31_on', 'SPI_P31_off',
-           'SPI_NoOp']
+           'SPI_NoOp',
+           'MAX_SPI_RETRY', 'MAX_I2C_RETRY', 'MAX_RS485_RETRY']
 
 
 aspSUB20Logger = logging.getLogger('__main__')
 
-# SPI control
-MAX_SPI_RETRY = 0
-WAIT_SPI_RETRY = 0.2
 
+# SPI control
+MAX_SPI_RETRY = 4
+WAIT_SPI_RETRY = 0.25
 
 # SPI constants
 SPI_cfg_normal = 0x0104
@@ -84,6 +88,23 @@ SPI_P31_off = 0x003F
 
 SPI_NoOp = 0x0000
 
+# I2C control
+MAX_I2C_RETRY = 4
+WAIT_I2C_RETRY = 0.25
+
+# RS485 control
+MAX_RS485_RETRY = 4
+WAIT_RS485_RETRY = 0.25
+
+
+def _sleep(interval, margin_percent=5):
+    """
+    Helper function to give a slightly random sleep time to help break things
+    up.
+    """
+    
+    time.sleep(interval * random.uniform(1-margin_percent/100., 1+margin_percent/100.))
+
 
 def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
     """
@@ -93,31 +114,25 @@ def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY
     nBoards = 0
     overallStatus = True
     for sub20SN in sorted(sub20Mapper):
-        with SUB20_LOCKS[sub20SN]:
-            attempt = 0
-            status = False
-            while ((not status) and (attempt <= maxRetry)):
-                if attempt != 0:
-                    time.sleep(waitRetry)
-                    
-                p = subprocess.Popen('/usr/local/bin/countBoards %s' % sub20SN, shell=True,
-                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                output, output2 = p.communicate()
-                try:
-                    output = output.decode('ascii')
-                    output2 = output2.decode('ascii')
-                except AttributeError:
-                    pass
-                    
-                if p.returncode == 0:
-                    fname = inspect.stack()[0][3]
-                    aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", fname, sub20SN, attempt, maxRetry, p.returncode, output, output2)
-                    status = False
-                else:
-                    nBoards += p.returncode
-                    status = True
-                attempt += 1
+        attempt = 0
+        status = False
+        while ((not status) and (attempt <= maxRetry)):
+            if attempt != 0:
+                _sleep(waitRetry)
                 
+            p = subprocess.Popen(['/usr/local/bin/countBoards', str(sub20SN)],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 text=True)
+            output, output2 = p.communicate()
+            
+            if p.returncode == 0:
+                aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
+                status = False
+            else:
+                nBoards += p.returncode
+                status = True
+            attempt += 1
+             
         overallStatus &= status
         
     if not overallStatus:
@@ -178,26 +193,25 @@ class SPIProcessingThread(object):
             
     @staticmethod
     def _run_command(sub20SN, device_count, devices, spi_commands, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
-        with SUB20_LOCKS[sub20SN]:
-            command = ["/usr/local/bin/sendARXDevice", sub20SN, str(device_count)]
-            for dev,cmd in zip(devices,spi_commands):
-                command.append(str(dev))
-                command.append("0x%04X" % cmd)
+        command = ["/usr/local/bin/sendARXDevice", str(sub20SN), str(device_count)]
+        for dev,cmd in zip(devices,spi_commands):
+            command.append(str(dev))
+            command.append("0x%04X" % cmd)
+            
+        attempt = 0
+        status = False
+        while ((not status) and (attempt <= maxRetry)):
+            if attempt != 0:
+                _sleep(waitRetry)
                 
-            attempt = 0
-            status = False
-            while ((not status) and (attempt <= maxRetry)):
-                if attempt != 0:
-                    time.sleep(waitRetry)
-                    
-                try:
-                    subprocess.check_call(command)
-                    status = True
-                    
-                except subprocess.CalledProcessError:
-                    pass
-                attempt += 1
+            try:
+                subprocess.check_call(command)
+                status = True
                 
+            except subprocess.CalledProcessError:
+                pass
+            attempt += 1
+            
         return status
             
     def process_command(self, device, command, callback=None):
@@ -265,25 +279,590 @@ class SPIProcessingThread(object):
                                 aspSUB20Logger.warning("Failed to process callback for device %i, comamnd %04X: %s", device, command, str(e))
                                 
             time.sleep(self._pollInterval)
+            
+    @staticmethod
+    def _read_register(sub20SN, device_count, devices, spi_registers, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+        command = ["/usr/local/bin/readARXDevice", str(sub20SN), str(device_count)]
+        for dev,reg in zip(devices,spi_registers):
+            command.append(str(dev))
+            command.append("0x%04X" % reg)
+            
+        regRE = re.compile(r'(?P<device>\d*): (?P<register>0x[0-9a-fA-F]*)')
+        
+        attempt = 0
+        status = False
+        data = {}
+        while ((not status) and (attempt <= maxRetry)):
+            if attempt != 0:
+                _sleep(waitRetry)
+                
+            try:
+                resp = subprocess.check_output(command, text=True)
+                for line in resp.split('\n'):
+                    mtch = regRE.search(line)
+                    if mtch:
+                        dev = int(mtch.group('device'), 10)
+                        reg = int(mtch.group('register'), 16)
+                        data[dev] = reg
+                        status = True
+                        
+            except subprocess.CalledProcessError:
+                pass
+            attempt += 1
+            
+        return data
+        
+    def read_register(self, device, register):
+        data = {}
+        
+        with self._lock:
+            if device == 0:
+                for sub20SN in sorted(self._sub20Mapper):
+                    device_count = self._sub20Mapper[sub20SN][1] - self._sub20Mapper[sub20SN][0] + 1
+                    
+                    devices, commands = [], []
+                    for dev in range(self._sub20Mapper[sub20SN][0], self._sub20Mapper[sub20SN][1]+1):
+                        devices.append(dev - self._sub20Mapper[sub20SN][0] + 1)
+                        commands.append(register)
+                    sub_data = self._read_register(sub20SN, device_count, devices, commands, maxRetry=self._maxRetry, waitRetry=self._waitRetry)
+                    data.update(sub_data)
+                        
+            else:
+                for sub20SN in self._sub20Mapper:
+                    device_count = self._sub20Mapper[sub20SN][1] - self._sub20Mapper[sub20SN][0] + 1
+                    
+                    if device >= self._sub20Mapper[sub20SN][0] and device <= self._sub20Mapper[sub20SN][1]:
+                        devices = [device - self._sub20Mapper[sub20SN][0] + 1,]
+                        commands = [register,]
+                        sub_data = self._read_register(sub20SN, device_count, devices, commands, maxRetry=self._maxRetry, waitRetry=self._waitRetry)
+                        data.update(sub_data)
+                        
+        if not data:
+            data = False
+        elif len(data.keys()) == 1:
+            data = list(data.values())[0]
+            
+        return data
 
 
-def psuSend(sub20SN, psuAddress, state):
+def psuSend(sub20SN, psuAddress, state, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY):
     """
     Set the state of the power supply unit at the provided I2C address.
     """
     
-    with SUB20_LOCKS[sub20SN]:
-        p = subprocess.Popen('/usr/local/bin/onoffPSU %s 0x%02X %s' % (sub20SN, psuAddress, str(state)), shell=True,
-                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output, output2 = p.communicate()
-        try:
-            output = output.decode('ascii')
-            output2 = output2.decode('ascii')
-        except AttributeError:
-            pass
+    status = False
+    for attempt in range(maxRetry+1):
+        if attempt != 0:
+            _sleep(waitRetry)
             
-    if p.returncode != 0:
-        aspSUB20Logger.warning("psuSend: command returned %i; '%s;%s'", p.returncode, output, output2)
-        return False
+        try:
+            p = subprocess.Popen(['/usr/local/bin/onoffPSU', str(sub20SN), '0x%02X' % psuAddress, str(state)],
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    text=True)
+            output, output2 = p.communicate()
+            
+            if p.returncode == 0:
+                status = True
+                break
+            else:
+                aspSUB20Logger.warning("psuSend: command returned %i; '%s;%s'", p.returncode, output, output2)
+                
+        except Exception as e:
+            aspSUB20Logger.warning("Could not send command to PSU %s: %s", psuAddress, str(e))
+            
+    return status
+
+
+def psuRead(sub20SN, psuAddress, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY):
+    """
+    Read the status, voltage, and current of the power supply unit at the
+    provided I2C address.
+    """
+    
+    data = {}
+    for attempt in range(maxRetry+1):
+        if attempt != 0:
+            _sleep(waitRetry)
+            
+        try:
+            p = subprocess.Popen(['/usr/local/bin/readPSU', str(sub20SN), '0x%02X' % psuAddress],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 text=True)
+            output, output2 = p.communicate()
+            
+            if p.returncode == 0:
+                psu, desc, onoffHuh, statusHuh, voltageV, currentA, = output.replace('\n', '').split(None, 5)
+                data = {'address': psu,
+                        'description': desc,
+                        'voltage': float(voltageV),
+                        'current': float(currentA),
+                        'onoff': '%-3s' % onoffHuh,
+                        'status': statusHuh
+                       }
+                break
+            else:
+                aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
+                
+        except Exception as e:
+            aspSUB20Logger.warning("Could not read PSU status: %s", str(e))
+            
+    return data
+                
+
+def psuCountTemperature(sub20SN, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY):
+    """
+    Return the number of temperature sensors associated with the power supply
+    units.
+    """
+    
+    ntemp = 0
+    for attempt in range(maxRetry+1):
+        if attempt != 0:
+            _sleep(waitRetry)
+            
+        try:
+            p = subprocess.Popen(['/usr/local/bin/countThermometers', str(sub20SN)],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                text=True)
+            output, output2 = p.communicate()
+            
+            if p.returncode == 0:
+                aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
+            else:
+                ntemp = p.returncode
+                break;
+                
+        except Exception as e:
+            aspSUB20Logger.warning("Could not count PSU temperature sensors: %s", str(e))
+            
+    return ntemp
+
+
+def psuTemperature(sub20SN, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY):
+    """
+    Return a list of dictionaries containing power supply unit info and temperatures.
+    """
+    
+    temps = []
+    for attempt in range(maxRetry+1):
+        if attempt == 0:
+            _sleep(waitRetry)
+            
+        try:
+            p = subprocess.Popen(['/usr/local/bin/readThermometers', str(sub20SN)],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                text=True)
+            output, output2 = p.communicate()
+            
+            if p.returncode != 0:
+                aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
+            else:
+                for i,line in enumerate(output.split('\n')):
+                    if len(line) < 4:
+                        continue
+                    psu, desc, tempC = line.split(None, 2)
+                    temps.append({'address': psu,
+                                'description': desc,
+                                'temp_C': float(tempC)
+                                })
+                break
+                
+        except Exception as e:
+            aspSUB20Logger.warning("Could not poll PSU temperature sensors: %s", str(e))
+            
+    return temps
+
+
+def rs485CountBoards(sub20Mapper, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
+    """
+    Count the number of PIC devices on all known SUB-20s.
+    """
+    
+    nBoards = 0
+    overallStatus = True
+    for sub20SN in sorted(sub20Mapper):
+        attempt = 0
+        status = False
+        while ((not status) and (attempt <= maxRetry)):
+            if attempt != 0:
+                _sleep(waitRetry)
+                
+            p = subprocess.Popen(['/usr/local/bin/countPICs', str(sub20SN)],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 text=True)
+            output, output2 = p.communicate()
+            
+            if p.returncode == 0:
+                aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
+                status = False
+            else:
+                nBoards += p.returncode
+                status = True
+            attempt += 1
+            
+        overallStatus &= status
         
-    return True
+    if not overallStatus:
+        nBoards = 0
+        
+    return nBoards
+
+
+def rs485Reset(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
+    """
+    Set a reset command to all of the ARX boards connected to the RS485 bus.
+    Returns True if all of the boards have been reset, False otherwise.
+    """
+    
+    success = True
+    for sub20SN in sorted(sub20Mapper2.keys()):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', str(sub20SN), str(board), ' RSET'],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
+                    output, output2 = p.communicate()
+                    
+                    if p.returncode == 0:
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    aspSUB20Logger.warning("Could not reset board %s: %s", board_key, str(e))
+                    _sleep(waitRetry)
+            success &= board_success
+            
+    # Check for completion of reset
+    time.sleep(10) # Wait a little bit
+    reset_check, failed = rs485Check(portName, antennaMapping, verbose=False)
+    success &= reset_check
+    
+    return success
+
+
+def rs485Sleep(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
+    """
+    Set a sleep command to all of the ARX boards connected to the RS485 bus.
+    Returns True if all of the boards have been put to bed, False otherwise.
+    """
+    
+    success = True
+    for sub20SN in sorted(sub20Mapper2.keys()):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', str(sub20SN), str(board), ' SLEP'],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
+                    output, output2 = p.communicate()
+                    
+                    if p.returncode == 0:
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    aspSUB20Logger.warning("Could not sleep board %s: %s", board_key, str(e))
+                    _sleep(waitRetry)
+            success &= board_success
+            
+    return success
+
+
+def rs485Wake(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
+    """
+    Set a wake command to all ARX boards connected to the RS485 bus.  Returns
+    True if all of the boards have woken up, False otherwise.
+    """
+    
+    success = True
+    for sub20SN in sorted(sub20Mapper2.keys()):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', str(sub20SN), str(board), 'WAKE'],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
+                    output, output2 = p.communicate()
+                    
+                    if p.returncode == 0:
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    aspSUB20Logger.warning("Could not wake board %s: %s", board_key, str(e))
+                    _sleep(waitRetry)
+            success &= board_success
+            
+    # Check for completion of wake
+    time.sleep(10) # Wait a little bit
+    wake_check, failed = rs485Check(portName, antennaMapping, verbose=False)
+    success &= wake_check
+    
+    return success
+
+
+def rs485Check(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY, verbose=False):
+    """
+    Ping each of the ARX boards connected to the RS485 bus.  Returns a two-
+    element tuple of:
+     * True if all boards were pinged, false otherwise
+     * a list of any boards that failed to respond
+    """
+    
+    data = "check_for_me"
+    
+    success = True
+    failed = []
+    for sub20SN in sorted(sub20Mapper2.keys()):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'ECHO%s' % data],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
+                    output, output2 = p.communicate()
+                    
+                    if p.returncode == 0 and output.find(data) != -1:
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    if verbose:
+                        aspSUB20Logger.warning("Could not echo '%s' to board %s: %s", data, board_key, str(e))
+                    _sleep(waitRetry)
+            success &= board_success
+            if not board_success:
+                failed.append(antennaMapping[board_key])
+                
+    return success, failed
+
+
+def rs485SetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY, verbose=False):
+    """
+    Get the board time on all ARX boards connected to the RS485 bus. Returns a
+    three-element tuple of:
+     * True if all boards were pinged, false otherwise
+     * a list of any boards that failed to respond
+     * the time set
+    """
+    
+    data = "%08X" % int(time.time())
+    success = True
+    failed = []
+    for sub20SN in sorted(sub20Mapper2.keys()):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', str(sub20SN), str(board), ' STIM%s' % data],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
+                    output, output2 = p.communicate()
+                    
+                    if p.returncode == 0:
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    if verbose:
+                        aspSUB20Logger.warning("Could not set time to '%s' on board %s: %s", data, board_key, str(e))
+                    _sleep(waitRetry)
+            success &= board_success
+            if not board_success:
+                failed.append(antennaMapping[board_key])
+                
+    return success, failed, int(data, 16)
+
+
+def rs485GetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY, verbose=False):
+    """
+    Poll all of the Rev H ARX boards on the RS485 bus and return a two-element
+    tuple of:
+     * True if all boards were pinged, false otherwise
+     * a list of board times.
+     
+    Any board that failed to respond will have its time reported as zero.
+    """
+    
+    gtimRE = re.compile(r'Board Time: (?<gtim>\d*) s')
+    
+    success = True
+    data = []
+    for sub20SN in sorted(sub20Mapper2.keys()):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'GTIM'],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
+                    output, output2 = p.communicate()
+                    
+                    mtch = gtimRE.search(output)
+                    if mtch is not None:
+                        gtim_data = mtch.group('gtim')
+                        data.append(int(gtim_data, 10))
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    if verbose:
+                        aspSUB20Logger.warning("Could not get time from board %s: %s", board_key, str(e))
+                    _sleep(waitRetry)
+            success &= board_success
+            if not board_success:
+                data.append(0)
+                
+    return success, data
+
+
+def rs485Power(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
+    """
+    Poll all of the ARX boards connected to the RS485 bus and return a two-
+    element tuple of:
+     * True if all board were successfully polled, False otherwise
+     * a list of FEE currents (16/board)
+    """
+    
+    curaRE = re.compile(r'(?P<chan>\d*): (?P<curr>\d*\.\d*) mA')
+    
+    success = True
+    fees = []
+    for sub20SN in sorted(sub20Mapper2.keys()):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'CURA'],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
+                    output, output2 = p.communicate()
+                    
+                    if p.returncode == 0:
+                        for line in filter(lambda x: x.find(' mA') != -1, output.split('\n')):
+                            mtch = curaRE.search(line)
+                            if mtch is not None:
+                                fees.append(float(mtch.group('curr')))
+                            else:
+                                fees.append(-1.0)
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    aspSUB20Logger.warning("Could not get power info. for board %s: %s", board_key, str(e))
+                    _sleep(waitRetry)
+            success &= board_success
+            
+    return success, fees
+
+
+def rs485RFPower(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
+    """
+    Poll all of the ARX boards connected to the RS485 bus and return a two-
+    element tuple of:
+     * True if all board were successfully polled, False otherwise
+     * a list of per-channel RF powers (16/board)
+    """
+    
+    powaRE = re.compile(r'(?P<chan>\d*): (?P<pow>\d*\.\d*) uW')
+    
+    success = True
+    rf_powers = []
+    for sub20SN in sorted(sub20Mapper2.keys()):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'POWA'],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
+                    output, output2 = p.communicate()
+                    
+                    if p.returncode == 0:
+                        for line in filter(lambda x: x.find(' uW') != -1, output.split('\n')):
+                            mtch = powaRE.search(line)
+                            if mtch is not None:
+                                rf_powers.append(float(mtch.group('pow')))
+                            else:
+                                rf_powers.append(-1.0)
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    aspSUB20Logger.warning("Could not get RF power info. for board %s: %s", board_key, str(e))
+                    _sleep(waitRetry)
+            success &= board_success
+            
+    return success, rf_powers
+
+
+def rs485Temperature(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
+    """
+    Poll all of the Rev H ARX boards connected to the RS485 bus and return a
+    two-element tuple of:
+     * True if all board were successfully polled, False otherwise
+     * a list of temperatures (typically 3/board)
+    """
+    
+    owteRE = re.compile(r'(?P<chan>\d*): (?P<temp>\d*\.\d*) C')
+    
+    success = True
+    temps = []
+    for sub20SN in sorted(sub20Mapper2.keys()):
+        for board_key in sub20Mapper2[sub20SN]:
+            board = (int(board_key) % 126) or 126
+            board_success = False
+            for attempt in range(maxRetry+1):
+                try:
+                    p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'OWTE'],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True)
+                    output, output2 = p.communicate()
+                    
+                    if p.returncode == 0:
+                        for line in filter(lambda x: x.find(' C') != -1, output.split('\n')):
+                            mtch = owteRE.search(line)
+                            if mtch is not None:
+                                temps.append(float(mtch.group('temp')))
+                            else:
+                                temps.append(-99.0)
+                        board_success = True
+                        break
+                    else:
+                        raise RuntimeError("Non-zero return code: %s" % output2.strip().replace('\n', ' - '))
+                        
+                except Exception as e:
+                    aspSUB20Logger.warning("Could not get temperature info. for board %s: %s", board_key, str(e))
+                    _sleep(waitRetry)
+            success &= board_success
+            
+    return success, temps

@@ -139,8 +139,8 @@ class MCSCommunicate(Communicate):
                         packed_data = self.SubSystemInstance.currentState['lastLog']
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
-                elif data[0:8] == 'ATSPLIT_':
-                    stand = int(data[8:])
+                elif data[0:4] == 'AT3_':
+                    stand = int(data[4:])
                     
                     status, attens = self.SubSystemInstance.getAttenuators(stand)
                     if status:
@@ -151,12 +151,13 @@ class MCSCommunicate(Communicate):
                     self.logger.debug('%s = exited with status %s', data, str(status))
                     
                 ## Analog gain state - FEE power
-                elif data[0:11] == 'FEEPOL1PWR_':
+                elif data[0:11] in ('FEEPOL1PWR_', 'FEEPOL2PWR_'):
                     stand = int(data[11:])
+                    pol = int(data[6]) - 1
                     
                     status, power = self.SubSystemInstance.getFEEPowerState(stand)
                     if status:
-                        if power[0]:
+                        if power[pol]:
                             packed_data = 'ON '
                         else:
                             packed_data = 'OFF'
@@ -164,15 +165,26 @@ class MCSCommunicate(Communicate):
                         packed_data = self.SubSystemInstance.currentState['lastLog']
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
-                elif data[0:11] == 'FEEPOL2PWR_':
+                
+                ## Analog gain state - FEE current draw in mA
+                elif data[0:11] in ('FEEPOL1CUR_', 'FEEPOL2CUR_'):
                     stand = int(data[11:])
+                    pol = int(data[6]) - 1
                     
-                    status, power = self.SubSystemInstance.getFEEPowerState(stand)
+                    status, current = self.SubSystemInstance.getFEECurrentDraw(stand)
                     if status:
-                        if power[1]:
-                            packed_data = 'ON '
-                        else:
-                            packed_data = 'OFF'
+                        packed_data = "%.1f" % (current[pol]*1e3,)
+                    else:
+                        packed_data = self.SubSystemInstance.currentState['lastLog']
+                        
+                    self.logger.debug('%s = exited with status %s', data, str(status))
+                ## Analog gain state - RMS RF power into a 50 Ohm load in uW
+                elif data[0:6] == 'RFPWR_':
+                    stand = int(data[6:])
+                    
+                    status, rf_power = self.SubSystemInstance.getRFPower(stand)
+                    if status:
+                        packed_data = "%.1f %.1f" % (rf_power[0]*1e6, rf_power[1]*1e6)
                     else:
                         packed_data = self.SubSystemInstance.currentState['lastLog']
                         
@@ -256,7 +268,7 @@ class MCSCommunicate(Communicate):
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
                 elif data == 'FEECURR':
-                    status, value = self.SubSystemInstance.getFEECurrentDraw()
+                    status, value = self.SubSystemInstance.getFEEPowerSupplyCurrentDraw()
                     if status:
                         packed_data = "%-7i" % value
                         
@@ -265,7 +277,7 @@ class MCSCommunicate(Communicate):
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
                 elif data == 'FEEVOLT':
-                    status, value = self.SubSystemInstance.getFEEVoltage()
+                    status, value = self.SubSystemInstance.getFEEPowerSupplyVoltage()
                     if status:
                         packed_data = "%-7.3f" % value
                         
@@ -387,13 +399,24 @@ class MCSCommunicate(Communicate):
                 else:
                     packed_data = "0x%02X! %s" % (exitCode, self.SubSystemInstance.currentState['lastLog'])
                     
-            # ATS
-            elif command == 'ATS':
+            # AT3
+            elif command == 'AT3':
                 mode = 3
                 stand = int(data[:-2])
                 attenSetting = int(data[-2:])
                 
                 status, exitCode = self.SubSystemInstance.setAttenuator(mode, stand, attenSetting)
+                if status:
+                    packed_data = ''
+                else:
+                    packed_data = "0x%02X! %s" % (exitCode, self.SubSystemInstance.currentState['lastLog'])
+                    
+            # LOC
+            elif command == 'LOC':
+                stand = int(data[:-2])
+                locSetting = int(data[-2:])
+
+                status, exitCode = self.SubSystemInstance.setLocate(stand, locSetting)
                 if status:
                     packed_data = ''
                 else:

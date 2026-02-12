@@ -4,7 +4,7 @@ specified devices.  An exit code of zero indicates that
 no errors were encountered.
  
 Usage:
-  sendARXDevice <SUB-20 S/N> <total stand count> <device> <command> ...
+  sendARXDevice <ATmega S/N> <total stand count> <device> <command> ...
 
   * Command is a four digit hexadecimal values (i.e., 
   0x1234)
@@ -21,19 +21,19 @@ Options:
 #include <chrono>
 #include <thread>
 
-#include "libsub.h"
+#include "libatmega.hpp"
 #include "aspCommon.hpp"
 
 
 int main(int argc, char** argv) {
-	/*************************
-	* Command line parsing   *
-	*************************/
+  /*************************
+  * Command line parsing   *
+  *************************/
   // Make sure we have the right number of arguments to continue
-	if( argc < 4+1 ) {
-		std::cerr << "sendARXDevice - Need at least 4 arguments, " << argc-1 << " provided" << std::endl;
-		std::exit(EXIT_FAILURE);
-	}
+  if( argc < 4+1 ) {
+    std::cerr << "sendARXDevice - Need at least 4 arguments, " << argc-1 << " provided" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   
   char *endptr;
   std::string requestedSN = std::string(argv[1]);
@@ -53,34 +53,34 @@ int main(int argc, char** argv) {
   }
   
   /************************************
-	* SUB-20 device selection and ready *
-	************************************/
-  Sub20 *sub20 = new Sub20(requestedSN);
+  * ATmega device selection and ready *
+  ************************************/
+  ATmega *atm = new ATmega(requestedSN);
   
-  bool success = sub20->open();
+  bool success = atm->open();
   if( !success ) {
     std::cerr << "sendARXDevice - failed to open " << requestedSN << std::endl;
-	  std::exit(EXIT_FAILURE);
+    std::exit(EXIT_FAILURE);
   }
   
   /****************************************
-	* Send the command and get the response *
-	****************************************/
+  * Send the command and get the response *
+  ****************************************/
   // Process the commands
   uint16_t *commands, *responses;
   responses = (uint16_t*) calloc(sizeof(uint16_t), device_count+1);
   while( !queue->is_empty() ) {
     commands = queue->get_commands();
     
-    success = sub20->transfer_spi((char*) commands, (char*) responses, 2*device_count+2);
-  	if( !success ) {
-  		std::cerr << "sendARXDevice - SPI write failed - " << sub_strerror(sub_errno) << std::endl;
+    success = atm->transfer_spi((char*) commands, (char*) responses, 2*device_count+2);
+    if( !success ) {
+      std::cerr << "sendARXDevice - SPI write failed" << std::endl;
       ::free(commands);
       ::free(responses);
-      delete sub20;
+      delete atm;
       delete queue;
-  		std::exit(EXIT_FAILURE);
-  	}
+      std::exit(EXIT_FAILURE);
+    }
     
     if( responses[device_count] != SPI_COMMAND_MARKER ) {
       std::cerr << "sendARXDevice - SPI write returned a marker of "
@@ -88,21 +88,21 @@ int main(int argc, char** argv) {
                 << std::hex << SPI_COMMAND_MARKER << std::dec << std::endl;
       ::free(commands);
       ::free(responses);
-      delete sub20;
+      delete atm;
       delete queue;
-  		std::exit(EXIT_FAILURE);
-  	}
+      std::exit(EXIT_FAILURE);
+    }
     
     ::free(commands);
   }
-	
-	/*******************
-	* Cleanup and exit *
-	*******************/
-	::free(responses);
   
-  delete sub20;
+  /*******************
+  * Cleanup and exit *
+  *******************/
+  ::free(responses);
+  
+  delete atm;
   delete queue;
   
-	std::exit(EXIT_SUCCESS);
+  std::exit(EXIT_SUCCESS);
 }

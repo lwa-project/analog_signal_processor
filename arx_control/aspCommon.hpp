@@ -2,7 +2,7 @@
 #define __ASPCOMMON_HPP
 
 /*
-  aspCommon.h - Header library with common values needed for using the SUB-20
+  aspCommon.h - Header library with common values needed for using the ATmega
   device with the SPI and I2C buses.
 */
 
@@ -10,29 +10,30 @@
 #include <vector>
 #include <queue>
 #include <list>
+#include <thread>
 #include <cstring>
+#include <cstdint>
 #include <stdexcept>
+#include <semaphore.h>
 
-#include "libsub.h"
+#include "libatmega.hpp"
 
-// SUB-20 device opening control
-#define SUB20_OPEN_MAX_ATTEMPTS 20
-#define SUB20_OPEN_WAIT_MS  5
-
-
-// SPI bus configuration settings
-#define ARX_SPI_CONFIG SPI_ENABLE|SPI_CPOL_FALL|SPI_SETUP_SMPL|SPI_MSB_FIRST|SPI_CLK_500KHZ
-#define TRANS_SPI_INTERMEDIATE SS_CONF(0, SS_L)
-#define TRANS_SPI_FINAL SS_CONF(0, SS_LO)
+// ATmega device opening control
+#define ATMEGA_OPEN_MAX_ATTEMPTS 5
+#define ATMEGA_OPEN_WAIT_MS  105
 
 
 // ARX board configuration
 #define STANDS_PER_BOARD 8
-#define MAX_BOARDS 33
+#define MAX_BOARDS 32
 
 
 // Command verification marker
 #define SPI_COMMAND_MARKER 0x0120
+
+
+// I2C inter-command wait
+#define ATMEGA_I2C_WAIT_MS 55
 
 
 // Uncomment the next line to include polling of module temperatures
@@ -46,60 +47,43 @@
 // Uncomment the next line to use input rather than the module outuput current
 //#define __USE_INPUT_CURRENT__
 
-// Get a list of all SUB-20 serial numbers
-std::list<std::string> list_sub20s();
+
+// Get a list of all ATmega serial numbers
+std::list<std::string> list_atmegas();
 
 
-// Class to simplify interfacing with a SUB-20 via the libsub library
-class Sub20 {
+// Class to simplify interfacing with a ATmega via the libatmega library
+class ATmega {
 private:
-  std::string _sn;
-  sub_handle  _fh;
-  bool        _spi_ready;
+  std::string    _sn;
+  atmega::handle _fd;
+  sem_t*         _lock;
   
-  inline bool enable_spi() {
-    int status, j=0;
-    status = sub_spi_config(_fh, 0, &j);
-    if( !status ) {
-      status = sub_spi_config(_fh, ARX_SPI_CONFIG, NULL);
-  	}
-    _spi_ready = (status == 0);
-    return _spi_ready;
-  }
 public:
-  Sub20(std::string sn): _sn(""), _fh(NULL), _spi_ready(false) {
+  ATmega(std::string sn): _sn(""), _fd(-1), _lock(NULL) {
     _sn = sn;
   }
-  ~Sub20() {
-    if( _fh != nullptr ) {
-      sub_close(_fh);
+  ~ATmega() {
+    atmega::close(_fd);
+    if( _lock != NULL ) {
+      sem_post(_lock);
+      sem_close(_lock);
     }
   }
   bool open();
-  inline bool transfer_spi(char* inputs, char* outputs, int size) {
-    int status;
-    bool success = _spi_ready;
-    if( !success ) {
-      success = this->enable_spi();
-    }
-    
-    status = 1;
-    if( success ) {
-      status = sub_spi_transfer(_fh, inputs, outputs, size, SS_CONF(0, SS_LO));
-    }
-    return (status == 0);
-  }
+  std::string get_version();
+  float get_temperature();
+  bool transfer_spi(const char* inputs, char* outputs, int size);
+  std::list<uint8_t> list_rs485_devices();
+  bool read_rs485(uint8_t addr, char* data, int* size);
+  bool write_rs485(uint8_t addr, const char* data, int size);
+  bool send_rs485(uint8_t addr, const char* in_data, int in_size, char* out_data, int* out_size);
   std::list<uint8_t> list_i2c_devices();
-  inline bool read_i2c(uint8_t addr, uint8_t reg, char* data, int size) {
-    int status;
-    status = sub_i2c_read(_fh, addr, reg, 1, data, size);
-    return (status == 0);
-  }
-  inline bool write_i2c(uint8_t addr, uint8_t reg, char* data, int size) {
-    int status;
-    status = sub_i2c_write(_fh, addr, reg, 1, data, size);
-    return (status == 0);
-  }
+  bool read_i2c(uint8_t addr, uint8_t reg, char* data, int size);
+  bool write_i2c(uint8_t addr, uint8_t reg, const char* data, int size);
+  bool clear_fault();
+  bool locate();
+  bool reset();
 };
 
 
