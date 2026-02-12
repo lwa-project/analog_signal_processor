@@ -132,7 +132,7 @@ def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY
                 nBoards += p.returncode
                 status = True
             attempt += 1
-                
+             
         overallStatus &= status
         
     if not overallStatus:
