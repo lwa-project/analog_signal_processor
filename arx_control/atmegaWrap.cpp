@@ -23,7 +23,7 @@ PYBIND11_MODULE(atmega_py, m) {
             std::vector<uint8_t> data(length);
             bool success = self.read_i2c(addr, reg, (char*)data.data(), length);
             if (success) {
-                return py::make_tuple(true, data);
+                return py::make_tuple(true, std::move(data));
             } else {
                 return py::make_tuple(false, std::vector<uint8_t>());
             }
