@@ -19,7 +19,7 @@ def main(args):
             cmd.extend([str(i+1), "0x%x" % spi_cmd])
         try:
             subprocess.check_call(cmd)
-        except subprocess.CalledProcessesError:
+        except subprocess.CalledProcessError:
             pass
             
     # Turn on all of the board ID lights
@@ -28,7 +28,7 @@ def main(args):
         cmd.extend([str(i+1), "0x%x" % aspSUB20.SPI_P12_on])
     try:
         subprocess.check_call(cmd)
-    except subprocess.CalledProcessesError:
+    except subprocess.CalledProcessError:
             pass
 
 
