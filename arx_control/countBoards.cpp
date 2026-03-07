@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
       std::cerr << "coundBoards - SPI write failed" << std::endl;
     }
   }
-  if( num > STANDS_PER_BOARD*MAX_BOARDS ) {
+  if( (num > STANDS_PER_BOARD*MAX_BOARDS) || (responses[num] != SPI_COMMAND_MARKER) ) {
     num = 0;
   }
   num /= STANDS_PER_BOARD;
