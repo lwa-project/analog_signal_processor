@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
   
   commands[0] = SPI_COMMAND_MARKER;
   int num = 0;
-  while( (responses[num] != SPI_COMMAND_MARKER) && (num < (STANDS_PER_BOARD*(MAX_BOARDS+1))) ) {
+  while( (responses[num] != SPI_COMMAND_MARKER) && (num < STANDS_PER_BOARD*MAX_BOARDS) ) {
     num += STANDS_PER_BOARD;
     
     ::memset(responses, 0, sizeof(uint16_t)*(MAX_BOARDS*STANDS_PER_BOARD+1));
