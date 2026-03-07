@@ -51,6 +51,7 @@ std::list<std::string> list_atmegas() {
 bool ATmega::open() {
   bool found = false;
   atmega::handle fd = -1;
+  int open_attempts = 0;
   if( _sn.find("/dev") == 0 ) {
     std::cerr << "Warning: Running without device access locking" << std::endl;
     
@@ -59,7 +60,7 @@ bool ATmega::open() {
       return false;
     }
     
-    int open_attempts = 0;
+    open_attempts = 0;
     while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
       try {
         fd = atmega::open(_sn);
@@ -117,7 +118,8 @@ bool ATmega::open() {
     }
     
     for(std::string const& dev_name: atmega::find_devices()) {
-      int open_attempts = 0;
+      fd = -1;
+      open_attempts = 0;
       while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
         try {
           fd = atmega::open(dev_name);
@@ -148,8 +150,6 @@ bool ATmega::open() {
             found = true;
             _fd = fd;
             break;
-          } else {
-            _fd = -1;
           }
         }
       } catch(const std::exception& e) {}
