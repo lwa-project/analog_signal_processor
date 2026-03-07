@@ -72,7 +72,9 @@ std::list<std::string> atmega::find_devices() {
       devices.push_back(std::string(dev_path));
     }
     
-    CFRelease(devpathRef);
+    if( devpathRef ) {
+      CFRelease(devpathRef);
+    }
     IOObjectRelease(udevice);
   }
   
