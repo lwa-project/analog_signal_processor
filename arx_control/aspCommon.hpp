@@ -14,7 +14,8 @@
 #include <cstring>
 #include <cstdint>
 #include <stdexcept>
-#include <semaphore.h>
+#include <sys/file.h>
+#include <unistd.h>
 
 #include "libatmega.hpp"
 
@@ -57,17 +58,19 @@ class ATmega {
 private:
   std::string    _sn;
   atmega::handle _fd;
-  sem_t*         _lock;
+  int            _lock_fd;
   
+  bool acquire_lock(const std::string& lock_path);
+
 public:
-  ATmega(std::string sn): _sn(""), _fd(-1), _lock(NULL) {
+  ATmega(std::string sn): _sn(""), _fd(-1), _lock_fd(-1) {
     _sn = sn;
   }
   ~ATmega() {
     atmega::close(_fd);
-    if( _lock != NULL ) {
-      sem_post(_lock);
-      sem_close(_lock);
+    if( _lock_fd >= 0 ) {
+      flock(_lock_fd, LOCK_UN);
+      ::close(_lock_fd);
     }
   }
   bool open();

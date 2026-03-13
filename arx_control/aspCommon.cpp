@@ -1,10 +1,13 @@
 #include <iostream>
 #include <stdexcept>
+#include <algorithm>
 #include <thread>
 #include <chrono>
 #include <filesystem>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/file.h>
+#include <unistd.h>
 
 #include "aspCommon.hpp"
 
@@ -48,15 +51,45 @@ std::list<std::string> list_atmegas() {
   return atmega_sns;
 }
 
+bool ATmega::acquire_lock(const std::string& lock_path) {
+  _lock_fd = ::open(lock_path.c_str(), O_RDWR | O_CREAT, 0666);
+  if( _lock_fd < 0 ) {
+    return false;
+  }
+  
+  auto start_time = std::chrono::steady_clock::now();
+  while( flock(_lock_fd, LOCK_EX | LOCK_NB) == -1 ) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  
+    auto current_time = std::chrono::steady_clock::now();
+    double elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time).count();
+  
+    if( elapsed_time > 10000 ) {
+      std::cerr << "Failed to acquire lock within 10 s" << std::endl;
+      ::close(_lock_fd);
+      _lock_fd = -1;
+      return false;
+    }
+  }
+  
+  return true;
+}
+
 bool ATmega::open() {
   bool found = false;
   atmega::handle fd = -1;
   int open_attempts = 0;
   if( _sn.find("/dev") == 0 ) {
-    std::cerr << "Warning: Running without device access locking" << std::endl;
-    
     struct stat sb;
     if( stat(_sn.c_str(), &sb) == -1 || !S_ISCHR(sb.st_mode) ) {
+      return false;
+    }
+    
+    // Derive lock file from device path, e.g. /dev/ttyUSB0 -> /dev/shm/arx_dev_ttyUSB0.lock
+    std::string sanitized = _sn.substr(5);  // strip "/dev/"
+    std::replace(sanitized.begin(), sanitized.end(), '/', '_');
+    std::string lock_path = "/dev/shm/arx_dev_" + sanitized + ".lock";
+    if( !acquire_lock(lock_path) ) {
       return false;
     }
     
@@ -76,45 +109,30 @@ bool ATmega::open() {
         atmega::buffer cmd, resp;
         cmd.command = atmega::COMMAND_READ_SN;
         cmd.size = 0;
-        
+
         int n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
         if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
           found = true;
           _fd = fd;
         }
       } catch(const std::exception& e) {}
-      
+
       if( !found ) {
         atmega::close(fd);
       }
     }
     
+    if( !found ) {
+      flock(_lock_fd, LOCK_UN);
+      ::close(_lock_fd);
+      _lock_fd = -1;
+    }
+
     return found;
   } else {
-    mode_t omsk = umask(0);
-    _lock = sem_open(_sn.c_str(), O_CREAT | O_EXCL, 0666, 1);
-    umask(omsk);
-    if( _lock == SEM_FAILED ) {
-      if( errno == EEXIST ) {
-        _lock = sem_open(_sn.c_str(), 0);
-      } else {
-        _lock = NULL;
-        return false;
-      }
-    }
-    
-    double elapsed_time = 0.0;
-    auto start_time = std::chrono::steady_clock::now();
-    while( sem_trywait(_lock) == -1 ) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      
-      auto current_time = std::chrono::steady_clock::now();
-      elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time).count();
-      
-      if( elapsed_time > 10000 ) {
-        std::cerr << "Failed to acquire lock within 10 s" << std::endl;
-        return false;
-      }
+    std::string lock_path = "/dev/shm/arx_" + _sn + ".lock";
+    if( !acquire_lock(lock_path) ) {
+      return false;
     }
     
     for(std::string const& dev_name: atmega::find_devices()) {
@@ -138,14 +156,14 @@ bool ATmega::open() {
         atmega::buffer cmd, resp;
         cmd.command = atmega::COMMAND_READ_SN;
         cmd.size = 0;
-        
+
         int n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
         if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
           std::string sn;
           for(int i=0; i<resp.size; i++) {
             sn.push_back((char) resp.buffer[i]);
           }
-          
+
           if( _sn.compare(sn) == 0 ) {
             found = true;
             _fd = fd;
@@ -162,9 +180,9 @@ bool ATmega::open() {
     }
     
     if( !found ) {
-      sem_post(_lock);
-      sem_close(_lock);
-      _lock = NULL;
+      flock(_lock_fd, LOCK_UN);
+      ::close(_lock_fd);
+      _lock_fd = -1;
     }
   }
   
