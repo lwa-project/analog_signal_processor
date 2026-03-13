@@ -52,7 +52,9 @@ std::list<std::string> list_atmegas() {
 }
 
 bool ATmega::acquire_lock(const std::string& lock_path) {
+  mode_t omsk = umask(0);
   _lock_fd = ::open(lock_path.c_str(), O_RDWR | O_CREAT, 0666);
+  umask(omsk);
   if( _lock_fd < 0 ) {
     return false;
   }
