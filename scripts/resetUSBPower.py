@@ -7,7 +7,7 @@ import argparse
 import serial
 import serial.tools.list_ports
 
-ESPRESSIF_VID = 0x303A
+SEEED_VID = 0x2886
 BAUD = 9600
 TIMEOUT = 2.0
 VERSION_MARKER = "Compiled"
@@ -20,24 +20,30 @@ def candidate_ports():
         if sys.platform == "darwin" and info.device.startswith("/dev/tty."):
             continue
         if info.vid is not None:
-            if info.vid == ESPRESSIF_VID:
+            if info.vid == SEEED_VID:
                 candidates.append(info.device)
         elif "usbmodem" in info.device.lower():
             candidates.append(info.device)
     return sorted(candidates)
 
 
-def send_command(ser, cmd):
-    ser.write((cmd.strip() + "\n").encode("ascii"))
-    ser.flush()
-    deadline = time.time() + TIMEOUT
-    lines = []
-    while time.time() < deadline:
-        line = ser.readline().decode("ascii", errors="replace").strip()
-        if line:
-            lines.append(line)
-            deadline = time.time() + 0.5
-    return "\n".join(lines)
+def send_command(ser, cmd, retries=1, retry_sleep=TIMEOUT):
+    for attempt in range(retries):
+        ser.write((cmd.strip() + "\n").encode("ascii"))
+        ser.flush()
+        deadline = time.time() + TIMEOUT
+        lines = []
+        while time.time() < deadline:
+            line = ser.readline().decode("ascii", errors="replace").strip()
+            if line:
+                lines.append(line)
+                deadline = time.time() + 0.5
+        if lines:
+            return "\n".join(lines)
+        ser.reset_input_buffer()
+        if attempt < retries - 1:
+            time.sleep(retry_sleep)
+    return ""
 
 
 def find_device():
@@ -46,13 +52,9 @@ def find_device():
             with serial.Serial(port, BAUD, timeout=TIMEOUT) as ser:
                 time.sleep(0.3)
                 ser.reset_input_buffer()
-                ser.write(b"VERSION\n")
-                ser.flush()
-                deadline = time.time() + TIMEOUT
-                while time.time() < deadline:
-                    line = ser.readline().decode("ascii", errors="replace").strip()
-                    if VERSION_MARKER in line:
-                        return port
+                response = send_command(ser, "VERSION")
+                if VERSION_MARKER in response:
+                    return port
         except (serial.SerialException, OSError):
             continue
     return None
