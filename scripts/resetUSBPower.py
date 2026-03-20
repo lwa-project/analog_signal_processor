@@ -3,6 +3,7 @@
 import sys
 import time
 import argparse
+import subprocess
 
 import serial
 import serial.tools.list_ports
@@ -13,11 +14,32 @@ TIMEOUT = 2.0
 VERSION_MARKER = "Compiled"
 
 
+def arx_device_ports():
+    arx_ports = set()
+    try:
+        output = subprocess.check_output(["listATmegaSN"],
+                                         stderr=subprocess.DEVNULL,
+                                         text=True, timeout=30)
+        for line in output.splitlines():
+            # Output lines look like: "Found XXX at XXX"
+            parts = line.split(" at ", 1)
+            if len(parts) == 2:
+                port = parts[1].strip()
+                if port:
+                    arx_ports.add(port)
+    except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.CalledProcessError):
+        pass
+    return arx_ports
+
+
 def candidate_ports():
+    exclude = arx_device_ports()
     candidates = []
     for info in serial.tools.list_ports.comports():
         # On macOS skip /dev/tty.* to avoid blocking on open
         if sys.platform == "darwin" and info.device.startswith("/dev/tty."):
+            continue
+        if info.device in exclude:
             continue
         if info.vid is not None:
             if info.vid == SEEED_VID:
