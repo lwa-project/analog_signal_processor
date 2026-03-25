@@ -178,6 +178,15 @@ class MCSCommunicate(Communicate):
                         packed_data = self.SubSystemInstance.currentState['lastLog']
                         
                     self.logger.debug('%s = exited with status %s', data, str(status))
+                ## Analog gain state - all FEE current draws in mA
+                elif data[:13] == 'FEEPOLCUR_ALL':
+                    status, currents = self.SubSystemInstance.getAllFEECurrentDraws()
+                    if status:
+                        packed_data = struct.pack(f">{len(currents)}h", *[int(round(c*1e3)) for c in currents])
+                    else:
+                        packed_data = self.SubSystemInstance.currentState['lastLog']
+                        
+                    self.logger.debug('%s = exited with status %s', data, str(status))
                 ## Analog gain state - RMS RF power into a 50 Ohm load in uW
                 elif data[0:6] == 'RFPWR_':
                     stand = int(data[6:])

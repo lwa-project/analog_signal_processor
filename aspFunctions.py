@@ -851,6 +851,23 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
             return False, ()
             
+    def getAllFEECurrentDraws(self):
+        """
+        Return all FEE current draws as a two-element tuple (success, values) where
+        success is a boolean related to if the current values were  found.  See the currentState['lastLog'] entry for the reason for failure if the 
+        returned success value is False.
+        """
+        
+        if self.currentState['chassisThreads'] is None:
+            self.currentState['lastLog'] = 'FEEPOLCUR: Monitoring processes are not running'
+            return False, ()
+            
+        fees = self.currentState['chassisThreads'][0].getAllFEECurrents()
+        if fees:
+            return True, tuple(fees)
+        else:
+            return False, ()
+            
     def getRFPower(self, stand):
         """
         Returns the RF power into a 50 ohm load (pol 1, pol 2) for a given stand as a two-
