@@ -450,7 +450,17 @@ class ChassisStatus(object):
             return self.fee_currents[2*(stand-1):2*(stand-1)+2]
         except IndexError:
             return (None, None)
-            
+
+    def getAllFEECurrents(self):
+        """
+        Convenience function to get all FEE current draws in amps in one go.
+        """
+
+        try:
+            return self.fee_currents
+        except IndexError:
+            return None
+
     def getRFPower(self, stand):
         """
         Convenience function to get the RF power from the square law detector in
