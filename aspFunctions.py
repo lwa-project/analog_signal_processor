@@ -835,7 +835,7 @@ class AnalogProcessor(object):
     def getFEECurrentDraw(self, stand):
         """
         Return the FEE current draw (pol 1, pol 2) for a given stand as a two-element tuple 
-        (success, values) where success is a boolean related to if the attenuator values were 
+        (success, values) where success is a boolean related to if the current values were 
         found.  See the currentState['lastLog'] entry for the reason for failure if the 
         returned success value is False.
         """

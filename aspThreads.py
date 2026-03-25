@@ -619,7 +619,7 @@ class ChassisStatus(object):
             
     def getFEECurrent(self, stand):
         """
-        Convenience function to get the current draw of a FEE in amps.
+        Convenience function to get the current draw of a FEE in mA.
         """
         
         try:
@@ -629,7 +629,7 @@ class ChassisStatus(object):
             
     def getAllFEECurrents(self):
         """
-        Convenience function to get all FEE current draws in amps in one go.
+        Convenience function to get all FEE current draws in mA in one go.
         """
         
         try:

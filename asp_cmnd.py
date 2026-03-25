@@ -173,7 +173,7 @@ class MCSCommunicate(Communicate):
                     
                     status, current = self.SubSystemInstance.getFEECurrentDraw(stand)
                     if status:
-                        packed_data = "%.1f" % (current[pol]*1e3,)
+                        packed_data = "%.1f" % (current[pol],)
                     else:
                         packed_data = self.SubSystemInstance.currentState['lastLog']
                         
@@ -182,7 +182,7 @@ class MCSCommunicate(Communicate):
                 elif data[:13] == 'FEEPOLCUR_ALL':
                     status, currents = self.SubSystemInstance.getAllFEECurrentDraws()
                     if status:
-                        packed_data = struct.pack(f">{len(currents)}h", *[int(round(c*1e3)) for c in currents])
+                        packed_data = struct.pack(f">{len(currents)}h", *[int(round(c)) for c in currents])
                     else:
                         packed_data = self.SubSystemInstance.currentState['lastLog']
                         
