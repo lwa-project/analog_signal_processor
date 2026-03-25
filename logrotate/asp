@@ -17,7 +17,7 @@
 }
 
 # Keep three weeks worth of FEE current logs
-/data/fee-current.txt {
+/data/fee-power.txt {
         daily
         rotate 21
         compress
