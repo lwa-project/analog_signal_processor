@@ -124,12 +124,15 @@ FEE power state and current draw information is available via the MIB entries li
         \mib{FEEPOL2PWR\_\{n\}} & FEE power state for stand \{n\}, pol.\ 2 (``ON '' or ``OFF'') \\
         \mib{FEEPOL1CUR\_\{n\}} & FEE current draw for stand \{n\}, pol.\ 1 (mA) \\
         \mib{FEEPOL2CUR\_\{n\}} & FEE current draw for stand \{n\}, pol.\ 2 (mA) \\
+        \mib{FEEPOLCUR\_ALL} & All FEE current draws from the most recent poll as a binary-packed array of big-endian signed 16-bit integers in mA, ordered as pol.\ 1, pol.\ 2 for each stand in sequence \\
         \bottomrule
     \end{tabular}
 \end{table}
 
 \begin{newInVersion}{I}
 The \mib{FEEPOL1CUR\_\{n\}} and \mib{FEEPOL2CUR\_\{n\}} entries are new in Version~I. They report the FEE current draw in milliamps for each stand and polarization.
+
+The \mib{FEEPOLCUR\_ALL} entry is also new in Version~I. It returns all FEE current draws from the most recent monitoring poll in a single response. The data is packed as an array of big-endian signed 16-bit integers in milliamps, with values interleaved as pol.\ 1, pol.\ 2 for each stand. A value of $-1$ indicates an error or missing data.
 \end{newInVersion}
 
 \subsection{RF Power}
