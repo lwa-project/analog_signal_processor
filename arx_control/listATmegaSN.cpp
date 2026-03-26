@@ -104,9 +104,9 @@ int main(int argc, char* argv[]) {
         std::cout << std::setprecision(3) << " at " << temp_C << " C";
       }
 
-      std::cout << std::endl;
-
     } catch(const std::exception& e) {}
+
+    std::cout << std::endl;
 
     atmega::close(fd);
   }
