@@ -208,7 +208,11 @@ atmega::handle atmega::open(std::string device_name, bool exclusive_access) {
     throw(std::runtime_error(std::string("Failed to assert RTS: ") \
                              +std::string(strerror(errno))));
   }
-  
+
+  // Discard any stale data left in the serial buffers (e.g. from a
+  // previous process that crashed mid-transaction)
+  ::tcflush(fd, TCIOFLUSH);
+
   return fd;
 }
 
@@ -218,8 +222,9 @@ ssize_t atmega::send_command(atmega::handle fd, const atmega::buffer* command, a
   ::memset(response, 0, sizeof(buffer));
   response->command = atmega::COMMAND_FAILURE;
   
-  // Empty the buffer
+  // Flush any stale data sitting in the serial buffers
   ::tcdrain(fd);
+  ::tcflush(fd, TCIOFLUSH);
   
   ssize_t nsend = 0, nrecv = 0, nbatch = 0, nleft=0;
   const char *start = "<<<";
