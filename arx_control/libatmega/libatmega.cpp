@@ -4,9 +4,9 @@
 #include <thread>
 #include <sys/select.h>
 
-std::list<std::string> atmega::find_devices() {
-  std::list<std::string> devices;
-  
+std::list<atmega::device_info> atmega::find_devices() {
+  std::list<atmega::device_info> devices;
+
 #if defined(__APPLE__) && __APPLE__
   CFMutableDictionaryRef matchingDict;
   io_iterator_t uiter;
@@ -17,12 +17,12 @@ std::list<std::string> atmega::find_devices() {
   if( matchingDict == nullptr ) {
       return devices;
   }
-  
+
   kr = IOServiceGetMatchingServices(kIOMainPortDefault, matchingDict, &uiter);
   if( kr != KERN_SUCCESS ) {
       return devices;
   }
-  
+
   while( (udevice = IOIteratorNext(uiter)) ) {
     uint8_t match = 0;
     char *dev_path;
@@ -37,7 +37,7 @@ std::list<std::string> atmega::find_devices() {
     if( devpathRef ) {
       dev_path = (char*) CFStringGetCStringPtr(devpathRef, kCFStringEncodingUTF8);
     }
-    
+
     CFNumberRef vendorRef = (CFNumberRef) IORegistryEntrySearchCFProperty(udevice,
                                                                           kIOServicePlane,
                                                                           CFSTR(kUSBVendorID),
@@ -47,12 +47,12 @@ std::list<std::string> atmega::find_devices() {
     if( vendorRef ) {
         CFNumberGetValue(vendorRef, kCFNumberSInt16Type, &vendor_id);
         CFRelease(vendorRef);
-        
+
         if( (vendor_id == 0x0403) || (vendor_id == 0x2341) || (vendor_id == 0x2886) ) {
           match |= 1;
         }
     }
-      
+
     CFNumberRef productRef = (CFNumberRef) IORegistryEntrySearchCFProperty(udevice,
                                                                            kIOServicePlane,
                                                                            CFSTR(kUSBProductID),
@@ -62,37 +62,50 @@ std::list<std::string> atmega::find_devices() {
     if( productRef ) {
         CFNumberGetValue(productRef, kCFNumberSInt16Type, &product_id);
         CFRelease(productRef);
-        
+
         if( (product_id == 0x6001) || (product_id == 0x0001) || (product_id == 0x802f) ) {
           match |= 2;
         }
     }
-    
+
     if( match == 3 && dev_path != nullptr ) {
-      devices.push_back(std::string(dev_path));
+      std::string usb_sn;
+      CFStringRef devsnRef = (CFStringRef) IORegistryEntrySearchCFProperty(udevice,
+                                                                            kIOServicePlane,
+                                                                            CFSTR(kUSBSerialNumberString),
+                                                                            kCFAllocatorDefault,
+                                                                            kIORegistryIterateRecursively | kIORegistryIterateParents);
+      if( devsnRef ) {
+        const char *sn_cstr = CFStringGetCStringPtr(devsnRef, kCFStringEncodingUTF8);
+        if( sn_cstr ) {
+          usb_sn = std::string(sn_cstr);
+        }
+        CFRelease(devsnRef);
+      }
+      devices.push_back(std::make_pair(std::string(dev_path), usb_sn));
     }
-    
+
     if( devpathRef ) {
       CFRelease(devpathRef);
     }
     IOObjectRelease(udevice);
   }
-  
+
   /* Done, release the iterator */
   IOObjectRelease(uiter);
-  
+
 #else
   udev *udev = udev_new();
   if( udev == nullptr ) {
     return devices;
   }
-  
+
   udev_enumerate *enumerate = udev_enumerate_new(udev);
   if( enumerate == nullptr ) {
     udev_unref(udev);
     return devices;
   }
-  
+
   udev_enumerate_add_match_subsystem(enumerate, "tty");
   udev_enumerate_add_match_property(enumerate, "ID_BUS", "usb");
   udev_enumerate_scan_devices(enumerate);
@@ -106,7 +119,7 @@ std::list<std::string> atmega::find_devices() {
     if( udevice == nullptr ) {
       continue;
     }
-    
+
     uint8_t match = 0;
     const char *vendor_id = udev_device_get_property_value(udevice, "ID_VENDOR_ID");
     const char *product_id = udev_device_get_property_value(udevice, "ID_MODEL_ID");
@@ -120,19 +133,24 @@ std::list<std::string> atmega::find_devices() {
          || (strstr(product_id, "802f") != nullptr ) ) ) {
         match |= 2;
     }
-    
+
     if( match == 3 ) {
       const char *node_path = udev_device_get_devnode(udevice);
-      devices.push_back(std::string(node_path));
+      std::string usb_sn;
+      const char *serial_short = udev_device_get_property_value(udevice, "ID_SERIAL_SHORT");
+      if( serial_short != nullptr ) {
+        usb_sn = std::string(serial_short);
+      }
+      devices.push_back(std::make_pair(std::string(node_path), usb_sn));
     }
-    
+
     udev_device_unref(udevice);
   }
-  
+
   udev_enumerate_unref(enumerate);
   udev_unref(udev);
 #endif
-  
+
   return devices;
 }
 

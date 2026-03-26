@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <list>
+#include <utility>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -36,7 +37,10 @@
 namespace atmega {
   // Device file handle
   typedef int handle;
-  
+
+  // Device info: (device_path, usb_serial_number)
+  typedef std::pair<std::string, std::string> device_info;
+
   // Command values
   typedef enum Command_: uint8_t {
     COMMAND_SUCCESS          = 0x00,
@@ -67,27 +71,27 @@ namespace atmega {
     COMMAND_FAILURE_TOUT     = 0xFE,
     COMMAND_FAILURE_CMD      = 0xFF
   } Command;
-  
+
   // Command/response data structure
   typedef struct __attribute__((packed)) buffer_ {
     Command  command;
     uint16_t size;    // NOTE: little endian
     uint8_t  buffer[ATMEGA_MAX_BUFFER_SIZE];
   } buffer;
-  
-  // List all devices found
-  std::list<std::string> find_devices();
-  
+
+  // List all devices found, returning (device_path, usb_serial) pairs
+  std::list<device_info> find_devices();
+
   // Open a device and get it ready for running commands
   handle open(std::string device_name, bool exclusive_access=true);
-  
+
   // Send a command, return the number of bytes received
-  ssize_t send_command(handle fd, const buffer* command, buffer* response, 
+  ssize_t send_command(handle fd, const buffer* command, buffer* response,
                        int max_retry=0, int retry_wait_ms=50);
-  
+
   // Decode a response error message
   std::string strerror(uint8_t cmd);
-  
+
   // Close an open device
   void close(handle fd);
 }

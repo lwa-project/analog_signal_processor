@@ -46,29 +46,33 @@ class Buffer(ctypes.LittleEndianStructure):
                 ("buffer",  ctypes.c_char * 530)]
 
 
-def find_devices() -> List[str]:
+def find_devices() -> List[tuple]:
     """
-    Return a list of Atmega devices under /dev/ttyUSB* and /dev/ttyACM*.
+    Return a list of (device_path, usb_serial) tuples for ATmega devices
+    under /dev/ttyUSB* and /dev/ttyACM*.
     """
-    
+
     possible_devices = glob.glob('/dev/ttyUSB*')
     possible_devices.extend(glob.glob('/dev/ttyACM*'))
-    
+
     devices = []
     for dev in possible_devices:
         udev_info = subprocess.check_output(['udevadm', 'info', f"--name={dev}"])
         udev_info = udev_info.decode()
-        
+
         match = 0
+        usb_sn = ''
         for line in udev_info.split('\n'):
             if line.find('ID_VENDOR_ID=0403') != -1 or line.find('ID_VENDOR_ID=2341') != -1:
                 match |= 1
             elif line.find('ID_MODEL_ID=6001') != -1 or line.find('ID_MODEL_ID=0001') != -1:
                 match |= 2
-                
+            if 'ID_SERIAL_SHORT=' in line:
+                usb_sn = line.split('=', 1)[1].strip()
+
         if match == 3:
-            devices.append(dev)
-            
+            devices.append((dev, usb_sn))
+
     return devices
 
 

@@ -13,40 +13,11 @@
 
 std::list<std::string> list_atmegas() {
   std::list<std::string> atmega_sns;
-  
-  for(std::string const& dev_name: atmega::find_devices()) {
-    int open_attempts = 0;
-    atmega::handle fd = -1;
-    while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
-      try {
-        fd = atmega::open(dev_name);
-        break;
-      } catch(const std::exception& e) {
-        open_attempts++;
-        std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
-      }
+
+  for(const auto& dev: atmega::find_devices()) {
+    if( !dev.second.empty() ) {
+      atmega_sns.push_back(dev.second);
     }
-    
-    if( fd < 0) {
-      continue;
-    }
-    
-    try {
-      atmega::buffer cmd, resp;
-      cmd.command = atmega::COMMAND_READ_SN;
-      cmd.size = 0;
-      
-      int n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
-      if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
-        std::string sn;
-        for(int i=0; i<std::min((uint16_t) 8, (uint16_t) resp.size); i++) {
-          sn.push_back((char) resp.buffer[i]);
-        }
-        atmega_sns.push_back(sn);
-      }
-    } catch(const std::exception& e) {}
-    
-    atmega::close(fd);
   }
   return atmega_sns;
 }
@@ -81,113 +52,78 @@ bool ATmega::open() {
   bool found = false;
   atmega::handle fd = -1;
   int open_attempts = 0;
+
+  // Resolve the device path to open
+  std::string dev_path;
+  std::string lock_path;
   if( _sn.find("/dev") == 0 ) {
+    // Caller provided a device path directly
     struct stat sb;
     if( stat(_sn.c_str(), &sb) == -1 || !S_ISCHR(sb.st_mode) ) {
       return false;
     }
-    
-    // Derive lock file from device path, e.g. /dev/ttyUSB0 -> /dev/shm/arx_dev_ttyUSB0.lock
+    dev_path = _sn;
+
     std::string sanitized = _sn.substr(5);  // strip "/dev/"
     std::replace(sanitized.begin(), sanitized.end(), '/', '_');
-    std::string lock_path = "/dev/shm/arx_dev_" + sanitized + ".lock";
-    if( !acquire_lock(lock_path) ) {
-      return false;
-    }
-    
-    open_attempts = 0;
-    while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
-      try {
-        fd = atmega::open(_sn);
-        break;
-      } catch(const std::exception& e) {
-        open_attempts++;
-        std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
-      }
-    }
-    
-    if( fd >= 0 ) {
-      try {
-        atmega::buffer cmd, resp;
-        cmd.command = atmega::COMMAND_READ_SN;
-        cmd.size = 0;
-
-        int n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
-        if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
-          found = true;
-          _fd = fd;
-        }
-      } catch(const std::exception& e) {}
-
-      if( !found ) {
-        atmega::close(fd);
-      }
-    }
-    
-    if( !found ) {
-      flock(_lock_fd, LOCK_UN);
-      ::close(_lock_fd);
-      _lock_fd = -1;
-    }
-
-    return found;
+    lock_path = "/dev/shm/arx_dev_" + sanitized + ".lock";
   } else {
-    std::string lock_path = "/dev/shm/arx_" + _sn + ".lock";
-    if( !acquire_lock(lock_path) ) {
+    // Caller provided a serial number — look up the device path via USB
+    // serial descriptor (no device open required)
+    for(const auto& dev: atmega::find_devices()) {
+      if( dev.second == _sn ) {
+        dev_path = dev.first;
+        break;
+      }
+    }
+    if( dev_path.empty() ) {
       return false;
     }
-    
-    for(std::string const& dev_name: atmega::find_devices()) {
-      fd = -1;
-      open_attempts = 0;
-      while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
-        try {
-          fd = atmega::open(dev_name);
-          break;
-        } catch(const std::exception& e) {
-          open_attempts++;
-          std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
-        }
-      }
-      
-      if( fd < 0 ) {
-        continue;
-      }
-      
-      try {
-        atmega::buffer cmd, resp;
-        cmd.command = atmega::COMMAND_READ_SN;
-        cmd.size = 0;
 
-        int n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
-        if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
-          std::string sn;
-          for(int i=0; i<resp.size; i++) {
-            sn.push_back((char) resp.buffer[i]);
-          }
+    lock_path = "/dev/shm/arx_" + _sn + ".lock";
+  }
 
-          if( _sn.compare(sn) == 0 ) {
-            found = true;
-            _fd = fd;
-            break;
-          }
-        }
-      } catch(const std::exception& e) {}
-      
-      if( found ) {
-        break;
-      } else {
-        atmega::close(fd);
-      }
-    }
-    
-    if( !found ) {
-      flock(_lock_fd, LOCK_UN);
-      ::close(_lock_fd);
-      _lock_fd = -1;
+  // Acquire the lock before touching the device
+  if( !acquire_lock(lock_path) ) {
+    return false;
+  }
+
+  // Open the specific device
+  while( open_attempts < ATMEGA_OPEN_MAX_ATTEMPTS ) {
+    try {
+      fd = atmega::open(dev_path);
+      break;
+    } catch(const std::exception& e) {
+      open_attempts++;
+      std::this_thread::sleep_for(std::chrono::milliseconds(ATMEGA_OPEN_WAIT_MS));
     }
   }
-  
+
+  if( fd >= 0 ) {
+    // Verify the EEPROM serial number matches as a sanity check
+    try {
+      atmega::buffer cmd, resp;
+      cmd.command = atmega::COMMAND_READ_SN;
+      cmd.size = 0;
+
+      int n = atmega::send_command(fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+      if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
+        found = true;
+        _fd = fd;
+      }
+    } catch(const std::exception& e) {}
+
+    if( !found ) {
+      atmega::close(fd);
+    }
+  }
+
+  if( !found ) {
+    flock(_lock_fd, LOCK_UN);
+    ::close(_lock_fd);
+    _lock_fd = -1;
+  }
+
   return found;
 }
 
