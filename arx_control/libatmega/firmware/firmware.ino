@@ -610,15 +610,13 @@ void loop() {
     buffer[idx++] = Serial.read();
     last_char = millis();
     
-    if( !in_progress && idx > 2 ) {
+    if( idx > 2 ) {
       if( buffer[idx-3] == 60 && buffer[idx-2] == 60 && buffer[idx-1] == 60 ) {
-        // Start of a new command
+        // Start of a new command (also resets if we see <<< mid-command)
         in_progress = true;
         is_ready = false;
         idx = 0;
-      }
-    } else if( in_progress && idx > 2 ) {
-      if( buffer[idx-3] == 62 && buffer[idx-2] == 62 && buffer[idx-1] == 62 ) {
+      } else if( in_progress && buffer[idx-3] == 62 && buffer[idx-2] == 62 && buffer[idx-1] == 62 ) {
         // End of a command, mark it ready for processing
         in_progress = false;
         is_ready = true;
