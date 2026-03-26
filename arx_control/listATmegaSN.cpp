@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
   *************************/
   for(const auto& dev: atmega::find_devices()) {
     const std::string& dev_name = dev.first;
-    const std::string& usb_sn = dev.second;
+    const std::string usb_sn = dev.second.substr(0, ATMEGA_MAX_SN_LEN);
 
     if( !temps ) {
       // Fast path: just report what udev tells us, no device open needed

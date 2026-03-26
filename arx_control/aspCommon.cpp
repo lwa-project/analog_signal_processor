@@ -16,7 +16,7 @@ std::list<std::string> list_atmegas() {
 
   for(const auto& dev: atmega::find_devices()) {
     if( !dev.second.empty() ) {
-      atmega_sns.push_back(dev.second);
+      atmega_sns.push_back(dev.second.substr(0, ATMEGA_MAX_SN_LEN));
     }
   }
   return atmega_sns;
@@ -69,9 +69,11 @@ bool ATmega::open() {
     lock_path = "/dev/shm/arx_dev_" + sanitized + ".lock";
   } else {
     // Caller provided a serial number — look up the device path via USB
-    // serial descriptor (no device open required)
+    // serial descriptor (no device open required).  The USB serial may be
+    // longer than what fits in the EEPROM so compare only the first
+    // ATMEGA_MAX_SN_LEN characters.
     for(const auto& dev: atmega::find_devices()) {
-      if( dev.second == _sn ) {
+      if( dev.second.substr(0, ATMEGA_MAX_SN_LEN) == _sn ) {
         dev_path = dev.first;
         break;
       }

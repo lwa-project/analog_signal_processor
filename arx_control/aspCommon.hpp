@@ -23,6 +23,9 @@
 #define ATMEGA_OPEN_MAX_ATTEMPTS 5
 #define ATMEGA_OPEN_WAIT_MS  105
 
+// Maximum serial number length (must match MAX_SN_LEN in firmware)
+#define ATMEGA_MAX_SN_LEN 8
+
 
 // ARX board configuration
 #define STANDS_PER_BOARD 8
