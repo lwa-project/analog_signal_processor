@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 
+import json
 import sys
 import time
 import argparse
-import subprocess
 
 import serial
 import serial.tools.list_ports
+
+try:
+    import json_minify
+except ImportError:
+    json_minify = None
+
+DEFAULTS_FILENAME = '/lwa/software/defaults.json'
 
 SEEED_VID = 0x2886
 BAUD = 9600
@@ -14,32 +21,31 @@ TIMEOUT = 2.0
 VERSION_MARKER = "Compiled"
 
 
-def arx_device_ports():
-    arx_ports = set()
+def arx_serial_numbers():
+    sns = set()
     try:
-        output = subprocess.check_output(["listATmegaSN"],
-                                         stderr=subprocess.DEVNULL,
-                                         text=True, timeout=30)
-        for line in output.splitlines():
-            # Output lines look like: "Found XXX at XXX"
-            parts = line.split(" at ", 1)
-            if len(parts) == 2:
-                port = parts[1].strip()
-                if port:
-                    arx_ports.add(port)
-    except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.CalledProcessError):
+        with open(DEFAULTS_FILENAME, 'r') as fh:
+            text = fh.read()
+            if json_minify is not None:
+                text = json_minify.json_minify(text)
+            config = json.loads(text)
+        i2c_sn = config.get('sub20_i2c_mapping', '')
+        if i2c_sn:
+            sns.add(i2c_sn)
+        sns.update(config.get('sub20_antenna_mapping', {}).keys())
+    except (OSError, ValueError, KeyError):
         pass
-    return arx_ports
+    return sns
 
 
 def candidate_ports():
-    exclude = arx_device_ports()
+    exclude_sns = arx_serial_numbers()
     candidates = []
     for info in serial.tools.list_ports.comports():
         # On macOS skip /dev/tty.* to avoid blocking on open
         if sys.platform == "darwin" and info.device.startswith("/dev/tty."):
             continue
-        if info.device in exclude:
+        if info.serial_number is not None and info.serial_number[:8] in exclude_sns:
             continue
         if info.vid is not None:
             if info.vid == SEEED_VID:
