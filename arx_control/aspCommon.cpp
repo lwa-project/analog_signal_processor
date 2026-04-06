@@ -66,7 +66,11 @@ bool ATmega::open() {
 
     std::string sanitized = _sn.substr(5);  // strip "/dev/"
     std::replace(sanitized.begin(), sanitized.end(), '/', '_');
+#if defined(__APPLE__) && __APPLE__
+    lock_path = "/tmp/arx_dev_" + sanitized + ".lock";
+#else
     lock_path = "/dev/shm/arx_dev_" + sanitized + ".lock";
+#endif
   } else {
     // Caller provided a serial number — look up the device path via USB
     // serial descriptor (no device open required).  The USB serial may be
@@ -82,7 +86,11 @@ bool ATmega::open() {
       return false;
     }
 
+#if defined(__APPLE__) && __APPLE__
+    lock_path = "/tmp/arx_" + _sn + ".lock";
+#else
     lock_path = "/dev/shm/arx_" + _sn + ".lock";
+#endif
   }
 
   // Acquire the lock before touching the device

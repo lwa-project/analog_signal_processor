@@ -104,7 +104,7 @@ atmegaConfig: atmegaConfig.cpp
 	python3 setup.py build_ext --inplace
 
 install:
-	rm -f /dev/shm/sem.* /dev/shm/arx_*.lock
+	rm -f /dev/shm/sem.* /dev/shm/arx_*.lock /tmp/arx_*.lock
 	cp sendARXDevice /usr/local/bin
 	cp sendPICDevice /usr/local/bin
 	cp countBoards /usr/local/bin
