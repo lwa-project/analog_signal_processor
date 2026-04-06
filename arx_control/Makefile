@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # Main Targets
 #------------------------------------------------------------------------------
-all: LIBATMEGA sendARXDevice sendPICDevice \
+all: sendARXDevice sendPICDevice \
      countBoards countPSUs countThermometers countPICs \
      readPSU readThermometers \
      onoffPSU configPSU \
@@ -44,9 +44,15 @@ else ifeq ($(OS),Darwin)
 endif
 
 #------------------------------------------------------------------------------
+# libatmega dependencies
+#------------------------------------------------------------------------------
+LIBATMEGA_LIB := libatmega/libatmega_static.a
+LIBATMEGA_HDR := libatmega/libatmega.hpp
+
+#------------------------------------------------------------------------------
 # Common rules
 #------------------------------------------------------------------------------
-%.o: %.cpp 
+%.o: %.cpp $(LIBATMEGA_HDR)
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
 
@@ -54,51 +60,50 @@ endif
 # Target Builds
 # 
 #------------------------------------------------------------------------------
-.PHONY: LIBATMEGA
-LIBATMEGA: 
-	make -C libatmega
+$(LIBATMEGA_LIB): libatmega/libatmega.cpp $(LIBATMEGA_HDR)
+	$(MAKE) -C libatmega
 
-sendARXDevice: sendARXDevice.o aspCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+sendARXDevice: sendARXDevice.o aspCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-sendPICDevice: sendPICDevice.o aspCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
-		
-countBoards: countBoards.o aspCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+sendPICDevice: sendPICDevice.o aspCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-countPSUs: countPSUs.o aspCommon.o ivsCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+countBoards: countBoards.o aspCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-countThermometers: countThermometers.o aspCommon.o ivsCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+countPSUs: countPSUs.o aspCommon.o ivsCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-countPICs: countPICs.o aspCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+countThermometers: countThermometers.o aspCommon.o ivsCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-readPSU: readPSU.o aspCommon.o ivsCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+countPICs: countPICs.o aspCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-readThermometers: readThermometers.o aspCommon.o ivsCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+readPSU: readPSU.o aspCommon.o ivsCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-onoffPSU: onoffPSU.o aspCommon.o ivsCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+readThermometers: readThermometers.o aspCommon.o ivsCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-configPSU: configPSU.o aspCommon.o ivsCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+onoffPSU: onoffPSU.o aspCommon.o ivsCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-readARXDevice: readARXDevice.o aspCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+configPSU: configPSU.o aspCommon.o ivsCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-setATmegaSN: setATmegaSN.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+readARXDevice: readARXDevice.o aspCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-listATmegaSN: listATmegaSN.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+setATmegaSN: setATmegaSN.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-locateATmega: locateATmega.o aspCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+listATmegaSN: listATmegaSN.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
+
+locateATmega: locateATmega.o aspCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 		
 atmegaConfig: atmegaConfig.cpp
 	python3 setup.py build_ext --inplace
