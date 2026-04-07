@@ -27,8 +27,11 @@ ExecStart=/bin/bash -ec '\
 cd /lwa/software && \
 python3 asp_cmnd.py \
          --config /lwa/software/defaults.json \
-				 --log /lwa/runtime/runtime.log \
-				 --debug'
+         --log /lwa/runtime/runtime.log \
+         --debug'
+
+ExecStopPost=/bin/bash -ec '\
+rm -f /dev/shm/arx_*.lock'
 
 [Install]
 WantedBy=multi-user.target
