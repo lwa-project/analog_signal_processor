@@ -21,6 +21,17 @@ Options:
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
 
+std::string get_device_basename(const std::string& device_path) {
+  /***********************************************************
+  * Helper function to get the "ttyACM0" from "/dev/ttyACM0" *
+  * **********************************************************/
+  size_t last_psplit = device_path.find_last_of("\\/");
+  if( std::string::npos != last_psplit ) {
+    return device_path.substr(last_psplit+1);
+  }
+  return device_path;
+}
+
 
 int main(int argc, char* argv[]) {
   /*************************
@@ -33,6 +44,7 @@ int main(int argc, char* argv[]) {
   }
   
   std::string device_name = std::string(argv[1]);
+  std::string short_name = get_device_basename(device_name);
   
   /***************************************
   * Find the serial number using udevadm *
@@ -103,6 +115,7 @@ int main(int argc, char* argv[]) {
 
   udev_enumerate_add_match_subsystem(enumerate, "tty");
   udev_enumerate_add_match_property(enumerate, "ID_BUS", "usb");
+  udev_enumerate_add_match_sysname(enumerate, short_name.c_str());
   udev_enumerate_scan_devices(enumerate);
 
   udev_list_entry *udevices = udev_enumerate_get_list_entry(enumerate);
