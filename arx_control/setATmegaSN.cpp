@@ -32,7 +32,6 @@ std::string get_device_basename(const std::string& device_path) {
   return device_path;
 }
 
-
 int main(int argc, char* argv[]) {
   /*************************
   * Command line parsing   *
