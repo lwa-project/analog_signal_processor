@@ -697,7 +697,7 @@ def rs485SetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
     return success, failed, int(data, 16)
 
 
-def rs485GetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY, verbose=False):
+def rs485GetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY, threadingEvent=None, verbose=False):
     """
     Poll all of the Rev H ARX boards on the RS485 bus and return a two-element
     tuple of:
@@ -712,10 +712,22 @@ def rs485GetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
     success = True
     data = []
     for sub20SN in sorted(sub20Mapper2.keys()):
+        if threadingEvent is not None:
+            if not threadingEvent.isSet():
+                break
+                
         for board_key in sub20Mapper2[sub20SN]:
+            if threadingEvent is not None:
+                if not threadingEvent.isSet():
+                    break
+                    
             board = (int(board_key) % 126) or 126
             board_success = False
             for attempt in range(maxRetry+1):
+                if threadingEvent is not None:
+                    if not threadingEvent.isSet():
+                        break
+                        
                 try:
                     p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'GTIM'],
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -742,7 +754,7 @@ def rs485GetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
     return success, data
 
 
-def rs485Power(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
+def rs485Power(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY, threadingEvent=None):
     """
     Poll all of the ARX boards connected to the RS485 bus and return a two-
     element tuple of:
@@ -755,10 +767,22 @@ def rs485Power(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
     success = True
     fees = []
     for sub20SN in sorted(sub20Mapper2.keys()):
+        if threadingEvent is not None:
+            if not threadingEvent.isSet():
+                break
+                
         for board_key in sub20Mapper2[sub20SN]:
+            if threadingEvent is not None:
+                if not threadingEvent.isSet():
+                    break
+                    
             board = (int(board_key) % 126) or 126
             board_success = False
             for attempt in range(maxRetry+1):
+                if threadingEvent is not None:
+                    if not threadingEvent.isSet():
+                        break
+                        
                 try:
                     p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'CURA'],
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -785,7 +809,7 @@ def rs485Power(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
     return success, fees
 
 
-def rs485RFPower(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
+def rs485RFPower(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY, threadingEvent=None):
     """
     Poll all of the ARX boards connected to the RS485 bus and return a two-
     element tuple of:
@@ -798,10 +822,22 @@ def rs485RFPower(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
     success = True
     rf_powers = []
     for sub20SN in sorted(sub20Mapper2.keys()):
+        if threadingEvent is not None:
+            if not threadingEvent.isSet():
+                break
+                
         for board_key in sub20Mapper2[sub20SN]:
+            if threadingEvent is not None:
+                if not threadingEvent.isSet():
+                    break
+                    
             board = (int(board_key) % 126) or 126
             board_success = False
             for attempt in range(maxRetry+1):
+                if threadingEvent is not None:
+                    if not threadingEvent.isSet():
+                        break
+                        
                 try:
                     p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'POWA'],
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -828,7 +864,7 @@ def rs485RFPower(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
     return success, rf_powers
 
 
-def rs485Temperature(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY):
+def rs485Temperature(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY, threadingEvent=None):
     """
     Poll all of the Rev H ARX boards connected to the RS485 bus and return a
     two-element tuple of:
@@ -841,10 +877,22 @@ def rs485Temperature(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS48
     success = True
     temps = []
     for sub20SN in sorted(sub20Mapper2.keys()):
+        if threadingEvent is not None:
+            if not threadingEvent.isSet():
+                break
+                
         for board_key in sub20Mapper2[sub20SN]:
+            if threadingEvent is not None:
+                if not threadingEvent.isSet():
+                    break
+                    
             board = (int(board_key) % 126) or 126
             board_success = False
             for attempt in range(maxRetry+1):
+                if threadingEvent is not None:
+                    if not threadingEvent.isSet():
+                        break
+                        
                 try:
                     p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'OWTE'],
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,

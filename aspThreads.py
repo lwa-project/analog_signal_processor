@@ -559,7 +559,8 @@ class ChassisStatus(object):
                         except Exception as e:
                             aspThreadsLogger.error("%s: monitorThread failed to update board temperature log - %s", type(self).__name__, str(e))
                             
-                    status, fees = rs485Power(self.rs485_mapping, maxRetry=MAX_RS485_RETRY)
+                    status, fees = rs485Power(self.rs485_mapping, maxRetry=MAX_RS485_RETRY,
+                                              threadingEvent=self.alive)
                         
                     if status:
                         self.fee_currents = fees
@@ -573,7 +574,8 @@ class ChassisStatus(object):
                             aspThreadsLogger.error("%s: monitorThread failed to update FEE power log - %s", type(self).__name__, str(e))
                             
                     if self.poll_rf_power:
-                        status, powers = rs485RFPower(self.rs485_mapping, maxRetry=MAX_RS485_RETRY)
+                        status, powers = rs485RFPower(self.rs485_mapping, maxRetry=MAX_RS485_RETRY,
+                                                      threadingEvent=self.alive)
                             
                         if status:
                             self.rf_powers = powers
