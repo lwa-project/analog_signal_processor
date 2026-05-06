@@ -115,7 +115,7 @@ class AnalogProcessor(object):
         else:
             return self.currentState['config'][2*(stand-1)+0:2*(stand-1)+2]
             
-    def ini(self, nBoards, config=None):
+    def ini(self, config=None):
         """
         Initialize ASP (in a seperate thread).
         """
@@ -126,29 +126,26 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'INI: %s - %s is active and blocking' % (commandExitCodes[0x08], self.currentState['activeProcess'])
             return False, 0x08
             
-        # Check to see if there is a valid number of boards
-        if nBoards < 0 or nBoards > self.config['max_boards']:
-            aspFunctionsLogger.warning("INI command rejected due to invalid board count")
-            self.currentState['lastLog'] = 'INI: %s' % commandExitCodes[0x01]
-            return False, 0x01
-            
         # Update the configuration
         self.updateConfig(config=config)
         
         # Start the process in the background
-        thread = threading.Thread(target=self.__iniProcess, args=(nBoards,))
+        thread = threading.Thread(target=self.__iniProcess)
         thread.setDaemon(1)
         thread.start()
         
         return True, 0
         
-    def __iniProcess(self, nBoards):
+    def __iniProcess(self):
         """
         Thread base to initialize ASP.  Update the current system state as needed.
         """
         
         # Start the timer
         tStart = time.time()
+        
+        # Figure out the number of boards to expect
+        nBoards = len(list(self.config['antenna_mapping'].keys()))
         
         # Update system state
         self.currentState['ready'] = False

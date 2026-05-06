@@ -349,8 +349,7 @@ class MCSCommunicate(Communicate):
                 self.SubSystemInstance.updateConfig(config)
                 
                 # Go
-                nBoards = int(data)
-                status, exitCode = self.SubSystemInstance.ini(nBoards)
+                status, exitCode = self.SubSystemInstance.ini()
                 if status:
                     packed_data = ''
                 else:
