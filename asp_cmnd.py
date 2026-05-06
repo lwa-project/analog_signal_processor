@@ -33,7 +33,7 @@ from MCS import *
 from aspFunctions import  AnalogProcessor
 
 
-__version__ = '0.4'
+__version__ = '0.5'
 __all__ = ['DEFAULTS_FILENAME', 'MCSCommunicate']
 
 
