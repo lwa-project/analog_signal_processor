@@ -148,7 +148,7 @@ class TemperatureSensors(object):
                 # Make sure we aren't critical (on either side of good)
                 if self.ASPCallbackInstance is not None and self.temp is not None:
                     if missingSUB20:
-                        self.ASPCallbackInstance.processMissingSUB20()
+                        self.ASPCallbackInstance.processMissingCommBoard()
                         
                     if self.hotCount >= 3:
                         aspThreadsLogger.critical('%s: monitorThread max. temperature is %.1f C, notifying the system', type(self).__name__, max(self.temp))
@@ -361,7 +361,7 @@ class PowerStatus(object):
                 # or under voltage; or has a module fault
                 if self.ASPCallbackInstance is not None:
                     if missingSUB20:
-                        self.ASPCallbackInstance.processMissingSUB20()
+                        self.ASPCallbackInstance.processMissingCommBoard()
                         
                     for modeOfFailure in ('OverTemperature', 'OverCurrent', 'OverVolt', 'UnderVolt', 'ModuleFault'):
                         if self.status.find(modeOfFailure) != -1:
@@ -532,7 +532,7 @@ class ChassisStatus(object):
                     else:
                         self.configured = False
                         
-                        aspThreadsLogger.error("%s: SUB-20 S/N %s lost SPI port configuation", type(self).__name__, self.sub20SN)
+                        aspThreadsLogger.error("%s: communication board S/N %s lost SPI port configuation", type(self).__name__, self.sub20SN)
                 else:
                     missingSUB20 = True
                     
@@ -540,7 +540,7 @@ class ChassisStatus(object):
                     
                 if self.ASPCallbackInstance is not None:
                     if missingSUB20:
-                        self.ASPCallbackInstance.processMissingSUB20()
+                        self.ASPCallbackInstance.processMissingCommBoard()
                         
                     if not self.configured:
                         self.ASPCallbackInstance.processUnconfiguredChassis(self.sub20SN)
@@ -580,7 +580,7 @@ class ChassisStatus(object):
                             
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                aspThreadsLogger.error("%s: monitorThread SUB-20 S/N %s failed with: %s at line %i", type(self).__name__, self.sub20SN, str(e), exc_traceback.tb_lineno)
+                aspThreadsLogger.error("%s: monitorThread communication board S/N %s failed with: %s at line %i", type(self).__name__, self.sub20SN, str(e), exc_traceback.tb_lineno)
                 
                 ## Grab the full traceback and save it to a string via StringIO
                 fileObject = StringIO()
@@ -598,7 +598,7 @@ class ChassisStatus(object):
             
             # Stop time
             tStop = time.time()
-            aspThreadsLogger.debug('Finished updating chassis status for SUB-20 S/N %s in %.3f seconds', self.sub20SN, tStop - tStart)
+            aspThreadsLogger.debug('Finished updating chassis status for communication board S/N %s in %.3f seconds', self.sub20SN, tStop - tStart)
             
             # Sleep for a bit
             sleepCount = 0

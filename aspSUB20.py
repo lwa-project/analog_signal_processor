@@ -191,6 +191,9 @@ class SPIProcessingThread(object):
             self.alive.clear()
             self.thread.join()
             
+        for sub20SN in sorted(self._sub20Mapper):
+            self._queue[sub20SN].clear()
+            
     @staticmethod
     def _run_command(sub20SN, device_count, devices, spi_commands, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
         command = ["/usr/local/bin/sendARXDevice", str(sub20SN), str(device_count)]

@@ -149,7 +149,7 @@ class AnalogProcessor(object):
         
         return self.currentState
         
-    def ini(self, nBoards, config=None):
+    def ini(self, config=None):
         """
         Initialize ASP (in a seperate thread).
         """
@@ -160,23 +160,17 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'INI: %s - %s is active and blocking' % (commandExitCodes[0x08], self.currentState['activeProcess'])
             return False, 0x08
             
-        # Check to see if there is a valid number of boards
-        if nBoards < 0 or nBoards > self.config['max_boards']:
-            aspFunctionsLogger.warning("INI command rejected due to invalid board count")
-            self.currentState['lastLog'] = 'INI: %s' % commandExitCodes[0x01]
-            return False, 0x01
-            
         # Update the configuration
         self.updateConfig(config=config)
         
         # Start the process in the background
-        thread = threading.Thread(target=self.__iniProcess, args=(nBoards,))
+        thread = threading.Thread(target=self.__iniProcess)
         thread.setDaemon(1)
         thread.start()
         
         return True, 0
         
-    def __iniProcess(self, nBoards):
+    def __iniProcess(self):
         """
         Thread base to initialize ASP.  Update the current system state as needed.
         """
@@ -184,13 +178,56 @@ class AnalogProcessor(object):
         # Start the timer
         tStart = time.time()
         
+        # Get the number of boards from the config file
+        nBoards = 0
+        for sub20SN in self.config['sub20_antenna_mapping']:
+            astart, astop = self.config['sub20_antenna_mapping'][sub20SN]
+            nBoards += (astop - astart + 1)
+            
         # Update system state
         self.currentState['ready'] = False
         self.currentState['status'] = 'BOOTING'
         self.currentState['info'] = 'Running INI sequence'
         self.currentState['activeProcess'].append('INI')
         
-        # Make sure the SUB-20 is present
+        # Stop all threads.  If the don't exist yet, create them.
+        if self.currentState['spiThread'] is not None:
+            self.currentState['spiThread'].stop()
+        else:
+            self.currentState['spiThread']= SPIProcessingThread(self.config['sub20_antenna_mapping'],
+                                                                maxRetry=self.config['max_spi_retry'],
+                                                                waitRetry=self.config['wait_spi_retry'])
+        if self.currentState['powerThreads'] is not None:
+            for t in self.currentState['powerThreads']:
+                t.stop()
+                t.updateConfig(self.config)
+        else:
+            self.currentState['powerThreads'] = []
+            self.currentState['powerThreads'].append( PowerStatus(self.config['sub20_i2c_mapping'], self.config['arx_ps_address'], self.config, ASPCallbackInstance=self) )
+            self.currentState['powerThreads'].append( PowerStatus(self.config['sub20_i2c_mapping'], self.config['fee_ps_address'], self.config, ASPCallbackInstance=self) )
+        if self.currentState['tempThread'] is not None:
+            self.currentState['tempThread'].stop()
+            self.currentState['tempThread'].updateConfig(self.config)
+        else:
+            self.currentState['tempThread'] = TemperatureSensors(self.config['sub20_i2c_mapping'], self.config, ASPCallbackInstance=self)
+        if self.currentState['chassisThreads'] is not None:
+            for t in self.currentState['chassisThreads']:
+                t.stop()
+                t.updateConfig(self.config)
+        else:
+            self.currentState['chassisThreads'] = []
+            self.currentState['chassisThreads'].append( ChassisStatus(self.config['sub20_i2c_mapping'], self.config, ASPCallbackInstance=self) )
+            
+        # Update the analog signal chain state
+        for i in range(1, self.num_stands+1):
+            self.currentState['power1'][i] = 0
+            self.currentState['power2'][i] = 0
+            self.currentState['filter'][i] = 0
+            self.currentState['at1'][i] = 30
+            self.currentState['at2'][i] = 30
+            self.currentState['at3'][i] = 15.5
+            
+        # Make sure the communication board is present
         if os.system('lsusb -d 2886: >/dev/null') == 0:
             # Good, we can continue
             
@@ -225,44 +262,7 @@ class AnalogProcessor(object):
                     self.num_stands = self.config['max_stands']
                 self.num_chpairs = nBoards * self.config['stands_per_board']
                 aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
-                    
-                # Stop all threads.  If the don't exist yet, create them.
-                if self.currentState['spiThread'] is not None:
-                    self.currentState['spiThread'].stop()
-                else:
-                    self.currentState['spiThread']= SPIProcessingThread(self.config['sub20_antenna_mapping'],
-                                                                        maxRetry=self.config['max_spi_retry'],
-                                                                        waitRetry=self.config['wait_spi_retry'])
-                if self.currentState['powerThreads'] is not None:
-                    for t in self.currentState['powerThreads']:
-                        t.stop()
-                        t.updateConfig(self.config)
-                else:
-                    self.currentState['powerThreads'] = []
-                    self.currentState['powerThreads'].append( PowerStatus(self.config['sub20_i2c_mapping'], self.config['arx_ps_address'], self.config, ASPCallbackInstance=self) )
-                    self.currentState['powerThreads'].append( PowerStatus(self.config['sub20_i2c_mapping'], self.config['fee_ps_address'], self.config, ASPCallbackInstance=self) )
-                if self.currentState['tempThread'] is not None:
-                    self.currentState['tempThread'].stop()
-                    self.currentState['tempThread'].updateConfig(self.config)
-                else:
-                    self.currentState['tempThread'] = TemperatureSensors(self.config['sub20_i2c_mapping'], self.config, ASPCallbackInstance=self)
-                if self.currentState['chassisThreads'] is not None:
-                    for t in self.currentState['chassisThreads']:
-                        t.stop()
-                        t.updateConfig(self.config)
-                else:
-                    self.currentState['chassisThreads'] = []
-                    self.currentState['chassisThreads'].append( ChassisStatus(self.config['sub20_i2c_mapping'], self.config, ASPCallbackInstance=self) )
-                    
-                # Update the analog signal chain state
-                for i in range(1, self.num_stands+1):
-                    self.currentState['power1'][i] = 0
-                    self.currentState['power2'][i] = 0
-                    self.currentState['filter'][i] = 0
-                    self.currentState['at1'][i] = 30
-                    self.currentState['at2'][i] = 30
-                    self.currentState['at3'][i] = 15.5
-                    
+                
                 # Start the SPI command processor
                 self.currentState['spiThread'].start()
                 
@@ -305,13 +305,13 @@ class AnalogProcessor(object):
                 aspFunctionsLogger.critical("INI failed; found %i boards on SPI; %i on RS485, expected %i on both", boardsFound, boardsFound2, nBoards)
                 
         else:
-            # Oops, the SUB-20 is missing...
+            # Oops, the communication board is missing...
             self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - SUB-20 device not found' % (0x07, subsystemErrorCodes[0x07])
+            self.currentState['info'] = 'SUMMARY! 0x%02X %s - communication board not found' % (0x07, subsystemErrorCodes[0x07])
             self.currentState['lastLog'] = 'INI: finished with error'
             self.currentState['ready'] = False
             
-            aspFunctionsLogger.critical("INI failed due to missing SUB-20 device(s)")
+            aspFunctionsLogger.critical("INI failed due to missing communication board(s)")
         
         # Update the current state
         aspFunctionsLogger.info("Finished the INI process in %.3f s", time.time() - tStart)
@@ -1287,9 +1287,9 @@ class AnalogProcessor(object):
                     
         return True
         
-    def processMissingSUB20(self):
+    def processMissingCommBoard(self):
         """
-        Function to put the system into ERROR if the SUB-20 is missing or dead.
+        Function to put the system into ERROR if the communication board is missing or dead.
         """
         
         # Try it out
@@ -1298,12 +1298,12 @@ class AnalogProcessor(object):
             return False
             
         else:
-            # Yep, the SUB-20 is gone
-            aspFunctionsLogger.critical('SUB-20 has disappeared from the list of USB devices')
+            # Yep, the communication board is gone
+            aspFunctionsLogger.critical('communication board has disappeared from the list of USB devices')
             
             self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - SUB-20 device not found' % (0x07, subsystemErrorCodes[0x07])
-            self.currentState['lastLog'] = 'SUB-20 device has disappeared'
+            self.currentState['info'] = 'SUMMARY! 0x%02X %s - communication board not found' % (0x07, subsystemErrorCodes[0x07])
+            self.currentState['lastLog'] = 'communication board has disappeared'
             self.currentState['ready'] = False
             
         return True
