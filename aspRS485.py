@@ -308,7 +308,7 @@ def rs485SetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2, verbose=Fa
     return success, failed, int(data, 16)
 
 
-def rs485GetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2, verbose=False):
+def rs485GetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2, threadingEvent=None, verbose=False):
     """
     Poll all of the Rev H ARX boards on the RS485 bus and return a two-element
     tuple of:
@@ -321,9 +321,17 @@ def rs485GetTime(portName, antennaMapping, maxRetry=0, waitRetry=0.2, verbose=Fa
     success = True
     data = []
     for board_key in antennaMapping.keys():
+        if threadingEvent is not None:
+            if not threadingEvent.isSet():
+                break
+                
         board = int(board_key)
         board_success = False
         for attempt in range(maxRetry+1):
+            if threadingEvent is not None:
+                if not threadingEvent.isSet():
+                    break
+                    
             try:
                 gtim_data = _send_command(portName, board, 'GTIM')
                 data.append(int(gtim_data, 16))
@@ -428,7 +436,7 @@ def rs485Send(stand, config, portName, antennaMapping, maxRetry=0, waitRetry=0.2
     return success
 
 
-def rs485Power(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485Power(portName, antennaMapping, maxRetry=0, waitRetry=0.2, threadingEvent=None):
     """
     Poll all of the Rev H ARX boards connected to the RS485 bus and return a
     three-element tuple of:
@@ -441,9 +449,17 @@ def rs485Power(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
     boards = []
     fees = []
     for board_key in antennaMapping.keys():
+        if threadingEvent is not None:
+            if not threadingEvent.isSet():
+                break
+                
         board = int(board_key)
         board_success = False
         for attempt in range(maxRetry+1):
+            if threadingEvent is not None:
+                if not threadingEvent.isSet():
+                    break
+                    
             try:
                 raw_board = _send_command(portName, board, 'CURB')
                 raw_board = int(raw_board, 16)
@@ -461,7 +477,7 @@ def rs485Power(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
     return success, boards, fees
 
 
-def rs485RFPower(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485RFPower(portName, antennaMapping, maxRetry=0, waitRetry=0.2, threadingEvent=None):
     """
     Poll all of the Rev H ARX boards connected to the RS485 bus and return a
     two-element tuple of:
@@ -472,9 +488,17 @@ def rs485RFPower(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
     success = True
     rf_powers = []
     for board_key in antennaMapping.keys():
+        if threadingEvent is not None:
+            if not threadingEvent.isSet():
+                break
+                
         board = int(board_key)
         board_success = False
         for attempt in range(maxRetry+1):
+            if threadingEvent is not None:
+                if not threadingEvent.isSet():
+                    break
+                    
             try:
                 raw_rf_power = _send_command(portName, board, 'POWA')
                 for i in range(16):
@@ -490,7 +514,7 @@ def rs485RFPower(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
     return success, rf_powers
 
 
-def rs485Temperature(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
+def rs485Temperature(portName, antennaMapping, maxRetry=0, waitRetry=0.2, threadingEvent=None):
     """
     Poll all of the Rev H ARX boards connected to the RS485 bus and return a
     two-element tuple of:
@@ -501,9 +525,17 @@ def rs485Temperature(portName, antennaMapping, maxRetry=0, waitRetry=0.2):
     success = True
     temps = []
     for board_key in antennaMapping.keys():
+        if threadingEvent is not None:
+            if not threadingEvent.isSet():
+                break
+                
         board = int(board_key)
         board_success = False
         for attempt in range(maxRetry+1):
+            if threadingEvent is not None:
+                if not threadingEvent.isSet():
+                    break
+                    
             try:
                 ntemp = _send_command(portName, board, 'OWDC')
                 ntemp = int(ntemp, 16)

@@ -352,7 +352,8 @@ class ChassisStatus(object):
                 self.configured, board_times = rs485GetTime(self.portName,
                                                             self.antennaMapping,
                                                             maxRetry=self.maxRetry,
-                                                            waitRetry=self.waitRetry)
+                                                            waitRetry=self.waitRetry,
+                                                            threadingEvent=self.alive)
                 failed = []
                 for i,board_time in enumerate(board_times):
                     if board_time != self.board_time:
@@ -366,7 +367,8 @@ class ChassisStatus(object):
                 status, boards, fees = rs485Power(self.portName,
                                                   self.antennaMapping,
                                                   maxRetry=self.maxRetry,
-                                                  waitRetry=self.waitRetry)
+                                                  waitRetry=self.waitRetry,
+                                                  threadingEvent=self.alive)
                 if status:
                     self.board_currents = boards
                     self.fee_currents = fees
@@ -391,7 +393,8 @@ class ChassisStatus(object):
                 status, rf_power = rs485RFPower(self.portName,
                                                 self.antennaMapping,
                                                 maxRetry=self.maxRetry,
-                                                waitRetry=self.waitRetry)
+                                                waitRetry=self.waitRetry,
+                                                threadingEvent=self.alive)
                 if status:
                     self.rf_power = rf_power
                     
