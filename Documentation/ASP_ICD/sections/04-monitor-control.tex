@@ -274,7 +274,11 @@ The \cmd{PNG} command tests connectivity with the ASP subsystem (Table~\ref{tab:
 
 \subsection{INI --- Initialize}
 
-The \cmd{INI} command initializes the ASP subsystem with the specified number of boards (Table~\ref{tab:cmd-ini}).
+The \cmd{INI} command initializes the ASP subsystem (Table~\ref{tab:cmd-ini}). The number of ARX boards is determined from the configuration file.
+
+\begin{calloutBox}{Recent Change}{orange}
+Earlier revisions of this ICD specified that \cmd{INI} took the number of ARX boards as an integer data argument. The command no longer accepts any data; the board count is now derived from the \texttt{sub20\_antenna\_mapping} entry in the configuration file.
+\end{calloutBox}
 
 \begin{table}[htbp]
     \centering
@@ -285,7 +289,7 @@ The \cmd{INI} command initializes the ASP subsystem with the specified number of
         \textbf{Field} & \textbf{Value} \\
         \midrule
         Command & \cmd{INI} \\
-        Data & Number of boards (integer) \\
+        Data & (none) \\
         Response & Status; on failure: exit code and message \\
         \bottomrule
     \end{tabular}
@@ -295,7 +299,6 @@ The \cmd{INI} command initializes the ASP subsystem with the specified number of
 
 \begin{tabular}{cl}
     \hex{00} & Process accepted without error \\
-    \hex{01} & Invalid number of ARX boards \\
     \hex{08} & Blocking operation in progress \\
 \end{tabular}
 
@@ -305,8 +308,6 @@ The initialization sequence:
     \item Turn off power supplies
     \item Wait 5 seconds
     \item Turn on power supplies
-    \item Count boards via SPI and RS-485
-    \item Verify board count matches expected
     \item Initialize SPI port configuration
     \item Start monitoring threads (power, temperature, chassis)
 \end{enumerate}
