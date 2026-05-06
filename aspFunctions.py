@@ -182,7 +182,7 @@ class AnalogProcessor(object):
         nBoards = 0
         for sub20SN in self.config['sub20_antenna_mapping']:
             astart, astop = self.config['sub20_antenna_mapping'][sub20SN]
-            nBoards += (astop - astart + 1)
+            nBoards += (astop - astart + 1) // self.config['stands_per_board']
             
         # Update system state
         self.currentState['ready'] = False
