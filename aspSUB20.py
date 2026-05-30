@@ -3,6 +3,7 @@
 Module for storing the various SUB-20 function calls
 """
 
+import os
 import re
 import time
 import random
@@ -12,8 +13,8 @@ import threading
 import subprocess
 from collections import deque
 
-__version__ = '0.7'
-__all__ = ['spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread',
+__version__ = '0.8'
+__all__ = ['resetCommBoards', 'spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread',
            'psuSend', 'psuRead', 'psuCountTemperature', 'psuTemperature',
            'rs485CountBoards', 'rs485Reset', 'rs485Sleep', 'rs485Wake', 'rs485Check',
            'rs485SetTime', 'rs485GetTime', 'rs485Power', 'rs485RFPower', 'rs485Temperature',
@@ -95,6 +96,27 @@ WAIT_I2C_RETRY = 0.25
 # RS485 control
 MAX_RS485_RETRY = 4
 WAIT_RS485_RETRY = 0.25
+
+
+def resetCommBoards(sub20Mapper):
+    """
+    Use the resetUSBPower.py script to power cycle the ARX communication board(s).
+    Returns True on sucess, False otherwise.
+    """
+    
+    script_path = os.path.dirname(os.path.abspath(__file__))
+    script_path = os.path.join(script_path, 'scripts', 'resetUSBPower.py')
+    
+    overallStatus = True
+    for sub20SN in sorted(sub20Mapper):
+        try:
+            output = subprocess.check_output([script_path], text=True)
+            if output.find('Reset complete') == -1:
+                overallStatus &= False
+        except subprocess.CalledProcessError:
+            overallStatus &= False
+            
+    return overallStatus
 
 
 def _sleep(interval, margin_percent=5):

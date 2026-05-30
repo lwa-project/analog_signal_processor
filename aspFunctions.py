@@ -149,7 +149,7 @@ class AnalogProcessor(object):
         
         return self.currentState
         
-    def ini(self, config=None):
+    def ini(self, ini_args='', config=None):
         """
         Initialize ASP (in a seperate thread).
         """
@@ -164,13 +164,13 @@ class AnalogProcessor(object):
         self.updateConfig(config=config)
         
         # Start the process in the background
-        thread = threading.Thread(target=self.__iniProcess)
+        thread = threading.Thread(target=self.__iniProcess, kwargs={'ini_args': ini_args})
         thread.setDaemon(1)
         thread.start()
         
         return True, 0
         
-    def __iniProcess(self):
+    def __iniProcess(self, ini_args=''):
         """
         Thread base to initialize ASP.  Update the current system state as needed.
         """
@@ -227,8 +227,13 @@ class AnalogProcessor(object):
             self.currentState['at2'][i] = 30
             self.currentState['at3'][i] = 15.5
             
+        # See if a comm board power cycle has been requested
+        reset_status = True
+        if ini_args.find('COMM_RESTART') != -1:
+            reset_status &= resetCommBoards(self.config['sub20_antenna_mapping'])
+            
         # Make sure the communication board is present
-        if os.system('lsusb -d 2886: >/dev/null') == 0:
+        if reset_status and os.system('lsusb -d 2886: >/dev/null') == 0:
             # Good, we can continue
             
             # Turn off the power supplies
@@ -305,14 +310,21 @@ class AnalogProcessor(object):
                 aspFunctionsLogger.critical("INI failed; found %i boards on SPI; %i on RS485, expected %i on both", boardsFound, boardsFound2, nBoards)
                 
         else:
-            # Oops, the communication board is missing...
-            self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - communication board not found' % (0x07, subsystemErrorCodes[0x07])
+            # Oops, either the reset failed or the communication board is missing...
+            if not reset_status:
+                self.currentState['status'] = 'ERROR'
+                self.currentState['info'] = 'SUMMARY! 0x%02X %s - communication board reset failed' % (0x07, subsystemErrorCodes[0x07])
+            else:
+                self.currentState['status'] = 'ERROR'
+                self.currentState['info'] = 'SUMMARY! 0x%02X %s - communication board not found' % (0x07, subsystemErrorCodes[0x07])
             self.currentState['lastLog'] = 'INI: finished with error'
             self.currentState['ready'] = False
             
-            aspFunctionsLogger.critical("INI failed due to missing communication board(s)")
-        
+            if not reset_status:
+                aspFunctionsLogger.critical("INI failed due to failed reset of communication board(s)")
+            else:
+                aspFunctionsLogger.critical("INI failed due to missing communication board(s)")
+                
         # Update the current state
         aspFunctionsLogger.info("Finished the INI process in %.3f s", time.time() - tStart)
         self.currentState['activeProcess'].remove('INI')
