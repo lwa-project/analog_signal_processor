@@ -467,15 +467,6 @@ class AnalogProcessor(object):
             self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
             self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
             
-        if filterCode > 3:
-            # Set 3 MHz mode
-            self.currentState['spiThread'].queue_command(stand, SPI_P14_on)
-            self.currentState['spiThread'].queue_command(stand, SPI_P15_off)
-        else:
-            # Set 10 MHz mode
-            self.currentState['spiThread'].queue_command(stand, SPI_P14_off)
-            self.currentState['spiThread'].queue_command(stand, SPI_P15_on)
-            
         self.currentState['lastLog'] = 'FIL: Set filter to %02i for stand %i' % (filterCode, stand)
         aspFunctionsLogger.debug('FIL - Set filter to %02i for stand %i', filterCode, stand)
         
