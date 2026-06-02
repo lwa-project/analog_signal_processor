@@ -230,6 +230,7 @@ class AnalogProcessor(object):
         # See if a comm board power cycle has been requested
         reset_status = True
         if ini_args.find('COMM_RESTART') != -1:
+            aspFunctionsLogger.info('Attempting communication board reset')
             reset_status &= resetCommBoards(self.config['sub20_antenna_mapping'])
             
         # Make sure the communication board is present

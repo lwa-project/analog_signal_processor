@@ -98,7 +98,7 @@ MAX_RS485_RETRY = 4
 WAIT_RS485_RETRY = 0.25
 
 
-def resetCommBoards(sub20Mapper):
+def resetCommBoards(sub20Mapper, maxRetry=3, waitRetry=1):
     """
     Use the resetUSBPower.py script to power cycle the ARX communication board(s).
     Returns True on sucess, False otherwise.
@@ -110,12 +110,33 @@ def resetCommBoards(sub20Mapper):
     overallStatus = True
     for sub20SN in sorted(sub20Mapper):
         try:
-            output = subprocess.check_output([script_path], text=True)
-            if output.find('Reset complete') == -1:
-                overallStatus &= False
+            if os.path.exists(f"/dev/shm/{sub20SN}.lock"):
+                subprocess.check_call(['fuser', '-k', f"/dev/shm/{sub20SN}.lock"])
+            elif os.path.exists(f"/tmp/{sub20SN}.lock"):
+                subprocess.check_call(['fuser', '-k', f"/tmp/{sub20SN}.lock"])
         except subprocess.CalledProcessError:
-            overallStatus &= False
+            pass
             
+        attempt = 0
+        status = False
+        while ((not status) and (attempt <= maxRetry)):
+            if attempt != 0:
+                _sleep(waitRetry)
+                
+            try:
+                output = subprocess.check_output([script_path], text=True)
+                if output.find('Reset complete') != -1:
+                    status = True
+                else:
+                    aspSUB20Logger.warning("%s: SUB-20 S/N %s reset %i of %i returned '%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, output)
+                attempt += 1
+                
+            except subprocess.CalledProcessError as e:
+                aspSUB20Logger.warning("%s: SUB-20 S/N %s reset %i of %i raised '%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, str(e))
+                status = False
+                
+        overallStatus &= status
+        
     return overallStatus
 
 
@@ -154,7 +175,7 @@ def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY
                 nBoards += p.returncode
                 status = True
             attempt += 1
-             
+            
         overallStatus &= status
         
     if not overallStatus:
