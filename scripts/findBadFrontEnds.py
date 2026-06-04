@@ -18,6 +18,12 @@ def main(args):
     # Load in the current data
     data = np.loadtxt(args.currents, delimiter=',')
     data = data[:,1:]   # Drop the time
+    if station.name.lower() == 'lwana':
+        ## Special catch for LWA-NA and the Rev H boards that seem to have an
+        ## extra leading column and current in A in stead of mA
+        if data.shape[1] % 16 != 0:
+            data = data[:,1:]
+        data *= 1000
     print(f"Loaded current data for {data.shape[1]} antennas spanning {data.shape[0]} polls")
     
     # Run the statistics across time
