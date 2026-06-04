@@ -17,12 +17,12 @@ def main(args):
         
     # Load in the current data
     data = np.loadtxt(args.currents, delimiter=',')
-    data = data[:,1:]   # Drop the time
+    data = data[:,1:]   # Drop the poll time
     if station.name.lower() == 'lwana':
-        ## Special catch for LWA-NA and the Rev H boards that seem to have an
-        ## extra leading column and current in A in stead of mA
-        if data.shape[1] % 16 != 0:
-            data = data[:,1:]
+        ## Special catch for LWA-NA and the Rev H boards that have:
+        ## * an extra leading column that contains the total FEE current draw and
+        ## * currents are reported in A instead of mA
+        data = data[:,1:]
         data *= 1000
     print(f"Loaded current data for {data.shape[1]} antennas spanning {data.shape[0]} polls")
     
