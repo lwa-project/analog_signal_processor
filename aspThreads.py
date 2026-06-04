@@ -108,7 +108,7 @@ class TemperatureSensors(object):
             tStart = time.time()
             
             try:
-                temps = psuTemperature(self.sub20SN)
+                temps = psuTemperature(self.sub20SN, threadingEvent=self.alive)
                 if temps:
                     missingSUB20 = False
                     
@@ -330,7 +330,7 @@ class PowerStatus(object):
             tStart = time.time()
             
             try:
-                data = psuRead(self.sub20SN, self.deviceAddress)
+                data = psuRead(self.sub20SN, self.deviceAddress, threadingEvent=self.alive)
                 if data:
                     missingSUB20 = False
                     
@@ -547,7 +547,8 @@ class ChassisStatus(object):
                         
                 ## Record the board temperatures and power consumption while we are at it
                 if self.pic_monitoring and loop_counter == 0:
-                    #status, temps = rs485Temperature(self.rs485_mapping, maxRetry=MAX_RS485_RETRY)
+                    #status, temps = rs485Temperature(self.rs485_mapping, maxRetry=MAX_RS485_RETRY,
+                    #                                 threadingEvent=self.alive)
                     status, temps = False, []
                     
                     if status:
