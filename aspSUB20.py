@@ -97,6 +97,10 @@ WAIT_I2C_RETRY = 0.25
 MAX_RS485_RETRY = 4
 WAIT_RS485_RETRY = 0.25
 
+# Stuck comm board timeout control
+COMM_BAILOUT = 60
+COMM_BAILOUT_RECHECK = 5
+
 
 def resetCommBoards(sub20Mapper, maxRetry=3, waitRetry=1):
     """
@@ -124,14 +128,14 @@ def resetCommBoards(sub20Mapper, maxRetry=3, waitRetry=1):
                 _sleep(waitRetry)
                 
             try:
-                output = subprocess.check_output([script_path], text=True)
+                output = subprocess.check_output([script_path], text=True, timeout=COMM_BAILOUT)
                 if output.find('Reset complete') != -1:
                     status = True
                 else:
                     aspSUB20Logger.warning("%s: SUB-20 S/N %s reset %i of %i returned '%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, output)
                 attempt += 1
                 
-            except subprocess.CalledProcessError as e:
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
                 aspSUB20Logger.warning("%s: SUB-20 S/N %s reset %i of %i raised '%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, str(e))
                 status = False
                 
@@ -166,8 +170,12 @@ def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY
             p = subprocess.Popen(['/usr/local/bin/countBoards', str(sub20SN)],
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                  text=True)
-            output, output2 = p.communicate()
-            
+            try:
+                output, output2 = p.communicate(timeout=COMM_BAILOUT)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                output, output2 = p.communicate(timeout=COMM_BAILOUT_RECHECK)
+                
             if p.returncode == 0:
                 aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
                 status = False
@@ -251,10 +259,10 @@ class SPIProcessingThread(object):
                 _sleep(waitRetry)
                 
             try:
-                subprocess.check_call(command)
+                subprocess.check_call(command, timeout=COMM_BAILOUT)
                 status = True
                 
-            except subprocess.CalledProcessError:
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
                 pass
             attempt += 1
             
@@ -343,7 +351,7 @@ class SPIProcessingThread(object):
                 _sleep(waitRetry)
                 
             try:
-                resp = subprocess.check_output(command, text=True)
+                resp = subprocess.check_output(command, text=True, timeout=COMM_BAILOUT)
                 for line in resp.split('\n'):
                     mtch = regRE.search(line)
                     if mtch:
@@ -352,7 +360,7 @@ class SPIProcessingThread(object):
                         data[dev] = reg
                         status = True
                         
-            except subprocess.CalledProcessError:
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
                 pass
             attempt += 1
             
@@ -405,8 +413,12 @@ def psuSend(sub20SN, psuAddress, state, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I
             p = subprocess.Popen(['/usr/local/bin/onoffPSU', str(sub20SN), '0x%02X' % psuAddress, str(state)],
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                     text=True)
-            output, output2 = p.communicate()
-            
+            try:
+                output, output2 = p.communicate(timeout=COMM_BAILOUT)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                output, output2 = p.communicate(timeout=COMM_BAILOUT_RECHECK)
+                
             if p.returncode == 0:
                 status = True
                 break
@@ -419,7 +431,7 @@ def psuSend(sub20SN, psuAddress, state, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I
     return status
 
 
-def psuRead(sub20SN, psuAddress, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY):
+def psuRead(sub20SN, psuAddress, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY, threadingEvent=None):
     """
     Read the status, voltage, and current of the power supply unit at the
     provided I2C address.
@@ -427,6 +439,10 @@ def psuRead(sub20SN, psuAddress, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETR
     
     data = {}
     for attempt in range(maxRetry+1):
+        if threadingEvent is not None:
+            if not threadingEvent.isSet():
+                break
+                
         if attempt != 0:
             _sleep(waitRetry)
             
@@ -434,8 +450,12 @@ def psuRead(sub20SN, psuAddress, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETR
             p = subprocess.Popen(['/usr/local/bin/readPSU', str(sub20SN), '0x%02X' % psuAddress],
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                  text=True)
-            output, output2 = p.communicate()
-            
+            try:
+                output, output2 = p.communicate(timeout=COMM_BAILOUT)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                output, output2 = p.communicate(timeout=COMM_BAILOUT_RECHECK)
+                
             if p.returncode == 0:
                 psu, desc, onoffHuh, statusHuh, voltageV, currentA, = output.replace('\n', '').split(None, 5)
                 data = {'address': psu,
@@ -470,8 +490,12 @@ def psuCountTemperature(sub20SN, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETR
             p = subprocess.Popen(['/usr/local/bin/countThermometers', str(sub20SN)],
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 text=True)
-            output, output2 = p.communicate()
-            
+            try:
+                output, output2 = p.communicate(timeout=COMM_BAILOUT)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                output, output2 = p.communicate(timeout=COMM_BAILOUT_RECHECK)
+                
             if p.returncode == 0:
                 aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
             else:
@@ -484,22 +508,30 @@ def psuCountTemperature(sub20SN, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETR
     return ntemp
 
 
-def psuTemperature(sub20SN, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY):
+def psuTemperature(sub20SN, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY, threadingEvent=None):
     """
     Return a list of dictionaries containing power supply unit info and temperatures.
     """
     
     temps = []
     for attempt in range(maxRetry+1):
-        if attempt == 0:
+        if threadingEvent is not None:
+            if not threadingEvent.isSet():
+                break
+                
+        if attempt != 0:
             _sleep(waitRetry)
             
         try:
             p = subprocess.Popen(['/usr/local/bin/readThermometers', str(sub20SN)],
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 text=True)
-            output, output2 = p.communicate()
-            
+            try:
+                output, output2 = p.communicate(timeout=COMM_BAILOUT)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                output, output2 = p.communicate(timeout=COMM_BAILOUT_RECHECK)
+                
             if p.returncode != 0:
                 aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
             else:
@@ -536,8 +568,12 @@ def rs485CountBoards(sub20Mapper, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485
             p = subprocess.Popen(['/usr/local/bin/countPICs', str(sub20SN)],
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                  text=True)
-            output, output2 = p.communicate()
-            
+            try:
+                output, output2 = p.communicate(timeout=COMM_BAILOUT)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                output, output2 = p.communicate(timeout=COMM_BAILOUT_RECHECK)
+                
             if p.returncode == 0:
                 aspSUB20Logger.warning("%s: SUB-20 S/N %s command %i of %i returned %i; '%s;%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, p.returncode, output, output2)
                 status = False
@@ -570,8 +606,12 @@ def rs485Reset(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                     p = subprocess.Popen(['/usr/local/bin/sendPICDevice', str(sub20SN), str(board), ' RSET'],
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                          text=True)
-                    output, output2 = p.communicate()
-                    
+                    try:
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT)
+                    except subprocess.TimeoutExpired:
+                        p.kill()
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT_RECHECK)
+                        
                     if p.returncode == 0:
                         board_success = True
                         break
@@ -607,8 +647,12 @@ def rs485Sleep(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                     p = subprocess.Popen(['/usr/local/bin/sendPICDevice', str(sub20SN), str(board), ' SLEP'],
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                          text=True)
-                    output, output2 = p.communicate()
-                    
+                    try:
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT)
+                    except subprocess.TimeoutExpired:
+                        p.kill()
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT_RECHECK)
+                        
                     if p.returncode == 0:
                         board_success = True
                         break
@@ -639,8 +683,12 @@ def rs485Wake(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETRY
                     p = subprocess.Popen(['/usr/local/bin/sendPICDevice', str(sub20SN), str(board), 'WAKE'],
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                          text=True)
-                    output, output2 = p.communicate()
-                    
+                    try:
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT)
+                    except subprocess.TimeoutExpired:
+                        p.kill()
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT_RECHECK)
+                        
                     if p.returncode == 0:
                         board_success = True
                         break
@@ -681,8 +729,12 @@ def rs485Check(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                     p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'ECHO%s' % data],
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                          text=True)
-                    output, output2 = p.communicate()
-                    
+                    try:
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT)
+                    except subprocess.TimeoutExpired:
+                        p.kill()
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT_RECHECK)
+                        
                     if p.returncode == 0 and output.find(data) != -1:
                         board_success = True
                         break
@@ -721,8 +773,12 @@ def rs485SetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
                     p = subprocess.Popen(['/usr/local/bin/sendPICDevice', str(sub20SN), str(board), ' STIM%s' % data],
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                          text=True)
-                    output, output2 = p.communicate()
-                    
+                    try:
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT)
+                    except subprocess.TimeoutExpired:
+                        p.kill()
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT_RECHECK)
+                        
                     if p.returncode == 0:
                         board_success = True
                         break
@@ -775,8 +831,12 @@ def rs485GetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
                     p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'GTIM'],
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                          text=True)
-                    output, output2 = p.communicate()
-                    
+                    try:
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT)
+                    except subprocess.TimeoutExpired:
+                        p.kill()
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT_RECHECK)
+                        
                     mtch = gtimRE.search(output)
                     if mtch is not None:
                         gtim_data = mtch.group('gtim')
@@ -830,8 +890,12 @@ def rs485Power(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                     p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'CURA'],
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                          text=True)
-                    output, output2 = p.communicate()
-                    
+                    try:
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT)
+                    except subprocess.TimeoutExpired:
+                        p.kill()
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT_RECHECK)
+                        
                     if p.returncode == 0:
                         for line in filter(lambda x: x.find(' mA') != -1, output.split('\n')):
                             mtch = curaRE.search(line)
@@ -885,8 +949,12 @@ def rs485RFPower(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
                     p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'POWA'],
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                          text=True)
-                    output, output2 = p.communicate()
-                    
+                    try:
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT)
+                    except subprocess.TimeoutExpired:
+                        p.kill()
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT_RECHECK)
+                        
                     if p.returncode == 0:
                         for line in filter(lambda x: x.find(' uW') != -1, output.split('\n')):
                             mtch = powaRE.search(line)
@@ -940,8 +1008,12 @@ def rs485Temperature(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS48
                     p = subprocess.Popen(['/usr/local/bin/sendPICDevice', '-v', '-d', str(sub20SN), str(board), 'OWTE'],
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                          text=True)
-                    output, output2 = p.communicate()
-                    
+                    try:
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT)
+                    except subprocess.TimeoutExpired:
+                        p.kill()
+                        output, output2 = p.communicate(timeout=COMM_BAILOUT_RECHECK)
+                        
                     if p.returncode == 0:
                         for line in filter(lambda x: x.find(' C') != -1, output.split('\n')):
                             mtch = owteRE.search(line)
