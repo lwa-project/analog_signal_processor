@@ -26,7 +26,7 @@ def main(args):
     
     # Find the baddies and snitch on them
     bad = np.where((mean_mA < 200) | (std_mA > 100))[0]
-    nenufar = np.where((mean_mA > 60) & (mean_mA < 70) & (std_mA < 10))[0]
+    nenufar = np.where((mean_mA > 50) & (mean_mA < 70) & (std_mA < 10))[0]
     if bad.size == 0:
         ## Will this ever be true???
         print(f"No bad front ends with mean < {args.min_mean_current} mA or std > {args.max_std_current} mA")
@@ -48,7 +48,7 @@ def main(args):
         ax.scatter(mean_mA, std_mA, marker='o', label='Good')
         if bad.size > 0:
             ax.scatter(mean_mA[bad], std_mA[bad], marker='o', label='Bad')
-        l, = ax.plot([60, 70, 70, 60, 60], [-1, -1, 10, 10, -1], color='green')
+        l, = ax.plot([50, 70, 70, 50, 50], [-1, -1, 10, 10, -1], color='green')
         if nenufar.size > 0:
             ax.scatter(mean_mA[nenufar], std_mA[nenufar], marker='o', color=l.get_color(), label='NenuFAR?')
         ax.axvline(args.min_mean_current, linestyle='--', color='black')
