@@ -70,7 +70,7 @@ class ChannelConfig():
             raw = int(raw, 16)
             
         k.narrow_hpf = (raw & 1) == 1
-        k.sig_on = ((raw >> 1) & 1) == 1
+        k.sig_on = ((raw >> 1) & 1) == (raw & 1)
         k.narrow_lpf = ((raw >> 2) & 1) == 1
         k.at1 = (((raw ^ 0xFFFF) >> 3) & 0x3F) * 0.5
         k.at2 = (((raw ^ 0xFFFF) >> 9) & 0x3F) * 0.5
@@ -86,7 +86,7 @@ class ChannelConfig():
         
         value = 0
         value |= int(self.narrow_hpf)
-        value |= (int(self.sig_on) << 1)
+        value |= (int(self.narrow_hpf ^ (not self.sig_on)) << 1)
         value |= (int(self.narrow_lpf) << 2)
         value |= (((int(round(self.at1*2)) ^ 0xFFFF) & 0x3F) << 3)
         value |= (((int(round(self.at2*2)) ^ 0xFFFF) & 0x3F) << 9)
