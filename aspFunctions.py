@@ -149,7 +149,7 @@ class AnalogProcessor(object):
         
         return self.currentState
         
-    def ini(self, ini_args='', config=None):
+    def ini(self, config=None):
         """
         Initialize ASP (in a seperate thread).
         """
@@ -164,13 +164,13 @@ class AnalogProcessor(object):
         self.updateConfig(config=config)
         
         # Start the process in the background
-        thread = threading.Thread(target=self.__iniProcess, kwargs={'ini_args': ini_args})
+        thread = threading.Thread(target=self.__iniProcess)
         thread.setDaemon(1)
         thread.start()
         
         return True, 0
         
-    def __iniProcess(self, ini_args=''):
+    def __iniProcess(self):
         """
         Thread base to initialize ASP.  Update the current system state as needed.
         """
@@ -227,14 +227,16 @@ class AnalogProcessor(object):
             self.currentState['at2'][i] = 30
             self.currentState['at3'][i] = 15.5
             
-        # See if a comm board power cycle has been requested
+        # Make sure we have a communication board to talk to.  If not, send a
+        # reset
         reset_status = True
-        if ini_args.find('COMM_RESTART') != -1:
-            aspFunctionsLogger.info('Attempting communication board reset')
+        if not probeCommBoards(self.config['sub20_antenna_mapping']):
+            aspFunctionsLogger.info('No communications board(s) found, attempting a reset')
             reset_status &= resetCommBoards(self.config['sub20_antenna_mapping'])
+            time.sleep(5)
             
-        # Make sure the communication board is present
-        if reset_status and os.system('lsusb -d 2886: >/dev/null') == 0:
+        # Check again to make sure the communication board is present
+        if reset_status and probeCommBoards(self.config['sub20_antenna_mapping']):
             # Good, we can continue
             
             # Turn off the power supplies

@@ -358,7 +358,7 @@ class MCSCommunicate(Communicate):
                 self.SubSystemInstance.updateConfig(config)
                 
                 # Go
-                status, exitCode = self.SubSystemInstance.ini(ini_args=data)
+                status, exitCode = self.SubSystemInstance.ini()
                 if status:
                     packed_data = ''
                 else:

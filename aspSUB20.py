@@ -14,8 +14,8 @@ import subprocess
 from collections import deque
 
 __version__ = '0.8'
-__all__ = ['resetCommBoards', 'spiCountBoards', 'SPICommandCallback', 'SPIProcessingThread',
-           'psuSend', 'psuRead', 'psuCountTemperature', 'psuTemperature',
+__all__ = ['probeCommBoards', 'resetCommBoards', 'spiCountBoards', 'SPICommandCallback',
+           'SPIProcessingThread', 'psuSend', 'psuRead', 'psuCountTemperature', 'psuTemperature',
            'rs485CountBoards', 'rs485Reset', 'rs485Sleep', 'rs485Wake', 'rs485Check',
            'rs485SetTime', 'rs485GetTime', 'rs485Power', 'rs485RFPower', 'rs485Temperature',
            'SPI_cfg_normal', 'SPI_cfg_shutdown', 
@@ -100,6 +100,39 @@ WAIT_RS485_RETRY = 0.25
 # Stuck comm board timeout control
 COMM_BAILOUT = 60
 COMM_BAILOUT_RECHECK = 5
+
+
+
+def probeCommBoards(sub20Mapper, maxRetry=3, waitRetry=1):
+    """
+    Use "listATmegaSN -t" to probe for working communication boards.  Return True
+    if all of the boards in `sub20Mapper` are found and working, False otherwise.
+    """
+    
+    _WORKING_RE = re.compile(r'Found (?P<sn>[0-9A-F]{8}) at (?P<dev>/.*?) at (?P<temp>[0-9]+(\.[0-9])?) C')
+    
+    attempt = 0
+    boards = []
+    while ((len(boards) == 0) and (attempt <= maxRetry)):
+        if attempt != 0:
+            _sleep(waitRetry)
+            
+        try:
+            output = subprocess.check_output(['listATmegaSN', '-t'], text=True, timeout=COMM_BAILOUT)
+            for line in output.split('\n'):
+                mtch = _WORKING_RE.search(line)
+                if mtch:
+                    aspSUB20Logger.debug("Found %s at %s with temperature %s C", mtch.group('sn'), mtch.group('dev'), mtch.group('temp'))
+                    boards.append(mtch.group('sn'))
+                    
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            aspSUB20Logger.warning("%s: SUB-20 S/N %s probe %i of %i raised '%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, str(e))
+            
+    overallStatus = True
+    for sub20SN in sorted(sub20Mapper):
+        overallStatus &= (sub20SN in boards)
+        
+    return overallStatus
 
 
 def resetCommBoards(sub20Mapper, maxRetry=3, waitRetry=1):
