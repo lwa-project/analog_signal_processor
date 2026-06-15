@@ -126,7 +126,7 @@ def probeCommBoards(sub20Mapper, maxRetry=3, waitRetry=1):
                     boards.append(mtch.group('sn'))
                     
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-            aspSUB20Logger.warning("%s: SUB-20 S/N %s probe %i of %i raised '%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, str(e))
+            aspSUB20Logger.warning("%s: listATmegaSN probe %i of %i raised '%s'", inspect.stack()[0][3], attempt, maxRetry, str(e))
             
     overallStatus = True
     for sub20SN in sorted(sub20Mapper):
