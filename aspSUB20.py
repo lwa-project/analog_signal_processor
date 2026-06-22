@@ -128,6 +128,8 @@ def probeCommBoards(sub20Mapper, maxRetry=3, waitRetry=1):
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             aspSUB20Logger.warning("%s: listATmegaSN probe %i of %i raised '%s'", inspect.stack()[0][3], attempt, maxRetry, str(e))
             
+        attempt += 1
+        
     overallStatus = True
     for sub20SN in sorted(sub20Mapper):
         overallStatus &= (sub20SN in boards)
@@ -166,12 +168,13 @@ def resetCommBoards(sub20Mapper, maxRetry=3, waitRetry=1):
                     status = True
                 else:
                     aspSUB20Logger.warning("%s: SUB-20 S/N %s reset %i of %i returned '%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, output)
-                attempt += 1
-                
+                    
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
                 aspSUB20Logger.warning("%s: SUB-20 S/N %s reset %i of %i raised '%s'", inspect.stack()[0][3], sub20SN, attempt, maxRetry, str(e))
                 status = False
                 
+            attempt += 1
+            
         overallStatus &= status
         
     return overallStatus
@@ -215,6 +218,7 @@ def spiCountBoards(sub20Mapper, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY
             else:
                 nBoards += p.returncode
                 status = True
+                
             attempt += 1
             
         overallStatus &= status
