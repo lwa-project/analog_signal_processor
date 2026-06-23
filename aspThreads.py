@@ -146,7 +146,7 @@ class TemperatureSensors(object):
                     aspThreadsLogger.warning('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
                     
                 # Make sure we aren't critical (on either side of good)
-                if self.ASPCallbackInstance is not None and self.temp is not None:
+                if self.alive.isSet() and self.ASPCallbackInstance is not None and self.temp is not None:
                     if missingSUB20:
                         self.ASPCallbackInstance.processMissingCommBoard()
                         
@@ -359,7 +359,7 @@ class PowerStatus(object):
                     
                 # Deal with power supplies that are over temperature, current, or voltage; 
                 # or under voltage; or has a module fault
-                if self.ASPCallbackInstance is not None:
+                if self.alive.isSet() and self.ASPCallbackInstance is not None:
                     if missingSUB20:
                         self.ASPCallbackInstance.processMissingCommBoard()
                         
@@ -538,7 +538,7 @@ class ChassisStatus(object):
                     
                     self.configured = False
                     
-                if self.ASPCallbackInstance is not None:
+                if self.alive.isSet() and self.ASPCallbackInstance is not None:
                     if missingSUB20:
                         self.ASPCallbackInstance.processMissingCommBoard()
                         
