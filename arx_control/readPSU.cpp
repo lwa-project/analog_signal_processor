@@ -205,7 +205,7 @@ int main(int argc, char** argv) {
           std::cout << "readPSU - get type failed" << std::endl;
           continue;
         }
-        code = (uint8_t) (wide_data & 0xFF);
+        code = (uint8_t) ((wide_data >> 24) & 0xFF);
         if( moduleName.size() > 0 ) {
           moduleName = moduleName+std::string("|");
         }
