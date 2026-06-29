@@ -37,6 +37,7 @@ Options:
 #include <cmath>
 #include <chrono>
 #include <thread>
+#include <bitset>
 
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
