@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
         * Get Temperature *
         ******************/
         
-        success = atm->read_i2c(addr, 0x8F, (char *) &data, 2);
+        success = atm->read_i2c(addr, IVS_READ_TEMP_3, (char *) &data, 2);
         if( !success ) {
           std::cerr << "readThermometers - get temperature #3 failed" << std::endl;
           continue;
@@ -99,14 +99,14 @@ int main(int argc, char** argv) {
     /**************************
     * Get System Temperatures *
     **************************/
-    success = atm->read_i2c(addr, 0x8D, (char *) &data, 2);
+    success = atm->read_i2c(addr, IVS_READ_TEMP_1, (char *) &data, 2);
     if( !success ) {
       std::cerr << "readThermometers - get temperature #1 failed" << std::endl;
       continue;
     }
     std::cout << "0x" << std::uppercase << std::hex << (int) addr << std::nouppercase << std::dec << " Case " << (data/4.0) << std::endl;
     
-    success = atm->read_i2c(addr, 0x8E, (char *) &data, 2);
+    success = atm->read_i2c(addr, IVS_READ_TEMP_2, (char *) &data, 2);
     if( !success ) {
       std::cerr << "readThermometers - get temperature #2 failed" << std::endl;
       continue;

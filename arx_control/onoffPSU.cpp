@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
     }
     
     // Toggle the power status and wait a bit for the changes to take affect
-    success = atm->write_i2c(addr, 0x01, (char *) &data, 1);
+    success = atm->write_i2c(addr, IVS_OPERATION, (char *) &data, 1);
     if( !success ) {
       std::cerr << "onoffPSU - on/off toggle failed" << std::endl;
       continue;
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
     
     // Check the power supply status
     data = 0;
-    success = atm->read_i2c(addr, 0x01, (char *) &data, 1);
+    success = atm->read_i2c(addr, IVS_OPERATION, (char *) &data, 1);
     if( !success ) {
       std::cerr << "onoffPSU - page change failed" << std::endl;
       continue;

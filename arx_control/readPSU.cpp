@@ -28,31 +28,10 @@ Options:
 std::string getModuleName(uint16_t module, uint8_t moduleCode) {
   // Decode the power rating of the current module
   std::string output = std::string("Module")+std::to_string(module);
-  switch((moduleCode >> 4 ) & 0xF) {
-    case 0: output = output+std::string("_210W");  break;
-    case 1: output = output+std::string("_360W");  break;
-    case 2: output = output+std::string("_144W");  break;
-    case 3: output = output+std::string("_600W");  break;
-    case 4: output = output+std::string("_750W");  break;
-    case 5: output = output+std::string("_1500W"); break;
-    default: output = output+std::string("_UNK");
-  }
+  output += std::string("_") + ivs_decode_module_power(moduleCode);
     
   // Decode the voltage range of the current module
-  switch(moduleCode & 0xF) {
-    case  0: output = output+std::string("_2to5.5V"); break;
-    case  1: output = output+std::string("_6to12V");  break;
-    case  2: output = output+std::string("_14to20V"); break;
-    case  3: output = output+std::string("_24to36V"); break;
-    case  4: output = output+std::string("_42to60V"); break;
-    case  5: output = output+std::string("_fixed5V"); break;
-    case  6: output = output+std::string("_2to6V");   break;
-    case  7: output = output+std::string("_12to15V"); break;
-    case  8: output = output+std::string("_24to28V"); break;
-    case  9: output = output+std::string("_24to30V"); break;
-    case 10: output = output+std::string("_33to60V"); break;
-    default: output = std::string("UNK");
-  }
+  output += std::string("_") + ivs_decode_module_voltage(moduleCode);
   
   return output;
 }
@@ -73,41 +52,42 @@ std::string getModulePower(uint8_t statusCode) {
 
 std::string getModuleStatus(uint8_t statusCode) {
   // Decode the various status and fault flags
+  ModuleStatusFlags status = statusCode;
   std::string output;
-  if( (statusCode >> 1) & 1 ) {
+  if( status.uvp_fault ) {
     output = std::string("UnderVolt");
   }
-  if( (statusCode >> 2) & 1 ) {
+  if( status.dc_ok ) {
     if( output.size() > 0 ) {
       output = output+std::string("&");
     }
     output = output+std::string("OK");
   }
-  if( (statusCode >> 3) & 1 ) {
+  if( status.ocp_fault ) {
     if( output.size() > 0 ) {
       output = output+std::string("&");
     }
     output = output+std::string("OverCurrent");
   }
-  if( (statusCode >> 4) & 1 ) {
+  if( status.otp_fault ) {
     if( output.size() > 0 ) {
       output = output+std::string("&");
     }
     output = output+std::string("OverTemperature");
   }
-  if( (statusCode >> 5) & 1 ) {
+  if( status.otp_warning ) {
     if( output.size() > 0 ) {
       output = output+std::string("&");
     }
     output = output+std::string("WarningTemperature");
   }
-  if( (statusCode >> 6) & 1 ) {
+  if( status.ovp_fault ) {
     if( output.size() > 0 ) {
       output = output+std::string("&");
     }
     output = output+std::string("OverVolt");
   }
-  if( (statusCode >> 7) & 1 ) {
+  if( status.system_fault ) {
     if( output.size() > 0 ) {
       output = output+std::string("&");
     }
@@ -188,28 +168,28 @@ int main(int argc, char** argv) {
       ***********************/
       
       #ifdef __DECODE_MODULE_TYPE__
-        uint32_t wide_data;
-        uint8_t code;
+        ModuleVersion module_ver;
         data = 0;
-        success = atm->write_i2c(addr, 0xDE, (char *) &data, 1);
+        success = atm->write_i2c(addr, IVS_EXTRACT_MOD_VER, (char *) &data, 1);
         if( !success ) {
           std::cout << "readPSU - get type failed" << std::endl;
           delete atm;
           std::exit(EXIT_FAILURE);
         }
-        
+
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        
-        success = atm->read_i2c(addr, 0xDF, (char *) &wide_data, 4);
+
+        // Read the version bytes straight into the struct so the byte members
+        // (which carry no endianness) line up with the I2C wire order
+        success = atm->read_i2c(addr, IVS_READ_MOD_VER, (char *) &module_ver, 4);
         if( !success ) {
           std::cout << "readPSU - get type failed" << std::endl;
           continue;
         }
-        code = (uint8_t) ((wide_data >> 24) & 0xFF);
         if( moduleName.size() > 0 ) {
           moduleName = moduleName+std::string("|");
         }
-        moduleName = moduleName+getModuleName(module, code);
+        moduleName = moduleName+getModuleName(module, module_ver.power_voltage);
       #else
         if( moduleName.size() > 0 ) {
           moduleName = moduleName+std::string("|");
@@ -222,7 +202,7 @@ int main(int argc, char** argv) {
       *************************/
       
       data = 0;
-      success = atm->read_i2c(addr, 0xDB, (char *) &data, 1);
+      success = atm->read_i2c(addr, IVS_MODULE_STATUS, (char *) &data, 1);
       if( !success ) {
         std::cout << "readPSU - get status failed" << std::endl;
         continue;
@@ -238,7 +218,7 @@ int main(int argc, char** argv) {
       * Output Voltage *
       *****************/
       
-      success = atm->read_i2c(addr, 0x8B, (char *) &data, 2);
+      success = atm->read_i2c(addr, IVS_READ_VOUT, (char *) &data, 2);
       if( !success ) {
         std::cout << "readPSU - get output voltage failed" << std::endl;
         continue;
@@ -250,14 +230,14 @@ int main(int argc, char** argv) {
       *****************/
       
       #ifdef __USE_INPUT_CURRENT__
-        success = atm->read_i2c(addr, 0x89, (char *) &data, 2);
+        success = atm->read_i2c(addr, IVS_READ_IIN, (char *) &data, 2);
         if( !success ) {
           std::cout << "readPSU - get input current failed" << std::endl;
           continue;
         }
         current = (float) data /100.0 * 0.95;    // Removes the ~5% power conversion loss
       #else
-        success = atm->read_i2c(addr, 0x8C, (char *) &data, 2);
+        success = atm->read_i2c(addr, IVS_READ_IOUT, (char *) &data, 2);
         if( !success ) {
           std::cout << "readPSU - get output current failed" << std::endl;
           continue;
@@ -276,7 +256,7 @@ int main(int argc, char** argv) {
     
     // Set the module number back to 0
     data = 0;
-    success = atm->write_i2c(addr, 0x00, (char *) &data, 1);
+    success = atm->write_i2c(addr, IVS_PAGE, (char *) &data, 1);
     if( !success ) {
       std::cout << "readPSU - page change failed" << std::endl;
       continue;
