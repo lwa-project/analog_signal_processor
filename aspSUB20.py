@@ -372,7 +372,7 @@ class SPIProcessingThread(object):
             time.sleep(self._pollInterval)
             
     @staticmethod
-    def _read_register(sub20SN, device_count, devices, spi_registers, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY):
+    def _read_register(sub20SN, device_count, devices, spi_registers, maxRetry=MAX_SPI_RETRY, waitRetry=WAIT_SPI_RETRY, threadingEvent=None):
         command = ["/usr/local/bin/readARXDevice", str(sub20SN), str(device_count)]
         for dev,reg in zip(devices,spi_registers):
             command.append(str(dev))
@@ -384,6 +384,10 @@ class SPIProcessingThread(object):
         status = False
         data = {}
         while ((not status) and (attempt <= maxRetry)):
+            if threadingEvent is not None:
+                if not threadingEvent.is_set():
+                    break
+                    
             if attempt != 0:
                 _sleep(waitRetry)
                 
@@ -403,7 +407,7 @@ class SPIProcessingThread(object):
             
         return data
         
-    def read_register(self, device, register):
+    def read_register(self, device, register, threadingEvent=None):
         data = {}
         
         with self._lock:
@@ -415,7 +419,7 @@ class SPIProcessingThread(object):
                     for dev in range(self._sub20Mapper[sub20SN][0], self._sub20Mapper[sub20SN][1]+1):
                         devices.append(dev - self._sub20Mapper[sub20SN][0] + 1)
                         commands.append(register)
-                    sub_data = self._read_register(sub20SN, device_count, devices, commands, maxRetry=self._maxRetry, waitRetry=self._waitRetry)
+                    sub_data = self._read_register(sub20SN, device_count, devices, commands, maxRetry=self._maxRetry, waitRetry=self._waitRetry, threadingEvent=threadingEvent)
                     data.update(sub_data)
                         
             else:
@@ -425,7 +429,7 @@ class SPIProcessingThread(object):
                     if device >= self._sub20Mapper[sub20SN][0] and device <= self._sub20Mapper[sub20SN][1]:
                         devices = [device - self._sub20Mapper[sub20SN][0] + 1,]
                         commands = [register,]
-                        sub_data = self._read_register(sub20SN, device_count, devices, commands, maxRetry=self._maxRetry, waitRetry=self._waitRetry)
+                        sub_data = self._read_register(sub20SN, device_count, devices, commands, maxRetry=self._maxRetry, waitRetry=self._waitRetry, threadingEvent=threadingEvent)
                         data.update(sub_data)
                         
         if not data:
@@ -477,7 +481,7 @@ def psuRead(sub20SN, psuAddress, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETR
     data = {}
     for attempt in range(maxRetry+1):
         if threadingEvent is not None:
-            if not threadingEvent.isSet():
+            if not threadingEvent.is_set():
                 break
                 
         if attempt != 0:
@@ -553,7 +557,7 @@ def psuTemperature(sub20SN, maxRetry=MAX_I2C_RETRY, waitRetry=WAIT_I2C_RETRY, th
     temps = []
     for attempt in range(maxRetry+1):
         if threadingEvent is not None:
-            if not threadingEvent.isSet():
+            if not threadingEvent.is_set():
                 break
                 
         if attempt != 0:
@@ -849,19 +853,19 @@ def rs485GetTime(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
     data = []
     for sub20SN in sorted(sub20Mapper2.keys()):
         if threadingEvent is not None:
-            if not threadingEvent.isSet():
+            if not threadingEvent.is_set():
                 break
                 
         for board_key in sub20Mapper2[sub20SN]:
             if threadingEvent is not None:
-                if not threadingEvent.isSet():
+                if not threadingEvent.is_set():
                     break
                     
             board = (int(board_key) % 126) or 126
             board_success = False
             for attempt in range(maxRetry+1):
                 if threadingEvent is not None:
-                    if not threadingEvent.isSet():
+                    if not threadingEvent.is_set():
                         break
                         
                 try:
@@ -908,19 +912,19 @@ def rs485Power(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
     fees = []
     for sub20SN in sorted(sub20Mapper2.keys()):
         if threadingEvent is not None:
-            if not threadingEvent.isSet():
+            if not threadingEvent.is_set():
                 break
                 
         for board_key in sub20Mapper2[sub20SN]:
             if threadingEvent is not None:
-                if not threadingEvent.isSet():
+                if not threadingEvent.is_set():
                     break
                     
             board = (int(board_key) % 126) or 126
             board_success = False
             for attempt in range(maxRetry+1):
                 if threadingEvent is not None:
-                    if not threadingEvent.isSet():
+                    if not threadingEvent.is_set():
                         break
                         
                 try:
@@ -967,19 +971,19 @@ def rs485RFPower(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
     rf_powers = []
     for sub20SN in sorted(sub20Mapper2.keys()):
         if threadingEvent is not None:
-            if not threadingEvent.isSet():
+            if not threadingEvent.is_set():
                 break
                 
         for board_key in sub20Mapper2[sub20SN]:
             if threadingEvent is not None:
-                if not threadingEvent.isSet():
+                if not threadingEvent.is_set():
                     break
                     
             board = (int(board_key) % 126) or 126
             board_success = False
             for attempt in range(maxRetry+1):
                 if threadingEvent is not None:
-                    if not threadingEvent.isSet():
+                    if not threadingEvent.is_set():
                         break
                         
                 try:
@@ -1026,19 +1030,19 @@ def rs485Temperature(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS48
     temps = []
     for sub20SN in sorted(sub20Mapper2.keys()):
         if threadingEvent is not None:
-            if not threadingEvent.isSet():
+            if not threadingEvent.is_set():
                 break
                 
         for board_key in sub20Mapper2[sub20SN]:
             if threadingEvent is not None:
-                if not threadingEvent.isSet():
+                if not threadingEvent.is_set():
                     break
                     
             board = (int(board_key) % 126) or 126
             board_success = False
             for attempt in range(maxRetry+1):
                 if threadingEvent is not None:
-                    if not threadingEvent.isSet():
+                    if not threadingEvent.is_set():
                         break
                         
                 try:

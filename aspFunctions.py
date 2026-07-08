@@ -118,6 +118,7 @@ class AnalogProcessor(object):
         self.currentState['at1']    = ASPSettingsList([30 for i in range(max_nstand)])
         self.currentState['at2']    = ASPSettingsList([30 for i in range(max_nstand)])
         self.currentState['at3']    = ASPSettingsList([15.5 for i in range(max_nstand)])
+        self.currentState['alive']  = threading.Event()
         
         ## Monitoring and background threads
         self.currentState['spiThread'] = None
@@ -191,6 +192,7 @@ class AnalogProcessor(object):
         self.currentState['activeProcess'].append('INI')
         
         # Stop all threads.  If the don't exist yet, create them.
+        self.currentState['alive'].clear()
         if self.currentState['spiThread'] is not None:
             self.currentState['spiThread'].stop()
         else:
@@ -285,6 +287,7 @@ class AnalogProcessor(object):
                 status &= self.currentState['spiThread'].process_command(0, SPI_cfg_output_P28_29_30_31)        # Set outputs
                 
                 # Start the threads
+                self.currentState['alive'].set()
                 for t in self.currentState['powerThreads']:
                     t.start()
                 self.currentState['tempThread'].start()
@@ -369,6 +372,7 @@ class AnalogProcessor(object):
         self.currentState['ready'] = False
         
         # Stop most threads.
+        self.currentState['alive'].clear()
         if self.currentState['powerThreads'] is not None:
             for t in self.currentState['powerThreads']:
                 t.stop()

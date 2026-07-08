@@ -99,16 +99,34 @@ class TemperatureSensors(object):
             self.nTemps = 0
             self.lastError = None
             
+    def is_alive(self):
+        """
+        Check the current state of the threading.Event()s that control the this
+        monitor.
+        """
+        
+        status = self.alive.is_set()
+        if self.ASPCallbackInstance is not None:
+            status &= self.ASPCallbackInstance.currentState['alive'].is_set()
+        return status
+        
+    def is_set(self):
+        """
+        Alias for is_alive() to provide a minimal threading.Event-like interface.
+        """
+        
+        return self.is_alive()
+        
     def monitorThread(self):
         """
         Create a monitoring thread for the temperature.
         """
         
-        while self.alive.isSet():
+        while self.is_alive():
             tStart = time.time()
             
             try:
-                temps = psuTemperature(self.sub20SN, threadingEvent=self.alive)
+                temps = psuTemperature(self.sub20SN, threadingEvent=self)
                 if temps:
                     missingSUB20 = False
                     
@@ -146,7 +164,7 @@ class TemperatureSensors(object):
                     aspThreadsLogger.warning('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
                     
                 # Make sure we aren't critical (on either side of good)
-                if self.alive.isSet() and self.ASPCallbackInstance is not None and self.temp is not None:
+                if self.is_alive() and self.ASPCallbackInstance is not None and self.temp is not None:
                     if missingSUB20:
                         self.ASPCallbackInstance.processMissingCommBoard()
                         
@@ -188,7 +206,7 @@ class TemperatureSensors(object):
             # Sleep for a bit
             sleepCount = 0
             sleepTime = self.monitorPeriod - (tStop - tStart)
-            while (self.alive.isSet() and sleepCount < sleepTime):
+            while (self.is_alive() and sleepCount < sleepTime):
                 time.sleep(0.2)
                 sleepCount += 0.2
                 
@@ -321,16 +339,34 @@ class PowerStatus(object):
             self.nPSUs = 0
             self.lastError = None
             
+    def is_alive(self):
+        """
+        Check the current state of the threading.Event()s that control the this
+        monitor.
+        """
+        
+        status = self.alive.is_set()
+        if self.ASPCallbackInstance is not None:
+            status &= self.ASPCallbackInstance.currentState['alive'].is_set()
+        return status
+        
+    def is_set(self):
+        """
+        Alias for is_alive() to provide a minimal threading.Event-like interface.
+        """
+        
+        return self.is_alive()
+        
     def monitorThread(self):
         """
         Create a monitoring thread for the temperature.
         """
         
-        while self.alive.isSet():
+        while self.is_alive():
             tStart = time.time()
             
             try:
-                data = psuRead(self.sub20SN, self.deviceAddress, threadingEvent=self.alive)
+                data = psuRead(self.sub20SN, self.deviceAddress, threadingEvent=self)
                 if data:
                     missingSUB20 = False
                     
@@ -359,7 +395,7 @@ class PowerStatus(object):
                     
                 # Deal with power supplies that are over temperature, current, or voltage; 
                 # or under voltage; or has a module fault
-                if self.alive.isSet() and self.ASPCallbackInstance is not None:
+                if self.is_alive() and self.ASPCallbackInstance is not None:
                     if missingSUB20:
                         self.ASPCallbackInstance.processMissingCommBoard()
                         
@@ -395,7 +431,7 @@ class PowerStatus(object):
             # Sleep for a bit
             sleepCount = 0
             sleepTime = self.monitorPeriod - (tStop - tStart)
-            while (self.alive.isSet() and sleepCount < sleepTime):
+            while (self.is_alive() and sleepCount < sleepTime):
                 time.sleep(0.2)
                 sleepCount += 0.2
                 
@@ -512,6 +548,24 @@ class ChassisStatus(object):
             self.configured = False
             self.lastError = None
             
+    def is_alive(self):
+        """
+        Check the current state of the threading.Event()s that control the this
+        monitor.
+        """
+        
+        status = self.alive.is_set()
+        if self.ASPCallbackInstance is not None:
+            status &= self.ASPCallbackInstance.currentState['alive'].is_set()
+        return status
+        
+    def is_set(self):
+        """
+        Alias for is_alive() to provide a minimal threading.Event-like interface.
+        """
+        
+        return self.is_alive()
+        
     def monitorThread(self):
         """
         Create a monitoring thread for the temperature.
@@ -519,11 +573,11 @@ class ChassisStatus(object):
         
         loop_counter = 0
         
-        while self.alive.isSet():
+        while self.is_alive():
             tStart = time.time()
             
             try:
-                resp = self._spi.read_register(1, self.register)
+                resp = self._spi.read_register(1, self.register, threadingEvent=self)
                 if resp is not None:
                     missingSUB20 = False
                     
@@ -538,7 +592,7 @@ class ChassisStatus(object):
                     
                     self.configured = False
                     
-                if self.alive.isSet() and self.ASPCallbackInstance is not None:
+                if self.is_alive() and self.ASPCallbackInstance is not None:
                     if missingSUB20:
                         self.ASPCallbackInstance.processMissingCommBoard()
                         
@@ -548,7 +602,7 @@ class ChassisStatus(object):
                 ## Record the board temperatures and power consumption while we are at it
                 if self.pic_monitoring and loop_counter == 0:
                     #status, temps = rs485Temperature(self.rs485_mapping, maxRetry=MAX_RS485_RETRY,
-                    #                                 threadingEvent=self.alive)
+                    #                                 threadingEvent=self)
                     status, temps = False, []
                     
                     if status:
@@ -561,7 +615,7 @@ class ChassisStatus(object):
                             aspThreadsLogger.error("%s: monitorThread failed to update board temperature log - %s", type(self).__name__, str(e))
                             
                     status, fees = rs485Power(self.rs485_mapping, maxRetry=MAX_RS485_RETRY,
-                                              threadingEvent=self.alive)
+                                              threadingEvent=self)
                         
                     if status:
                         self.fee_currents = fees
@@ -576,7 +630,7 @@ class ChassisStatus(object):
                             
                     if self.poll_rf_power:
                         status, powers = rs485RFPower(self.rs485_mapping, maxRetry=MAX_RS485_RETRY,
-                                                      threadingEvent=self.alive)
+                                                      threadingEvent=self)
                             
                         if status:
                             self.rf_powers = powers
@@ -606,7 +660,7 @@ class ChassisStatus(object):
             # Sleep for a bit
             sleepCount = 0
             sleepTime = self.monitorPeriod - (tStop - tStart)
-            while (self.alive.isSet() and sleepCount < sleepTime):
+            while (self.is_alive() and sleepCount < sleepTime):
                 time.sleep(0.2)
                 sleepCount += 0.2
                 
