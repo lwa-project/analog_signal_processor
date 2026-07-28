@@ -182,7 +182,7 @@ typedef struct __attribute__((packed)) _ModuleVersion {
 
 // Disable writes
 inline bool ivs_disable_writes(ATmega *atm, uint8_t addr) {
-  uint8_t data = ((1 << 7) & 1);
+  uint8_t data = (1 << 7) | 1;
   bool success = atm->write_i2c(addr, IVS_WRITE_PROTECT , (char *) &data, 1);
   if( !success ) {
     return false;
