@@ -1,7 +1,6 @@
 #include <SPI.h>
 #include <Wire.h>
-#include <FlashStorage_SAMD.h>
-#include <TemperatureZero.h>
+#include <EEPROM.h>
 
 // Chip select pin for SPI operations
 #define SPI_SS_PIN D3
@@ -50,9 +49,6 @@ uint8_t locked = 1;
 char device_sn[MAX_SN_LEN] = {'\0'};
 uint8_t locate = 0;
 uint8_t lstate = 0;
-
-// Internal temperature sensor readout
-TemperatureZero MCU_TEMP = TemperatureZero();
 
 void serial_sendresp(uint8_t status, uint16_t sze, uint8_t *data) {
   // Send a response to a command
@@ -139,7 +135,7 @@ void read_temperature(uint16_t nargs, uint8_t* argv) {
   if( nargs > 0) {
     invalid_arguments(nargs, argv);
   } else {
-    float temp = MCU_TEMP.readInternalTemperature();
+    float temp = analogReadTemp();
 
     serial_sendresp(0, sizeof(float), (uint8_t*) &temp);
   }
@@ -529,6 +525,7 @@ void write_sn(uint16_t nargs, uint8_t* argv) {
       }
     }
     EEPROM.put(0, device_sn);
+    EEPROM.commit();
     read_sn(0, argv);
   }
 }
@@ -564,21 +561,8 @@ void toggle_locate(uint16_t nargs, uint8_t* argv) {
 void(* reset) (void) = 0; //declare reset function @ address 0
 
 void setup() {
-  // Setup BOD33 - the brown out detector
-  // See https://blog.thea.codes/sam-d21-brown-out-detector/ for details
-  SYSCTRL->BOD33.bit.ENABLE = 0;
-  while( !SYSCTRL->PCLKSR.bit.B33SRDY ) {};
-  SYSCTRL->BOD33.reg = SYSCTRL_BOD33_LEVEL(48) \
-                       | SYSCTRL_BOD33_ACTION_NONE \
-                       | SYSCTRL_BOD33_HYST;
-  SYSCTRL->BOD33.bit.ENABLE = 1;
-  while( !SYSCTRL->PCLKSR.bit.BOD33RDY ) {};
-  while( SYSCTRL->PCLKSR.bit.BOD33DET ) {};
-
-  SYSCTRL->BOD33.bit.ENABLE = 0;
-  while( !SYSCTRL->PCLKSR.bit.B33SRDY ) {};
-  SYSCTRL->BOD33.reg |= SYSCTRL_BOD33_ACTION_RESET;
-  SYSCTRL->BOD33.bit.ENABLE = 1;
+  // Setup the watchdor
+  rp2040.wdt_begin(8000);
 
   // Serial setup
   Serial.begin(115200);
@@ -596,12 +580,12 @@ void setup() {
   Wire.setClock(100000);
   Wire.begin();
 
+  // EEPROM setup
+  EEPROM.begin(16);
+
   // LEDs
   pinMode(FAULT_PIN, OUTPUT);   // Fault
   pinMode(LOCATE_PIN, OUTPUT);   // Locate
-
-  // MCU temperature sensor
-  MCU_TEMP.init();
 }
 
 void loop() {
@@ -656,7 +640,7 @@ void loop() {
       case 0xA3: write_sn(nargs, &buffer[3]); break;
       case 0xA4: clear_fault(nargs, &buffer[3]); break;
       case 0xA5: toggle_locate(nargs, &buffer[3]); break;
-      case 0xAF: reset(); break;
+      case 0xAF: rp2040.reboot(); break;
       default: invalid_command(nargs, &buffer[3]);
     }
 
@@ -687,5 +671,7 @@ void loop() {
       }
     }
   }
-  
+
+  // Reset the watchdog
+  rp2040.wdt_reset();
 }
