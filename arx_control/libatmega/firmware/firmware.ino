@@ -558,8 +558,6 @@ void toggle_locate(uint16_t nargs, uint8_t* argv) {
   }
 }
 
-void(* reset) (void) = 0; //declare reset function @ address 0
-
 void setup() {
   // Setup the watchdor
   rp2040.wdt_begin(8000);
