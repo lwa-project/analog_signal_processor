@@ -425,6 +425,57 @@ bool ATmega::locate() {
 }
 
 
+bool ATmega::get_uptime(uint32_t* uptime) {
+    if( _fd < 0 ) {
+      return false;
+    }
+    
+    atmega::buffer cmd, resp;
+    cmd.command = atmega::COMMAND_UPTIME;
+    cmd.size = 0;
+    
+    try {
+      int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+      if( resp.command & atmega::COMMAND_FAILURE ) {
+        std::cerr << "Warning: " << atmega::strerror(resp.command) << std::endl;
+        return false;
+      }
+    } catch(const std::exception& e) {
+      return false;
+    }
+    
+    ::memcpy(uptime, &(resp.buffer[0]), sizeof(uint32_t));
+    
+    return true;
+}
+
+
+bool ATmega::get_reset_reason(char* reason, int* reason_size) {
+    if( _fd < 0 ) {
+      return false;
+    }
+    
+    atmega::buffer cmd, resp;
+    cmd.command = atmega::COMMAND_REASON;
+    cmd.size = 0;
+    
+    try {
+      int n = atmega::send_command(_fd, &cmd, &resp, ATMEGA_OPEN_MAX_ATTEMPTS, ATMEGA_OPEN_WAIT_MS);
+      if( resp.command & atmega::COMMAND_FAILURE ) {
+        std::cerr << "Warning: " << atmega::strerror(resp.command) << std::endl;
+        return false;
+      }
+    } catch(const std::exception& e) {
+      return false;
+    }
+    
+    *reason_size = resp.size;
+    ::memcpy(reason, &(resp.buffer[0]), resp.size);
+    
+    return true;
+}
+
+
 bool ATmega::reset() {
   if( _fd < 0 ) {
     return false;

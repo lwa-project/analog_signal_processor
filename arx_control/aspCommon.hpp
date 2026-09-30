@@ -89,6 +89,8 @@ public:
   bool write_i2c(uint8_t addr, uint8_t reg, const char* data, int size);
   bool clear_fault();
   bool locate();
+  bool get_uptime(uint32_t* uptime);
+  bool get_reset_reason(char* reason, int* reason_size);
   bool reset();
 };
 

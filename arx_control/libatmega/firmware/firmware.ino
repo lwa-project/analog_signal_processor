@@ -1,6 +1,8 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <EEPROM.h>
+#include "hardware/rtc.h"
+#include <time.h>
 
 // Chip select pin for SPI operations
 #define SPI_SS_PIN D3
@@ -558,6 +560,76 @@ void toggle_locate(uint16_t nargs, uint8_t* argv) {
   }
 }
 
+
+void get_reset_reason(uint16_t nargs, uint8_t* argv) {
+  if( nargs > 0) {
+    invalid_arguments(nargs, argv);
+  } else {
+    RP2040::resetReason_t reason = rp2040.getResetReason();
+
+    String explain = "unknown";
+    if (reason == RP2040::PWRON_RESET) {
+      // Power on and brown out are merged on the RP2040
+      explain = "power on or brown out";
+    } else if (reason == RP2040::RUN_PIN_RESET) {
+      explain = "RUN pin triggered";
+    } else if (reason == RP2040::SOFT_RESET) {
+      explain = "software";
+    } else if (reason == RP2040::WDT_RESET) {
+      explain = "watchdog";
+    }
+    
+    serial_sendresp(0, explain.length(), (uint8_t*) explain.c_str());
+  }
+}
+
+
+void get_uptime(uint16_t nargs, uint8_t* argv) {
+  if( nargs > 0) {
+    invalid_arguments(nargs, argv);
+  } else {
+    uint32_t uptime = get_epoch();
+
+    serial_sendresp(0, sizeof(uint32_t), (uint8_t*) &uptime);
+  }
+}
+
+
+uint32_t get_epoch() {
+  datetime_t t;
+  if(!rtc_get_datetime(&t)) {
+    return 0;
+  }
+
+  struct tm timeinfo = {0};
+  timeinfo.tm_year = t.year - 1900; // Years since 1900
+  timeinfo.tm_mon  = t.month - 1;   // Month is 0 - 11
+  timeinfo.tm_mday = t.day;
+  timeinfo.tm_hour = t.hour;
+  timeinfo.tm_min  = t.min;
+  timeinfo.tm_sec  = t.sec;
+  timeinfo.tm_isdst = -1;           // Disregard DST adjustments
+
+  return (uint32_t) mktime(&timeinfo);
+}
+
+
+void set_epoch(uint32_t e) {
+  time_t epoch_t = (time_t) e;
+  struct tm *ti = gmtime(&epoch_t);
+
+  datetime_t t = {.year  = (int16_t) (ti->tm_year + 1900),
+                  .month = (int8_t) (ti->tm_mon + 1),
+                  .day   = (int8_t) ti->tm_mday,
+                  .dotw  = (int8_t) ti->tm_wday,
+                  .hour  = (int8_t) ti->tm_hour,
+                  .min   = (int8_t) ti->tm_min,
+                  .sec   = (int8_t) ti->tm_sec
+                 };
+    rtc_set_datetime(&t);
+}
+
+
 void setup() {
   // Setup the watchdor
   rp2040.wdt_begin(8000);
@@ -580,6 +652,10 @@ void setup() {
 
   // EEPROM setup
   EEPROM.begin(16);
+
+  // Setup the RTC
+  rtc_init();
+  set_epoch(0);
 
   // LEDs
   pinMode(FAULT_PIN, OUTPUT);   // Fault
@@ -638,6 +714,8 @@ void loop() {
       case 0xA3: write_sn(nargs, &buffer[3]); break;
       case 0xA4: clear_fault(nargs, &buffer[3]); break;
       case 0xA5: toggle_locate(nargs, &buffer[3]); break;
+      case 0xA6: get_uptime(nargs, &buffer[3]); break;
+      case 0xA7: get_reset_reason(nargs, &buffer[3]); break;
       case 0xAF: rp2040.reboot(); break;
       default: invalid_command(nargs, &buffer[3]);
     }
