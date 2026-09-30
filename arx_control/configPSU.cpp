@@ -2,7 +2,7 @@
 configPSU - Change configuration of the specified PSU
 
 Usage:
-  configPSU <ATmega S/N> <device address> <command>
+  configPSU [-h|--help] <ATmega S/N> <device address> <command>
   
   * Device addresses are two-digit hexadecimal numbers 
     (i.e. 0x1F)
@@ -14,7 +14,7 @@ Usage:
               power up
      autoOff - Automatically turn off the DC output 
                on power up
-     tempWarm ##.# - Set the temperaure warning limit
+     tempWarn ##.# - Set the temperature warning limit
                      to the specified value in degrees
                      C
      tempFault ##.# - Set the temperature fault limit
@@ -23,10 +23,10 @@ Usage:
      voltAdjust ##.# - Set the output voltage to the
                        specified value in volts
      turnOnDelay ### - Set the turn on delays to the
-                       specifed value in ms
+                       specified value in ms
 
 Options:
-  None
+  -h, --help  Show this help message and exit
 *****************************************************/
 
 
@@ -42,6 +42,11 @@ Options:
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
 #include "ivsCommon.hpp"
+
+static const char cmdHelp[] =
+#include "configPSU_help.h"
+;
+
 
 #define MODE_UNKOWN       0
 #define MODE_QUERY      101
@@ -70,6 +75,15 @@ int main(int argc, char** argv) {
   * Command line parsing   *
   *************************/
   // Make sure we have the right number of arguments to continue
+  for(int i=1; i<argc; i++) {
+    std::string temp = std::string(argv[i]);
+    if( temp[0] == '-' ) {
+      if( (temp == "-h") || (temp == "--help") ) {
+        std::cout << cmdHelp << std::endl;
+        std::exit(EXIT_SUCCESS);
+      }
+    }
+  }
   if( argc < 3+1 ) {
     std::cerr << "configPSU - Need at least 3 arguments, " << argc-1 << " provided" << std::endl;
     std::exit(EXIT_FAILURE);

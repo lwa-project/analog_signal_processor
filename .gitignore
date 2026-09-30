@@ -28,3 +28,6 @@ writeARXLCD
 setATmegaSN
 listATmegaSN
 locateATmega
+
+# Auto-generated help headers
+*_help.h

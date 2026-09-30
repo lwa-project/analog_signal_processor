@@ -4,10 +4,16 @@ specified device address.  An exit code of zero indicates that
 no errors were encountered.
  
 Usage:
-  sendPICDevice [-q|--quiet] [-d|--decode] <ATmega S/N> <address> <command>
-  
+  sendPICDevice [-q|--quiet] [-d|--decode] [-h|--help] <ATmega S/N> <address> <command> ...
+
+  * Address is the decimal RS485 address of the PIC
+  * Command is an ASCII RS485 command string (i.e., ARXN)
+  * Additional <address> <command> pairs may be given
+
 Options:
-  None
+  -q, --quiet   Do not print the responses
+  -d, --decode  Decode the responses to known commands
+  -h, --help    Show this help message and exit
 *****************************************************/
 
 
@@ -22,6 +28,10 @@ Options:
 
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
+
+static const char cmdHelp[] =
+#include "sendPICDevice_help.h"
+;
 
 #ifndef PIC_IS_REVH
 #define PIC_IS_REVH 0
@@ -76,11 +86,14 @@ int main(int argc, char** argv) {
         verbose = false;
       } else if( (temp == "-d") || (temp == "--decode") ) {
         decode = true;
+      } else if( (temp == "-h") || (temp == "--help") ) {
+        std::cout << cmdHelp << std::endl;
+        std::exit(EXIT_SUCCESS);
       }
     }
   }
   if( (arg_str.size() < 3) || (arg_str.size() % 2 == 0) ) {
-    std::cerr << "sendPICDevice - Need at 3 arguments, " << arg_str.size() << " provided" << std::endl;
+    std::cerr << "sendPICDevice - Need at least 3 arguments, " << arg_str.size() << " provided" << std::endl;
     std::exit(EXIT_FAILURE);
   }
   

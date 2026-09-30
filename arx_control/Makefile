@@ -53,6 +53,7 @@ LIBATMEGA_HDR := libatmega/libatmega.hpp
 # Common rules
 #------------------------------------------------------------------------------
 %.o: %.cpp $(LIBATMEGA_HDR)
+	./extract_help.sh $<
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
 
@@ -104,7 +105,7 @@ listATmegaSN: listATmegaSN.o $(LIBATMEGA_LIB)
 
 locateATmega: locateATmega.o aspCommon.o $(LIBATMEGA_LIB)
 	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
-		
+
 atmegaConfig: atmegaConfig.cpp
 	python3 setup.py build_ext --inplace
 
@@ -126,6 +127,7 @@ install:
 
 clean:
 	rm -f *.o *.out *.err *.exe *.a *.so *.dylib
+	rm -f *_help.h
 	rm -f sendARXDevice sendPICDevice \
 	countBoards countPSUs countThermometers countPICs \
 	readPSU readThermometers onoffPSU configPSU readARXDevice \

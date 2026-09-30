@@ -3,14 +3,14 @@ onoffPSU - Change the overall power state for the
 specified device.
 
 Usage:
-  onoffPSU <ATmega S/N> <device address> <new power state>
+  onoffPSU [-h|--help] <ATmega S/N> <device address> <new power state>
   
   * Device addresses are two-digit hexadecimal numbers 
     (i.e. 0x1F)
   * Valid power states are 00 (off) and 11 (on)
 
 Options:
-  None
+  -h, --help  Show this help message and exit
 *****************************************************/
 
 #include <iostream>
@@ -24,12 +24,25 @@ Options:
 #include "aspCommon.hpp"
 #include "ivsCommon.hpp"
 
+static const char cmdHelp[] =
+#include "onoffPSU_help.h"
+;
+
 
 int main(int argc, char** argv) {
   /*************************
   * Command line parsing   *
   *************************/
   // Make sure we have the right number of arguments to continue
+  for(int i=1; i<argc; i++) {
+    std::string temp = std::string(argv[i]);
+    if( temp[0] == '-' ) {
+      if( (temp == "-h") || (temp == "--help") ) {
+        std::cout << cmdHelp << std::endl;
+        std::exit(EXIT_SUCCESS);
+      }
+    }
+  }
   if( argc < 3+1 ) {
     std::cerr << "onoffPSU - Need 3 arguments, " << argc-1 << " provided" << std::endl;
     std::exit(EXIT_FAILURE);

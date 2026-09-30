@@ -3,10 +3,12 @@ listATmegaSN - List the internal serial numbers of all
 ATmega devices.
  
 Usage:
-  listATmegaSN <device name>
+  listATmegaSN [-t|--temperatures] [-h|--help]
 
 Options:
-  None
+  -t, --temperatures  Also report the internal temperature
+                      of each device
+  -h, --help          Show this help message and exit
 *****************************************************/
 
 #include <iostream>
@@ -21,6 +23,10 @@ Options:
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
 
+static const char cmdHelp[] =
+#include "listATmegaSN_help.h"
+;
+
 
 int main(int argc, char* argv[]) {
   /*************************
@@ -32,6 +38,10 @@ int main(int argc, char* argv[]) {
     if( temp[0] == '-' ) {
       if( (temp == "-t") || (temp == "--temperatures") ) {
         temps = true;
+      }
+      if( (temp == "-h") || (temp == "--help") ) {
+        std::cout << cmdHelp << std::endl;
+        std::exit(EXIT_SUCCESS);
       }
     }
   }

@@ -1,6 +1,6 @@
 /*****************************************************
-readPSUs - Program to pull information about all power
-supplies found on the I2C bus.  The data polled 
+readPSU - Program to pull information about the power
+supply at the specified I2C address.  The data polled 
 includes:
  * on/off status
  * general module health (DC OK, over current, etc.)
@@ -8,10 +8,13 @@ includes:
  * output current
  
 Usage:
-  readPSUs <ATmega S/N> <I2C address>
+  readPSU [-h|--help] <ATmega S/N> <I2C address>
+
+  * I2C addresses are two-digit hexadecimal numbers
+    (i.e. 0x1F)
 
 Options:
-  None
+  -h, --help  Show this help message and exit
 *****************************************************/
 
 #include <iostream>
@@ -24,6 +27,11 @@ Options:
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
 #include "ivsCommon.hpp"
+
+static const char cmdHelp[] =
+#include "readPSU_help.h"
+;
+
 
 std::string getModuleName(uint16_t module, uint8_t moduleCode) {
   // Decode the power rating of the current module
@@ -108,6 +116,15 @@ int main(int argc, char** argv) {
   * Command line parsing   *
   *************************/
   // Make sure we have the right number of arguments to continue
+  for(int i=1; i<argc; i++) {
+    std::string temp = std::string(argv[i]);
+    if( temp[0] == '-' ) {
+      if( (temp == "-h") || (temp == "--help") ) {
+        std::cout << cmdHelp << std::endl;
+        std::exit(EXIT_SUCCESS);
+      }
+    }
+  }
   if( argc < 2+1 ) {
     std::cout << "readPSU - Need 2 arguments, " << argc-1 << " provided" << std::endl;
     std::exit(EXIT_FAILURE);
