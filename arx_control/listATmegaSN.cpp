@@ -3,7 +3,7 @@ listATmegaSN - List the internal serial numbers of all
 ATmega devices.
  
 Usage:
-  listATmegaSN <device name>
+  listATmegaSN [-t|--temperatures] [-u|--uptimes] <device name>
 
 Options:
   None
