@@ -7,10 +7,10 @@ Note:  There can be more than one module per power
        supply chassis.
  
 Usage:
-  countPSUs
+  countPSUs [-h|--help]
 
 Options:
-  None
+  -h, --help  Show this help message and exit
 *****************************************************/
 
 #include <iostream>
@@ -23,7 +23,26 @@ Options:
 #include "aspCommon.hpp"
 #include "ivsCommon.hpp"
 
+static const char cmdHelp[] =
+#include "countPSUs_help.h"
+;
+
+
 int main(int argc, char** argv) {
+  /*************************
+  * Command line parsing   *
+  *************************/
+  // Make sure we have the right number of arguments to continue
+  for(int i=1; i<argc; i++) {
+    std::string temp = std::string(argv[i]);
+    if( temp[0] == '-' ) {
+      if( (temp == "-h") || (temp == "--help") ) {
+        std::cout << cmdHelp << std::endl;
+        std::exit(EXIT_SUCCESS);
+      }
+    }
+  }
+  
   /************************************
   * ATmega device selection and ready *
   ************************************/

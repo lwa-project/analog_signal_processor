@@ -4,10 +4,11 @@ PIC microcontrollers connected to the RS485.  The exit code
 contains the number of boards found.
  
 Usage:
-  countPICs [-v|--verbose] <ATmega S/N>
+  countPICs [-v|--verbose] [-h|--help] <ATmega S/N>
 
 Options:
-  None
+  -v, --verbose  Also list the addresses of the PICs found
+  -h, --help     Show this help message and exit
 *****************************************************/
 
 
@@ -20,6 +21,10 @@ Options:
 
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
+
+static const char cmdHelp[] =
+#include "countPICs_help.h"
+;
 
 
 int main(int argc, char** argv) {
@@ -36,6 +41,10 @@ int main(int argc, char** argv) {
     } else {
       if( (temp == "-v") || (temp == "--verbose") ) {
         verbose = true;
+      }
+      if( (temp == "-h") || (temp == "--help") ) {
+        std::cout << cmdHelp << std::endl;
+        std::exit(EXIT_SUCCESS);
       }
     }
   }

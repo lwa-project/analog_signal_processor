@@ -7,10 +7,10 @@ polled includes temperatures from:
   * modules
  
 Usage:
-  readThermometers <ATmega S/N>
+  readThermometers [-h|--help] <ATmega S/N>
 
 Options:
-  None
+  -h, --help  Show this help message and exit
 *****************************************************/
 
 #include <iostream>
@@ -24,11 +24,25 @@ Options:
 #include "aspCommon.hpp"
 #include "ivsCommon.hpp"
 
+static const char cmdHelp[] =
+#include "readThermometers_help.h"
+;
+
+
 int main(int argc, char** argv) {
   /*************************
   * Command line parsing   *
   *************************/
   // Make sure we have the right number of arguments to continue
+  for(int i=1; i<argc; i++) {
+    std::string temp = std::string(argv[i]);
+    if( temp[0] == '-' ) {
+      if( (temp == "-h") || (temp == "--help") ) {
+        std::cout << cmdHelp << std::endl;
+        std::exit(EXIT_SUCCESS);
+      }
+    }
+  }
   if( argc < 1+1 ) {
     std::cerr << "readThermometers - Need 1 argument, " << argc-1 << " provided" << std::endl;
     std::exit(EXIT_FAILURE);

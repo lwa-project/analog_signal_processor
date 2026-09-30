@@ -4,10 +4,10 @@ ARX boards connected to the SPI bus.  The exit code
 contains the number of boards found.
  
 Usage:
-  countBoards <ATmega S/N>
+  countBoards [-h|--help] <ATmega S/N>
 
 Options:
-  None
+  -h, --help  Show this help message and exit
 *****************************************************/
 
 
@@ -20,12 +20,25 @@ Options:
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
 
+static const char cmdHelp[] =
+#include "countBoards_help.h"
+;
+
 
 int main(int argc, char** argv) {
   /*************************
   * Command line parsing   *
   *************************/
   // Make sure we have the right number of arguments to continue
+  for(int i=1; i<argc; i++) {
+    std::string temp = std::string(argv[i]);
+    if( temp[0] == '-' ) {
+      if( (temp == "-h") || (temp == "--help") ) {
+        std::cout << cmdHelp << std::endl;
+        std::exit(EXIT_SUCCESS);
+      }
+    }
+  }
   if( argc < 1+1 ) {
     std::cerr << "countBoards - Need 1 argument, " << argc-1 << " provided" << std::endl;
     std::exit(EXIT_FAILURE);

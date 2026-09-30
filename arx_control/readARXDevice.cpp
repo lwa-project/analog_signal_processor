@@ -4,13 +4,16 @@ device.  An exit code of zero indicates that no errors
 were encountered.
  
 Usage:
-  readARXDevice <ATmega S/N> <total stand count> <device> <register> ...
+  readARXDevice [-h|--help] <ATmega S/N> <total stand count> <device> <register> ...
 
-  * Command is a four digit hexadecimal values (i.e., 
-  0x1234)
-  
+  * Device is the stand number, from 1 to the total stand
+    count
+  * Register is a four digit hexadecimal value (i.e.,
+    0x1234)
+  * Additional <device> <register> pairs may be given
+
 Options:
-  None
+  -h, --help  Show this help message and exit
 *****************************************************/
 
 
@@ -24,12 +27,25 @@ Options:
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
 
+static const char cmdHelp[] =
+#include "readARXDevice_help.h"
+;
+
 
 int main(int argc, char* argv[]) {
   /*************************
   * Command line parsing   *
   *************************/
   // Make sure we have the right number of arguments to continue
+  for(int i=1; i<argc; i++) {
+    std::string temp = std::string(argv[i]);
+    if( temp[0] == '-' ) {
+      if( (temp == "-h") || (temp == "--help") ) {
+        std::cout << cmdHelp << std::endl;
+        std::exit(EXIT_SUCCESS);
+      }
+    }
+  }
   if( argc < 4+1 ) {
     std::cerr << "readARXDevice - Need at least 4 arguments, " << argc-1 << " provided" << std::endl;
     std::exit(EXIT_FAILURE);

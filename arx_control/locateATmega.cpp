@@ -1,12 +1,13 @@
 /*****************************************************
-listATmegaSN - List the internal serial numbers of all
-ATmega devices.
+locateATmega - Send a locate command to the ATmega
+device with the specified serial number so that it can
+be physically identified.
  
 Usage:
-  listATmegaSN <device name>
+  locateATmega [-h|--help] <ATmega S/N>
 
 Options:
-  None
+  -h, --help  Show this help message and exit
 *****************************************************/
 
 #include <iostream>
@@ -19,14 +20,27 @@ Options:
 #include "libatmega.hpp"
 #include "aspCommon.hpp"
 
+static const char cmdHelp[] =
+#include "locateATmega_help.h"
+;
+
 
 int main(int argc, char* argv[]) {
   /*************************
   * Command line parsing   *
   *************************/
   // Make sure we have the right number of arguments to continue
+  for(int i=1; i<argc; i++) {
+    std::string temp = std::string(argv[i]);
+    if( temp[0] == '-' ) {
+      if( (temp == "-h") || (temp == "--help") ) {
+        std::cout << cmdHelp << std::endl;
+        std::exit(EXIT_SUCCESS);
+      }
+    }
+  }
   if( argc < 1+1 ) {
-    std::cerr << "locateATmega - Need at least 1 arguments, " << argc-1 << " provided" << std::endl;
+    std::cerr << "locateATmega - Need at least 1 argument, " << argc-1 << " provided" << std::endl;
     std::exit(EXIT_FAILURE);
   }
   
