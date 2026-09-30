@@ -27,11 +27,15 @@ int main(int argc, char* argv[]) {
   * Command line parsing   *
   *************************/
   bool temps = false;
+  bool uptimes = false;
   for(int i=1; i<argc; i++) {
     std::string temp = std::string(argv[i]);
     if( temp[0] == '-' ) {
       if( (temp == "-t") || (temp == "--temperatures") ) {
         temps = true;
+      }
+      if( (temp == "-u") || (temp == "--uptimes") ) {
+        uptimes = true;
       }
     }
   }
@@ -43,7 +47,7 @@ int main(int argc, char* argv[]) {
     const std::string& dev_name = dev.first;
     const std::string usb_sn = dev.second.substr(0, ATMEGA_MAX_SN_LEN);
 
-    if( !temps ) {
+    if( !temps && !uptimes) {
       // Fast path: just report what udev tells us, no device open needed
       if( !usb_sn.empty() ) {
         std::cout << "Found " << usb_sn << " at " << dev_name << std::endl;
@@ -91,19 +95,36 @@ int main(int argc, char* argv[]) {
         std::cout << "Found " << sn << " at " << dev_name;
       }
 
-      atmega::buffer cmd, resp;
-      cmd.command = atmega::COMMAND_READ_TEMPERATURE;
-      cmd.size = 0;
+      if( temps ) {
+        atmega::buffer cmd, resp;
+        cmd.command = atmega::COMMAND_READ_TEMPERATURE;
+        cmd.size = 0;
 
-      int n = atmega::send_command(fd, &cmd, &resp, std::min(3, ATMEGA_OPEN_MAX_ATTEMPTS), ATMEGA_OPEN_WAIT_MS);
-      if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
-        float temp_C = -99.0;
-        if( resp.size == sizeof(float) ) {
-          ::memcpy(&temp_C, &(resp.buffer[0]), sizeof(float));
+        int n = atmega::send_command(fd, &cmd, &resp, std::min(3, ATMEGA_OPEN_MAX_ATTEMPTS), ATMEGA_OPEN_WAIT_MS);
+        if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
+          float temp_C = -99.0;
+          if( resp.size == sizeof(float) ) {
+            ::memcpy(&temp_C, &(resp.buffer[0]), sizeof(float));
+          }
+          std::cout << std::setprecision(3) << " at " << temp_C << " C";
         }
-        std::cout << std::setprecision(3) << " at " << temp_C << " C";
       }
+    
+      if( uptimes ) {
+        atmega::buffer cmd, resp;
+        cmd.command = atmega::COMMAND_UPTIME;
+        cmd.size = 0;
 
+        int n = atmega::send_command(fd, &cmd, &resp, std::min(3, ATMEGA_OPEN_MAX_ATTEMPTS), ATMEGA_OPEN_WAIT_MS);
+        if( (n > 0) && (resp.command & atmega::COMMAND_FAILURE) == 0 ) {
+          uint32_t uptime_s = 0;
+          if( resp.size == sizeof(uint32_t) ) {
+            ::memcpy(&uptime_s, &(resp.buffer[0]), sizeof(uint32_t));
+          }
+          std::cout << " at " << uptime_s << " s";
+        }
+      }
+    
     } catch(const std::exception& e) {}
 
     std::cout << std::endl;
