@@ -953,7 +953,9 @@ def rs485Power(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RETR
                     aspSUB20Logger.warning("Could not get power info. for board %s: %s", board_key, str(e))
                     _sleep(waitRetry)
             success &= board_success
-            
+            if not board_success:
+                fees.extend([-1.0,]*16)
+                
     return success, fees
 
 
@@ -1012,7 +1014,9 @@ def rs485RFPower(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS485_RE
                     aspSUB20Logger.warning("Could not get RF power info. for board %s: %s", board_key, str(e))
                     _sleep(waitRetry)
             success &= board_success
-            
+            if not board_success:
+                rf_powers.extend([-1.0,]*16)
+                
     return success, rf_powers
 
 
@@ -1071,5 +1075,7 @@ def rs485Temperature(sub20Mapper2, maxRetry=MAX_RS485_RETRY, waitRetry=WAIT_RS48
                     aspSUB20Logger.warning("Could not get temperature info. for board %s: %s", board_key, str(e))
                     _sleep(waitRetry)
             success &= board_success
-            
+            if not board_success:
+                temps.extend([-99.0,]*3)
+                
     return success, temps
