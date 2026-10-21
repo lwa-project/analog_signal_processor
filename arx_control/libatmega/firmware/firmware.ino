@@ -35,6 +35,15 @@
 // Locate LED pin
 #define LOCATE_PIN D1
 
+// Activity LED pins (on-board user RGB LED, active low)
+#define USB_LED_PIN PIN_LED_G
+#define BUS_LED_PIN PIN_LED_B
+#define ACT_LED_ON LOW
+#define ACT_LED_OFF HIGH
+
+// Minimum time in ms an activity LED stays lit
+#define ACT_LED_HOLD_MS 50
+
 // Command input buffer
 long int last_char = -1;
 boolean in_progress = false, is_ready = false;
@@ -51,9 +60,35 @@ uint8_t locked = 1;
 char device_sn[MAX_SN_LEN] = {'\0'};
 uint8_t locate = 0;
 uint8_t lstate = 0;
+uint8_t usb_led = 0, bus_led = 0;
+unsigned long usb_led_time = 0, bus_led_time = 0;
+
+void usb_activity() {
+  // Flash the USB activity LED, unless bus activity is already being shown
+  usb_led_time = millis();
+  if( !bus_led && !usb_led ) {
+    digitalWrite(USB_LED_PIN, ACT_LED_ON);
+    usb_led = 1;
+  }
+}
+
+void bus_activity() {
+  // Flash the bus activity LED, which takes precedence over USB activity
+  bus_led_time = millis();
+  if( usb_led ) {
+    digitalWrite(USB_LED_PIN, ACT_LED_OFF);
+    usb_led = 0;
+  }
+  if( !bus_led ) {
+    digitalWrite(BUS_LED_PIN, ACT_LED_ON);
+    bus_led = 1;
+  }
+}
 
 void serial_sendresp(uint8_t status, uint16_t sze, uint8_t *data) {
   // Send a response to a command
+  usb_activity();
+
   /* Preamble */
   Serial.write((uint8_t) 60);
   Serial.write((uint8_t) 60);
@@ -660,6 +695,10 @@ void setup() {
   // LEDs
   pinMode(FAULT_PIN, OUTPUT);   // Fault
   pinMode(LOCATE_PIN, OUTPUT);   // Locate
+  pinMode(USB_LED_PIN, OUTPUT);  // USB activity
+  pinMode(BUS_LED_PIN, OUTPUT);  // Bus activity
+  digitalWrite(USB_LED_PIN, ACT_LED_OFF);
+  digitalWrite(BUS_LED_PIN, ACT_LED_OFF);
 }
 
 void loop() {
@@ -667,6 +706,7 @@ void loop() {
   while( Serial.available() > 0 && is_ready == 0 ) {
     buffer[idx++] = Serial.read();
     last_char = millis();
+    usb_activity();
     
     if( !in_progress && idx > 2 ) {
       if( buffer[idx-3] == 60 && buffer[idx-2] == 60 && buffer[idx-1] == 60 ) {
@@ -701,14 +741,14 @@ void loop() {
       case 0x03: read_max_cmd_len(nargs, &buffer[3]); break; 
       case 0x04: echo(nargs, &buffer[3]); break;
       case 0x05: read_temperature(nargs, &buffer[3]); break;
-      case 0x11: transfer_spi(nargs, &buffer[3]); break;
-      case 0x21: scan_rs485(nargs, &buffer[3]); break;
+      case 0x11: bus_activity(); transfer_spi(nargs, &buffer[3]); break;
+      case 0x21: bus_activity(); scan_rs485(nargs, &buffer[3]); break;
       case 0x22: read_rs485(nargs, &buffer[3]); break;
-      case 0x23: write_rs485(nargs, &buffer[3]); break;
-      case 0x24: send_rs485(nargs, &buffer[3]); break;
-      case 0x31: scan_i2c(nargs, &buffer[3]); break;
-      case 0x32: read_i2c(nargs, &buffer[3]); break;
-      case 0x33: write_i2c(nargs, &buffer[3]); break;
+      case 0x23: bus_activity(); write_rs485(nargs, &buffer[3]); break;
+      case 0x24: bus_activity(); send_rs485(nargs, &buffer[3]); break;
+      case 0x31: bus_activity(); scan_i2c(nargs, &buffer[3]); break;
+      case 0x32: bus_activity(); read_i2c(nargs, &buffer[3]); break;
+      case 0x33: bus_activity(); write_i2c(nargs, &buffer[3]); break;
       case 0xA1: lock_sn(nargs, &buffer[3]); break;
       case 0xA2: unlock_sn(nargs, &buffer[3]); break;
       case 0xA3: write_sn(nargs, &buffer[3]); break;
@@ -746,6 +786,16 @@ void loop() {
         lstate = 0;
       }
     }
+  }
+
+  // Turn off the activity LEDs once their hold time has passed
+  if( usb_led && (millis() - usb_led_time) > ACT_LED_HOLD_MS ) {
+    digitalWrite(USB_LED_PIN, ACT_LED_OFF);
+    usb_led = 0;
+  }
+  if( bus_led && (millis() - bus_led_time) > ACT_LED_HOLD_MS ) {
+    digitalWrite(BUS_LED_PIN, ACT_LED_OFF);
+    bus_led = 0;
   }
 
   // Reset the watchdog
