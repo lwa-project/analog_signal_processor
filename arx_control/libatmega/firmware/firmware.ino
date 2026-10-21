@@ -433,7 +433,12 @@ void read_i2c(uint16_t nargs, uint8_t* argv) {
     byte err;
     Wire.beginTransmission(addr);  
     Wire.write(reg);
-    Wire.endTransmission();
+    err = Wire.endTransmission();
+    if( err != 0 ) {
+      digitalWrite(FAULT_PIN, HIGH);
+      invalid_bus_error(nargs, argv);
+      return;
+    }
 
     Wire.requestFrom(addr, sze);
     unsigned long startTime = millis();
@@ -450,13 +455,7 @@ void read_i2c(uint16_t nargs, uint8_t* argv) {
       invalid_bus_error(nargs, argv);
       return;
     }
-    err = Wire.endTransmission(); 
-    if( err == 0 ) {
-      serial_sendresp(0, sze, argv);
-    } else {
-      digitalWrite(FAULT_PIN, HIGH);
-      invalid_bus_error(nargs, argv);
-    }
+    serial_sendresp(0, sze, argv);
   }
 }
 
@@ -638,6 +637,7 @@ void setup() {
   Serial.begin(115200);
   
   // RS485 setup
+  Serial1.setFIFOSize(256);
   Serial1.begin(19200);
   pinMode(RS485_EN, OUTPUT);
   digitalWrite(RS485_EN, LOW);
