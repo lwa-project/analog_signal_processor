@@ -123,14 +123,10 @@ std::list<atmega::device_info> atmega::find_devices() {
     uint8_t match = 0;
     const char *vendor_id = udev_device_get_property_value(udevice, "ID_VENDOR_ID");
     const char *product_id = udev_device_get_property_value(udevice, "ID_MODEL_ID");
-    if( (   (strstr(vendor_id, "0403") != nullptr)
-         || (strstr(vendor_id, "2341") != nullptr)
-         || (strstr(vendor_id, "2886") != nullptr) ) ) {
+    if( strstr(vendor_id, "2e8a") != nullptr ) {
         match |= 1;
     }
-    if( (   (strstr(product_id, "6001") != nullptr )
-         || (strstr(product_id, "0001") != nullptr )
-         || (strstr(product_id, "802f") != nullptr ) ) ) {
+    if( strstr(product_id, "000a") != nullptr ) {
         match |= 2;
     }
 
