@@ -21,7 +21,7 @@ try:
 except ImportError:
     from io import StringIO
     
-from datetime import datetime
+from datetime import datetime, timezone
 
 __version__ = "0.3"
 __all__ = ['MCS_RCV_BYTES', 'getTime', 'Communicate']
@@ -37,7 +37,7 @@ def getTime():
     """
     
     # determine current time
-    dt = datetime.utcnow()
+    dt = datetime.now(tz=timezone.utc)
     year        = dt.year             
     month       = dt.month      
     day         = dt.day    
@@ -196,12 +196,13 @@ class Communicate(object):
         # Build the payload
         payload = "%3s%3s%3s%9i" % (destination, sender, command, reference)
         payload += "%4i%6i%9i" % (len(data)+8, mjd, mpm)
-        payload += ' ' + response + ("%7s" % systemStatus) + data
+        payload += ' ' + response + ("%7s" % systemStatus)
         try:
-            payload = bytes(payload, 'ascii')
+            data = bytes(data, 'ascii')
         except TypeError:
             pass
-            
+        payload = bytes(payload, 'ascii') + data
+        
         bytes_sent = self.socketOut.sendto(payload, self.destAddress)
         self.logger.debug("mcsSend - Sent to MCS '%s'", payload)
         return True

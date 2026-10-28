@@ -1,0 +1,96 @@
+% appendix-a.tex - Appendix A: Exit and Status Codes
+
+\chapter{Exit and Status Codes}
+\label{app:codes}
+
+\section{Command Exit Codes}
+
+The following exit codes (Table~\ref{tab:exit-codes}) are returned in response to control commands when an error occurs.
+
+\begin{longtable}{cp{10cm}}
+    \caption{Command Exit Codes} \label{tab:exit-codes} \\
+    \toprule
+    \textbf{Code} & \textbf{Description} \\
+    \midrule
+    \endfirsthead
+
+    \toprule
+    \textbf{Code} & \textbf{Description} \\
+    \midrule
+    \endhead
+
+    \bottomrule
+    \endfoot
+
+    \hex{00} & Process accepted without error \\
+    \hex{01} & Invalid number of ARX boards \\
+    \hex{02} & Invalid stand \\
+    \hex{03} & Invalid polarization \\
+    \hex{04} & Invalid filter code \\
+    \hex{05} & Invalid attenuator setting \\
+    \hex{06} & Invalid power setting \\
+    \hex{07} & Invalid command arguments \\
+    \hex{08} & Blocking operation in progress \\
+    \hex{09} & Subsystem already initialized (reserved; not currently returned) \\
+    \hex{0A} & Subsystem needs to be initialized \\
+    \hex{0B} & Command not implemented \\
+
+\end{longtable}
+
+\section{Subsystem Error Codes}
+
+The following error codes (Table~\ref{tab:error-codes}) are used in the INFO field to describe error conditions.
+
+\begin{longtable}{cp{10cm}}
+    \caption{Subsystem Error Codes} \label{tab:error-codes} \\
+    \toprule
+    \textbf{Code} & \textbf{Description} \\
+    \midrule
+    \endfirsthead
+
+    \toprule
+    \textbf{Code} & \textbf{Description} \\
+    \midrule
+    \endhead
+
+    \bottomrule
+    \endfoot
+
+    \hex{00} & Subsystem operating normally \\
+    \hex{01} & PS over temperature \\
+    \hex{02} & PS under temperature \\
+    \hex{03} & PS over voltage \\
+    \hex{04} & PS under voltage \\
+    \hex{05} & PS over current \\
+    \hex{06} & PS module fault error \\
+    \hex{07} & Failed to process SPI commands \\
+    \hex{08} & Failed to process I2C commands \\
+    \hex{09} & Board count mis-match \\
+    \hex{0A} & Temperature over TempMax \\
+    \hex{0B} & Temperature under TempMin \\
+    \hex{0C} & Power supplies off \\
+    \hex{0D} & Temperature warning \\
+
+\end{longtable}
+
+\section{System Status Values}
+
+The SUMMARY field in MCS responses contains one of the status values listed in Table~\ref{tab:status-values}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{System Status Values}
+    \label{tab:status-values}
+    \begin{tabular}{lp{9cm}}
+        \toprule
+        \textbf{Status} & \textbf{Description} \\
+        \midrule
+        \texttt{SHUTDWN} & System is shut down or not yet initialized. No commands except \cmd{INI} will be processed. \\
+        \texttt{BOOTING} & System is in the process of initializing. Commands will be rejected with exit code \hex{08}. \\
+        \texttt{NORMAL} & System is operating normally. All commands are accepted. \\
+        \texttt{WARNING} & System is operating but a warning condition exists (e.g., temperature approaching limit). Commands are accepted. \\
+        \texttt{ERROR} & An error condition exists. The system may need to be re-initialized. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+

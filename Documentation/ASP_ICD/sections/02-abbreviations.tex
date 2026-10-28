@@ -1,0 +1,65 @@
+% 02-abbreviations.tex - Section 2: Abbreviations
+
+\chapter{Abbreviations and Definitions}
+\label{sec:abbreviations}
+
+\section{Abbreviations}
+
+\begin{longtable}{p{3cm}p{10cm}}
+    \toprule
+    \textbf{Abbreviation} & \textbf{Definition} \\
+    \midrule
+    \endfirsthead
+
+    \toprule
+    \textbf{Abbreviation} & \textbf{Definition} \\
+    \midrule
+    \endhead
+
+    \bottomrule
+    \endfoot
+
+    ARX & Analog Receiver \\
+    ASP & Analog Signal Processor \\
+    AT1 & First Attenuator (0--30~dB in 2~dB steps) \\
+    AT2 & Second Attenuator (0--30~dB in 2~dB steps) \\
+    AT3 & Third Attenuator (0--15.5~dB in 0.5~dB steps) \\
+    dB & Decibel \\
+    FEE & Front End Electronics \\
+    FIL & Filter selection command \\
+    FPW & FEE Power command \\
+    HPF & High-Pass Filter \\
+    I2C & Inter-Integrated Circuit (communication bus) \\
+    ICD & Interface Control Document \\
+    LED & Light Emitting Diode \\
+    LOC & Locate LED command \\
+    LPF & Low-Pass Filter \\
+    LWA & Long Wavelength Array \\
+    M\&C & Monitor and Control \\
+    MCS & Monitor and Control System \\
+    MIB & Management Information Base \\
+    MJD & Modified Julian Date \\
+    MPM & Milliseconds Past Midnight \\
+    PSU & Power Supply Unit \\
+    QMA & Quick Miniature A (RF connector type) \\
+    RS-485 & Serial communication standard \\
+    SAMD21 & Microchip SAM D21 ARM Cortex-M0+ microcontroller \\
+    SPI & Serial Peripheral Interface \\
+    UDP & User Datagram Protocol \\
+    USB & Universal Serial Bus \\
+
+\end{longtable}
+
+\section{Definitions}
+
+\begin{description}
+    \item[Stand] A single antenna structure consisting of two polarizations (X and Y). Each stand is identified by a unique number from 1 to 256.
+
+    \item[Board] An ARX board that services multiple stands. In the current configuration, each board handles 8 stands.
+
+    \item[Chassis] An enclosure containing multiple ARX boards and associated power supplies.  In the current configuration, a chassis can hold up to 8 boards.
+
+    \item[Filter Code] A numeric code (0--7) that selects the combination of high-pass and low-pass filters applied to the signal.
+
+    \item[Attenuator Setting] A numeric value that determines the signal attenuation level for each attenuator stage.
+\end{description}

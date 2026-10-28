@@ -7,9 +7,28 @@
         copytruncate
         ifempty
 }
+/data/board-temp.txt {
+        daily
+        rotate 21
+        compress
+        delaycompress
+        copytruncate
+        ifempty
+}
+
+# Keep three weeks worth of FEE current logs
+/data/fee-power.txt {
+        daily
+        rotate 21
+        compress
+        delaycompress
+        copytruncate
+        ifempty
+}
+
 # Keep three weeks worth of Power supply logs
 /data/psu-*.txt {
-	daily
+        daily
         rotate 21
         compress
         delaycompress
@@ -39,10 +58,10 @@
 
 # Keep three weeks worth of board logs
 /home/ops/board.log {
-	daily
-	rotate 21
-	compress
-	delaycompress
+        daily
+        rotate 21
+        compress
+        delaycompress
         copytruncate
         ifempty
 }

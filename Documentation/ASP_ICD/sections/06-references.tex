@@ -1,0 +1,188 @@
+% 06-references.tex - Section 6: References
+
+\chapter{References}
+\label{sec:references}
+
+\begin{enumerate}
+    \item MCS Common ICD --- Monitor and Control System Common Interface Control Document
+
+    \item NDP ICD --- Next Generation Digital Processor Interface Control Document
+
+    \item ASP Preliminary Design Document
+
+    \item LWA Memo \#222 ---  LWA ARX Requirements - On Beyond Rev H
+
+    \item LWA Memo \#229 ---  Collected LWA Engineering Memos from the Development of the Analog Receiver (ARX) Rev. I, 2023 August 28 - 2024 October 21
+
+    \item LWA Station Architecture Document
+
+\end{enumerate}
+
+\section{Hardware Design Repositories}
+
+\begin{itemize}
+    \item ARX Control Board: \url{https://github.com/lwa-project/arx_control_board}
+    \item Analog Receiver (Rev I): \url{https://github.com/lwa-project/analog_receiver}
+\end{itemize}
+
+\section{Related Software}
+
+The following Python modules implement the ASP control software (Table~\ref{tab:software-modules}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{ASP Software Modules}
+    \label{tab:software-modules}
+    \begin{tabular}{lp{8cm}}
+        \toprule
+        \textbf{Module} & \textbf{Description} \\
+        \midrule
+        \texttt{asp\_cmnd.py} & Main ASP control daemon; MCS command interface \\
+        \texttt{aspFunctions.py} & Core ASP functions; command processing \\
+        \texttt{aspSUB20.py} & Communication functions; SPI/I2C/RS-485 \\
+        \texttt{aspThreads.py} & Monitoring threads (temperature, power, chassis) \\
+        \texttt{MCS.py} & MCS message protocol implementation \\
+        \texttt{arx\_control/} & Low-level ARX hardware control; C++/Python SPI register definitions, board configuration, and power supply utilities \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\section{Configuration Files}
+\label{sec:configuration}
+
+ASP configuration is stored in JSON format in site-specific files
+(\texttt{defaults.json.\textit{site}}).  The top-level keys and their
+nested structure are described below.
+
+\subsection{Global Parameters}
+
+The top-level scalar parameter identifies the ASP instance (Table~\ref{tab:config-global}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{Top-level Configuration Parameters}
+    \label{tab:config-global}
+    \begin{tabular}{llp{7cm}}
+        \toprule
+        \textbf{Key} & \textbf{Type} & \textbf{Description} \\
+        \midrule
+        \texttt{serial\_number} & string & ASP unit serial number (e.g., ``ASP01'') \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{\texttt{mcs} --- MCS Communication}
+
+The \texttt{mcs} object configures the UDP interface between ASP and MCS.  Table~\ref{tab:config-mcs} lists the available parameters.
+
+\begin{table}[htbp]
+    \centering
+    \caption{\texttt{mcs} Configuration Parameters}
+    \label{tab:config-mcs}
+    \begin{tabular}{llp{7cm}}
+        \toprule
+        \textbf{Key} & \textbf{Type} & \textbf{Description} \\
+        \midrule
+        \texttt{message\_host}     & string & MCS host IP address \\
+        \texttt{message\_out\_port} & int   & UDP port for sending responses to MCS \\
+        \texttt{message\_in\_port}  & int   & UDP port for receiving commands from MCS \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Temperature and Monitoring}
+
+Several top-level keys control temperature thresholds and monitoring intervals.  Table~\ref{tab:config-temp} lists these parameters.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Temperature and Monitoring Configuration Parameters}
+    \label{tab:config-temp}
+    \begin{tabular}{llp{7cm}}
+        \toprule
+        \textbf{Key} & \textbf{Type} & \textbf{Description} \\
+        \midrule
+        \texttt{temp\_min}       & float & Minimum (cold) temperature threshold (\si{\degreeCelsius}) \\
+        \texttt{temp\_warn}      & float & Warning temperature threshold (\si{\degreeCelsius}) \\
+        \texttt{temp\_max}       & float & Critical (shutdown) temperature threshold (\si{\degreeCelsius}) \\
+        \texttt{temp\_period}    & int   & Temperature monitoring interval (seconds) \\
+        \texttt{power\_period}   & int   & Power supply monitoring interval (seconds) \\
+        \texttt{chassis\_period} & int   & Chassis status monitoring interval (seconds) \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Board and Stand Configuration}
+
+These parameters define the physical board and stand layout.  Table~\ref{tab:config-board} lists the available parameters.  The values of \texttt{max\_boards} and \texttt{max\_stands} are site-specific.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Board and Stand Configuration Parameters}
+    \label{tab:config-board}
+    \begin{tabular}{llp{7cm}}
+        \toprule
+        \textbf{Key} & \textbf{Type} & \textbf{Description} \\
+        \midrule
+        \texttt{stands\_per\_board} & int           & Number of stands per ARX board \\
+        \texttt{max\_boards}        & int           & Maximum number of ARX boards \\
+        \texttt{max\_stands}        & int           & Maximum number of stands \\
+        \texttt{max\_atten}         & array of int  & Maximum attenuator values \texttt{[AT1, AT2, AT3]} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{SPI Bus Configuration}
+
+These parameters control SPI communication retry behavior.  Table~\ref{tab:config-spi} lists the available parameters.
+
+\begin{table}[htbp]
+    \centering
+    \caption{SPI Bus Configuration Parameters}
+    \label{tab:config-spi}
+    \begin{tabular}{llp{7cm}}
+        \toprule
+        \textbf{Key} & \textbf{Type} & \textbf{Description} \\
+        \midrule
+        \texttt{max\_spi\_retry}  & int   & Maximum number of SPI transaction retries \\
+        \texttt{wait\_spi\_retry} & float & Delay between SPI retries (seconds) \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Power Supply I2C Addresses}
+
+These parameters specify the I2C bus addresses for the power supplies.  Table~\ref{tab:config-psu} lists the available parameters.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Power Supply I2C Address Parameters}
+    \label{tab:config-psu}
+    \begin{tabular}{llp{7cm}}
+        \toprule
+        \textbf{Key} & \textbf{Type} & \textbf{Description} \\
+        \midrule
+        \texttt{arx\_ps\_address} & int & I2C address of ARX power supply (decimal) \\
+        \texttt{fee\_ps\_address} & int & I2C address of FEE power supply (decimal) \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Control Board Mapping}
+
+These parameters map the ARX Control Board to the physical hardware.  Table~\ref{tab:config-mapping} describes the mapping structure.  The \texttt{sub20\_antenna\_mapping} and \texttt{sub20\_rs485\_mapping} objects are keyed by control board serial number; the RS-485 mapping is further nested by board address.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Control Board Mapping Parameters}
+    \label{tab:config-mapping}
+    \begin{tabular}{llp{7cm}}
+        \toprule
+        \textbf{Key} & \textbf{Type} & \textbf{Description} \\
+        \midrule
+        \texttt{sub20\_i2c\_mapping}     & string          & Serial number of the control board used for I2C communication \\
+        \texttt{sub20\_antenna\_mapping}  & object          & Maps control board serial number to antenna stand range \texttt{[start, end]} \\
+        \texttt{sub20\_rs485\_mapping}    & object          & Maps control board serial number to an object of RS-485 board addresses, each mapping to a stand range \texttt{[start, end]} \\
+        \bottomrule
+    \end{tabular}
+\end{table}

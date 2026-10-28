@@ -4,13 +4,16 @@ device.  An exit code of zero indicates that no errors
 were encountered.
  
 Usage:
-  readARXDevice <SUB-20 S/N> <total stand count> <device> <register> ...
+  readARXDevice [-h|--help] <ATmega S/N> <total stand count> <device> <register> ...
 
-  * Command is a four digit hexadecimal values (i.e., 
-  0x1234)
-  
+  * Device is the stand number, from 1 to the total stand
+    count
+  * Register is a four digit hexadecimal value (i.e.,
+    0x1234)
+  * Additional <device> <register> pairs may be given
+
 Options:
-  None
+  -h, --help  Show this help message and exit
 *****************************************************/
 
 
@@ -21,19 +24,32 @@ Options:
 #include <chrono>
 #include <thread>
 
-#include "libsub.h"
+#include "libatmega.hpp"
 #include "aspCommon.hpp"
+
+static const char cmdHelp[] =
+#include "readARXDevice_help.h"
+;
 
 
 int main(int argc, char* argv[]) {
   /*************************
-	* Command line parsing   *
-	*************************/
+  * Command line parsing   *
+  *************************/
   // Make sure we have the right number of arguments to continue
-	if( argc < 4+1 ) {
-		std::cerr << "readARXDevice - Need at least 4 arguments, " << argc-1 << " provided" << std::endl;
-		std::exit(EXIT_FAILURE);
-	}
+  for(int i=1; i<argc; i++) {
+    std::string temp = std::string(argv[i]);
+    if( temp[0] == '-' ) {
+      if( (temp == "-h") || (temp == "--help") ) {
+        std::cout << cmdHelp << std::endl;
+        std::exit(EXIT_SUCCESS);
+      }
+    }
+  }
+  if( argc < 4+1 ) {
+    std::cerr << "readARXDevice - Need at least 4 arguments, " << argc-1 << " provided" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   
   char *endptr;
   std::string requestedSN = std::string(argv[1]);
@@ -53,34 +69,34 @@ int main(int argc, char* argv[]) {
   }
   
   /************************************
-	* SUB-20 device selection and ready *
-	************************************/
-  Sub20 *sub20 = new Sub20(requestedSN);
+  * ATmega device selection and ready *
+  ************************************/
+  ATmega *atm = new ATmega(requestedSN);
   
-  bool success = sub20->open();
+  bool success = atm->open();
   if( !success ) {
     std::cerr << "readARXDevice - failed to open " << requestedSN << std::endl;
-		std::exit(EXIT_FAILURE);
+    std::exit(EXIT_FAILURE);
   }
   
   /****************************************
-	* Send the command and get the response *
-	****************************************/
+  * Send the command and get the response *
+  ****************************************/
   // Process the commands
   uint16_t *reads, *values;
   values = (uint16_t*) calloc(sizeof(uint16_t), device_count+1);
   while( !queue->is_empty() ) {
     reads = queue->get_commands();
     
-    success = sub20->transfer_spi((char*) reads, (char*) values, 2*device_count+2);
-  	if( !success ) {
-  		std::cerr << "readARXDevice - SPI write #1 failed - " << sub_strerror(sub_errno) << std::endl;
+    success = atm->transfer_spi((char*) reads, (char*) values, 2*device_count+2);
+    if( !success ) {
+      std::cerr << "readARXDevice - SPI write #1 failed" << std::endl;
       ::free(reads);
       ::free(values);
-      delete sub20;
+      delete atm;
       delete queue;
-  		std::exit(EXIT_FAILURE);
-  	}
+      std::exit(EXIT_FAILURE);
+    }
     
     if( values[device_count] != SPI_COMMAND_MARKER ) {
       std::cerr << "readARXDevice - SPI write returned a marker of "
@@ -88,22 +104,22 @@ int main(int argc, char* argv[]) {
                 << std::hex << SPI_COMMAND_MARKER << std::dec << std::endl;
       ::free(reads);
       ::free(values);
-      delete sub20;
+      delete atm;
       delete queue;
-  		std::exit(EXIT_FAILURE);
-  	}
+      std::exit(EXIT_FAILURE);
+    }
     
     ::memset(reads+1, 0, 2*device_count);
     
-    success = sub20->transfer_spi((char*) reads, (char*) values, 2*device_count+2);
-  	if( !success ) {
-  		std::cerr << "readARXDevice - SPI write #2 failed - " << sub_strerror(sub_errno) << std::endl;
+    success = atm->transfer_spi((char*) reads, (char*) values, 2*device_count+2);
+    if( !success ) {
+      std::cerr << "readARXDevice - SPI write #2 failed" << std::endl;
       ::free(reads);
       ::free(values);
-      delete sub20;
+      delete atm;
       delete queue;
-  		std::exit(EXIT_FAILURE);
-  	}
+      std::exit(EXIT_FAILURE);
+    }
     
     if( values[device_count] != SPI_COMMAND_MARKER ) {
       std::cerr << "readARXDevice - SPI write returned a marker of "
@@ -111,10 +127,10 @@ int main(int argc, char* argv[]) {
                 << std::hex << SPI_COMMAND_MARKER << std::dec << std::endl;
       ::free(reads);
       ::free(values);
-      delete sub20;
+      delete atm;
       delete queue;
-  		std::exit(EXIT_FAILURE);
-  	}
+      std::exit(EXIT_FAILURE);
+    }
     
     for(uint32_t j=0; j<device_count; j++) {
       if( values[device_count-1-j] != 0 ) {
@@ -124,14 +140,14 @@ int main(int argc, char* argv[]) {
     
     ::free(reads);
   }
-	
-	/*******************
-	* Cleanup and exit *
-	*******************/
-	::free(values);
   
-	delete sub20;
+  /*******************
+  * Cleanup and exit *
+  *******************/
+  ::free(values);
+  
+  delete atm;
   delete queue;
-	
-	std::exit(EXIT_SUCCESS);
+  
+  std::exit(EXIT_SUCCESS);
 }

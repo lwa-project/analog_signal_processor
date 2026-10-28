@@ -12,14 +12,14 @@ from aspSUB20 import *
 from aspThreads import *
 
 
-__version__ = '0.6'
+__version__ = '0.9'
 __all__ = ['modeDict', 'commandExitCodes', 'AnalogProcessor']
 
 
 aspFunctionsLogger = logging.getLogger('__main__')
 
 
-modeDict = {1: 'AT1', 2: 'AT2', 3: 'ATS'}
+modeDict = {1: 'AT1', 2: 'AT2', 3: 'AT3'}
 
 
 commandExitCodes = {0x00: 'Process accepted without error', 
@@ -117,7 +117,8 @@ class AnalogProcessor(object):
         self.currentState['filter'] = ASPSettingsList([0  for i in range(max_nstand)])
         self.currentState['at1']    = ASPSettingsList([30 for i in range(max_nstand)])
         self.currentState['at2']    = ASPSettingsList([30 for i in range(max_nstand)])
-        self.currentState['ats']    = ASPSettingsList([30 for i in range(max_nstand)])
+        self.currentState['at3']    = ASPSettingsList([15.5 for i in range(max_nstand)])
+        self.currentState['alive']  = threading.Event()
         
         ## Monitoring and background threads
         self.currentState['spiThread'] = None
@@ -149,7 +150,7 @@ class AnalogProcessor(object):
         
         return self.currentState
         
-    def ini(self, nBoards, config=None):
+    def ini(self, config=None):
         """
         Initialize ASP (in a seperate thread).
         """
@@ -160,23 +161,17 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'INI: %s - %s is active and blocking' % (commandExitCodes[0x08], self.currentState['activeProcess'])
             return False, 0x08
             
-        # Check to see if there is a valid number of boards
-        if nBoards < 0 or nBoards > self.config['max_boards']:
-            aspFunctionsLogger.warning("INI command rejected due to invalid board count")
-            self.currentState['lastLog'] = 'INI: %s' % commandExitCodes[0x01]
-            return False, 0x01
-            
         # Update the configuration
         self.updateConfig(config=config)
         
         # Start the process in the background
-        thread = threading.Thread(target=self.__iniProcess, args=(nBoards,))
+        thread = threading.Thread(target=self.__iniProcess)
         thread.setDaemon(1)
         thread.start()
         
         return True, 0
         
-    def __iniProcess(self, nBoards):
+    def __iniProcess(self):
         """
         Thread base to initialize ASP.  Update the current system state as needed.
         """
@@ -184,14 +179,66 @@ class AnalogProcessor(object):
         # Start the timer
         tStart = time.time()
         
+        # Get the number of boards from the config file
+        nBoards = 0
+        for sub20SN in self.config['sub20_antenna_mapping']:
+            astart, astop = self.config['sub20_antenna_mapping'][sub20SN]
+            nBoards += (astop - astart + 1) // self.config['stands_per_board']
+            
         # Update system state
         self.currentState['ready'] = False
         self.currentState['status'] = 'BOOTING'
         self.currentState['info'] = 'Running INI sequence'
         self.currentState['activeProcess'].append('INI')
         
-        # Make sure the SUB-20 is present
-        if os.system('lsusb -d 04d8: >/dev/null') == 0:
+        # Stop all threads.  If the don't exist yet, create them.
+        self.currentState['alive'].clear()
+        if self.currentState['spiThread'] is not None:
+            self.currentState['spiThread'].stop()
+        else:
+            self.currentState['spiThread']= SPIProcessingThread(self.config['sub20_antenna_mapping'],
+                                                                maxRetry=self.config['max_spi_retry'],
+                                                                waitRetry=self.config['wait_spi_retry'])
+        if self.currentState['powerThreads'] is not None:
+            for t in self.currentState['powerThreads']:
+                t.stop()
+                t.updateConfig(self.config)
+        else:
+            self.currentState['powerThreads'] = []
+            self.currentState['powerThreads'].append( PowerStatus(self.config['sub20_i2c_mapping'], self.config['arx_ps_address'], self.config, ASPCallbackInstance=self) )
+            self.currentState['powerThreads'].append( PowerStatus(self.config['sub20_i2c_mapping'], self.config['fee_ps_address'], self.config, ASPCallbackInstance=self) )
+        if self.currentState['tempThread'] is not None:
+            self.currentState['tempThread'].stop()
+            self.currentState['tempThread'].updateConfig(self.config)
+        else:
+            self.currentState['tempThread'] = TemperatureSensors(self.config['sub20_i2c_mapping'], self.config, ASPCallbackInstance=self)
+        if self.currentState['chassisThreads'] is not None:
+            for t in self.currentState['chassisThreads']:
+                t.stop()
+                t.updateConfig(self.config)
+        else:
+            self.currentState['chassisThreads'] = []
+            self.currentState['chassisThreads'].append( ChassisStatus(self.config['sub20_i2c_mapping'], self.config, ASPCallbackInstance=self) )
+            
+        # Update the analog signal chain state
+        for i in range(1, self.num_stands+1):
+            self.currentState['power1'][i] = 0
+            self.currentState['power2'][i] = 0
+            self.currentState['filter'][i] = 0
+            self.currentState['at1'][i] = 30
+            self.currentState['at2'][i] = 30
+            self.currentState['at3'][i] = 15.5
+            
+        # Make sure we have a communication board to talk to.  If not, send a
+        # reset
+        reset_status = True
+        if not probeCommBoards(self.config['sub20_antenna_mapping']):
+            aspFunctionsLogger.info('No communications board(s) found, attempting a reset')
+            reset_status &= resetCommBoards(self.config['sub20_antenna_mapping'])
+            time.sleep(5)
+            
+        # Check again to make sure the communication board is present
+        if reset_status and probeCommBoards(self.config['sub20_antenna_mapping']):
             # Good, we can continue
             
             # Turn off the power supplies
@@ -208,7 +255,16 @@ class AnalogProcessor(object):
             boardsFound = spiCountBoards(self.config['sub20_antenna_mapping'],
                                          maxRetry=self.config['max_spi_retry'],
                                          waitRetry=self.config['wait_spi_retry'])
-            if boardsFound == nBoards:
+            boardsFound2 = rs485CountBoards(self.config['sub20_antenna_mapping'],
+                                            maxRetry=self.config['max_spi_retry'],
+                                            waitRetry=self.config['wait_spi_retry'])
+            if boardsFound2 != boardsFound:
+                ## Try again...
+                boardsFound2 = rs485CountBoards(self.config['sub20_antenna_mapping'],
+                                                maxRetry=self.config['max_spi_retry'],
+                                                waitRetry=self.config['wait_spi_retry'])
+                
+            if boardsFound == boardsFound2 and boardsFound == nBoards:
                 # Board and stand counts.  NOTE: Stand counts are capped at 260
                 self.num_boards = nBoards
                 self.num_stands = nBoards * self.config['stands_per_board']
@@ -216,44 +272,7 @@ class AnalogProcessor(object):
                     self.num_stands = self.config['max_stands']
                 self.num_chpairs = nBoards * self.config['stands_per_board']
                 aspFunctionsLogger.info('Starting ASP with %i boards (%i stands)', self.num_boards, self.num_stands)
-                    
-                # Stop all threads.  If the don't exist yet, create them.
-                if self.currentState['spiThread'] is not None:
-                    self.currentState['spiThread'].stop()
-                else:
-                    self.currentState['spiThread']= SPIProcessingThread(self.config['sub20_antenna_mapping'],
-                                                                        maxRetry=self.config['max_spi_retry'],
-                                                                        waitRetry=self.config['wait_spi_retry'])
-                if self.currentState['powerThreads'] is not None:
-                    for t in self.currentState['powerThreads']:
-                        t.stop()
-                        t.updateConfig(self.config)
-                else:
-                    self.currentState['powerThreads'] = []
-                    self.currentState['powerThreads'].append( PowerStatus(self.config['sub20_i2c_mapping'], self.config['arx_ps_address'], self.config, ASPCallbackInstance=self) )
-                    self.currentState['powerThreads'].append( PowerStatus(self.config['sub20_i2c_mapping'], self.config['fee_ps_address'], self.config, ASPCallbackInstance=self) )
-                if self.currentState['tempThread'] is not None:
-                    self.currentState['tempThread'].stop()
-                    self.currentState['tempThread'].updateConfig(self.config)
-                else:
-                    self.currentState['tempThread'] = TemperatureSensors(self.config['sub20_i2c_mapping'], self.config, ASPCallbackInstance=self)
-                if self.currentState['chassisThreads'] is not None:
-                    for t in self.currentState['chassisThreads']:
-                        t.stop()
-                        t.updateConfig(self.config)
-                else:
-                    self.currentState['chassisThreads'] = []
-                    self.currentState['chassisThreads'].append( ChassisStatus(self.config['sub20_i2c_mapping'], self.config, ASPCallbackInstance=self) )
-                    
-                # Update the analog signal chain state
-                for i in range(1, self.num_stands+1):
-                    self.currentState['power1'][i] = 0
-                    self.currentState['power2'][i] = 0
-                    self.currentState['filter'][i] = 0
-                    self.currentState['at1'][i] = 30
-                    self.currentState['at2'][i] = 30
-                    self.currentState['ats'][i] = 30
-                    
+                
                 # Start the SPI command processor
                 self.currentState['spiThread'].start()
                 
@@ -268,6 +287,7 @@ class AnalogProcessor(object):
                 status &= self.currentState['spiThread'].process_command(0, SPI_cfg_output_P28_29_30_31)        # Set outputs
                 
                 # Start the threads
+                self.currentState['alive'].set()
                 for t in self.currentState['powerThreads']:
                     t.start()
                 self.currentState['tempThread'].start()
@@ -289,21 +309,28 @@ class AnalogProcessor(object):
                     aspFunctionsLogger.critical("INI failed sending SPI bus commands after %i attempts", MAX_SPI_RETRY)
             else:
                 self.currentState['status'] = 'ERROR'
-                self.currentState['info'] = 'SUMMARY! 0x%02X %s - Found %i boards, expected %i' % (0x09, subsystemErrorCodes[0x09], boardsFound, nBoards)
+                self.currentState['info'] = 'SUMMARY! 0x%02X %s - Found %i boards on SPI; %i on RS485, expected %i on both' % (0x09, subsystemErrorCodes[0x09], boardsFound, boardsFound2, nBoards)
                 self.currentState['lastLog'] = 'INI: finished with error'
                 self.currentState['ready'] = False
                 
-                aspFunctionsLogger.critical("INI failed; found %i boards, expected %i", boardsFound, nBoards)
+                aspFunctionsLogger.critical("INI failed; found %i boards on SPI; %i on RS485, expected %i on both", boardsFound, boardsFound2, nBoards)
                 
         else:
-            # Oops, the SUB-20 is missing...
-            self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - SUB-20 device not found' % (0x07, subsystemErrorCodes[0x07])
+            # Oops, either the reset failed or the communication board is missing...
+            if not reset_status:
+                self.currentState['status'] = 'ERROR'
+                self.currentState['info'] = 'SUMMARY! 0x%02X %s - communication board reset failed' % (0x07, subsystemErrorCodes[0x07])
+            else:
+                self.currentState['status'] = 'ERROR'
+                self.currentState['info'] = 'SUMMARY! 0x%02X %s - communication board not found' % (0x07, subsystemErrorCodes[0x07])
             self.currentState['lastLog'] = 'INI: finished with error'
             self.currentState['ready'] = False
             
-            aspFunctionsLogger.critical("INI failed due to missing SUB-20 device(s)")
-        
+            if not reset_status:
+                aspFunctionsLogger.critical("INI failed due to failed reset of communication board(s)")
+            else:
+                aspFunctionsLogger.critical("INI failed due to missing communication board(s)")
+                
         # Update the current state
         aspFunctionsLogger.info("Finished the INI process in %.3f s", time.time() - tStart)
         self.currentState['activeProcess'].remove('INI')
@@ -345,6 +372,7 @@ class AnalogProcessor(object):
         self.currentState['ready'] = False
         
         # Stop most threads.
+        self.currentState['alive'].clear()
         if self.currentState['powerThreads'] is not None:
             for t in self.currentState['powerThreads']:
                 t.stop()
@@ -360,8 +388,9 @@ class AnalogProcessor(object):
             time.sleep(5)
             
         # Stop the SPI command processor
-        self.currentState['spiThread'].stop()
-        
+        if self.currentState['spiThread'] is not None:
+            self.currentState['spiThread'].stop()
+            
         # Power off the power supplies
         self.__rxpProcess(00, internal=True)
         self.__fepProcess(00, internal=True)
@@ -390,7 +419,7 @@ class AnalogProcessor(object):
         if stand < 0 or stand > self.num_stands:
             self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x02]
             return False, 0x02
-        if filterCode < 0 or filterCode > 5:
+        if filterCode < 0 or filterCode > 7:
             self.currentState['lastLog'] = 'FIL: %s' % commandExitCodes[0x04]
             return False, 0x04
             
@@ -404,33 +433,43 @@ class AnalogProcessor(object):
     def __filProcess(self, stand, filterCode):
         """
         Background process for FIL commands so that other commands can keep on running.
+        
+        Filter Key:
+         0 - HPF30 + LPF83 - like split
+         1 - HPF10 + LPF83 - like full
+         2 - HPF30 + LPF73 - like reduced
+         3 - HPF3 + LPF73 - was off but now like full but with the band shifted down
+         4 - HPF20 + LPF83 - like split @ 3MHz
+         5 - HPF3 + LPF83 - like full @ 3MHz
+         6 - HPF10 + LPF73 - new - like full but with better FM rejection
+         7 - HPF20 + LPF73 - new - like split @ 3MHz but with better FM rejection
         """
         
         # Do SPI bus stuff
-        if filterCode > 3:
-            # Set 3 MHz mode
+        if filterCode in (0, 1, 4, 5):
+            # LPF83
             self.currentState['spiThread'].queue_command(stand, SPI_P14_on)
             self.currentState['spiThread'].queue_command(stand, SPI_P15_off)
         else:
-            # Set 10 MHz mode
+            # LPF73
             self.currentState['spiThread'].queue_command(stand, SPI_P14_off)
             self.currentState['spiThread'].queue_command(stand, SPI_P15_on)
             
         cb = SPICommandCallback(self.currentState['filter'].__setitem__, stand, filterCode)
-        if filterCode == 0 or filterCode == 4:
-            # Set Filter to Split Bandwidth
+        if filterCode in (3, 5):
+            # HPF3
             self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
             self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
-        elif filterCode == 1 or filterCode == 5:
-            # Set Filter to Full Bandwidth
-            self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
-            self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
-        elif filterCode == 2:
-            # Set Filter to Reduced Bandwidth
+        elif filterCode in (1, 6):
+            # HPF10
             self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
             self.currentState['spiThread'].queue_command(stand, SPI_P18_off, cb)
-        elif filterCode == 3:
-            # Set Filters OFF
+        elif filterCode in (4, 7):
+            # HPF20
+            self.currentState['spiThread'].queue_command(stand, SPI_P19_off)
+            self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
+        else:
+            # HPF30
             self.currentState['spiThread'].queue_command(stand, SPI_P19_on)
             self.currentState['spiThread'].queue_command(stand, SPI_P18_on, cb)
             
@@ -444,7 +483,7 @@ class AnalogProcessor(object):
         Set one of the attenuators for a given stand.  The attenuators are:
           1. AT1
           2. AT2
-          3. ATS
+          3. AT3
         """
         
         # Check the operational status of the system
@@ -456,7 +495,7 @@ class AnalogProcessor(object):
         if stand < 0 or stand > self.num_stands:
             self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x02])
             return False, 0x02
-        if attenSetting < 0 or attenSetting > self.config['max_atten']:
+        if attenSetting < 0 or attenSetting > self.config['max_atten'][mode-1]:
             self.currentState['lastLog'] = '%s: %s' % (modeDict[mode], commandExitCodes[0x05])
             return False, 0x05
             
@@ -469,50 +508,76 @@ class AnalogProcessor(object):
     
     def __atnProcess(self, mode, stand, attenSetting):
         """
-        Background process for AT1/AT2/ATS commands so that other commands can keep on running.
+        Background process for AT1/AT2/AT3 commands so that other commands can keep on running.
         """
         
         # Do SPI bus stuff
-        setting = 2*attenSetting
-        
         if mode == 1:
-            order = ((SPI_P27_on, SPI_P27_off), (SPI_P24_on, SPI_P24_off), (SPI_P25_on, SPI_P25_off), (SPI_P26_on, SPI_P26_off))
+            setting = 2.0*attenSetting
+            order = ((SPI_P27_on, SPI_P27_off), (SPI_P24_on, SPI_P24_off), (SPI_P25_on, SPI_P25_off), (SPI_P26_on, SPI_P26_off), (None, None), (None, None))
         elif mode == 2:
-            order = ((SPI_P23_on, SPI_P23_off), (SPI_P21_on, SPI_P21_off), (SPI_P20_on, SPI_P20_off), (SPI_P22_on, SPI_P22_off))
+            setting = 2.0*attenSetting
+            order = ((SPI_P23_on, SPI_P23_off), (SPI_P21_on, SPI_P21_off), (SPI_P20_on, SPI_P20_off), (SPI_P22_on, SPI_P22_off), (None, None), (None, None))
         else:
-            order = ((SPI_P31_on, SPI_P31_off), (SPI_P28_on, SPI_P28_off), (SPI_P29_on, SPI_P29_off), (SPI_P30_on, SPI_P30_off))
+            setting = attenSetting/2.0
+            order = ((None, None), (SPI_P31_on, SPI_P31_off), (SPI_P28_on, SPI_P28_off), (SPI_P29_on, SPI_P29_off), (SPI_P30_on, SPI_P30_off), (SPI_P13_on, SPI_P13_off))
             
         cb = SPICommandCallback(self.currentState[modeDict[mode].lower()].__setitem__, stand, attenSetting)
         if setting >= 16:
-            self.currentState['spiThread'].queue_command(stand, order[0][0], cb)
+            if order[0][0] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[0][0], cb)
             setting -= 16
             cb = None
         else:
-            self.currentState['spiThread'].queue_command(stand, order[0][1], cb)
+            if order[0][1] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[0][1], cb)
             cb = None
             
         if setting >= 8:
-            self.currentState['spiThread'].queue_command(stand, order[1][0], cb)
+            if order[1][0] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[1][0], cb)
             setting -= 8
             cb = None
         else:
-            self.currentState['spiThread'].queue_command(stand, order[1][1], cb)
+            if order[1][1] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[1][1], cb)
             cb = None
             
         if setting >= 4:
-            self.currentState['spiThread'].queue_command(stand, order[2][0], cb)
+            if order[2][0] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[2][0], cb)
             setting -= 4
             cb = None
         else:
-            self.currentState['spiThread'].queue_command(stand, order[2][1], cb)
+            if order[2][1] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[2][1], cb)
             cb = None
             
         if setting >= 2:
-            self.currentState['spiThread'].queue_command(stand, order[3][0], cb)
+            if order[3][0] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[3][0], cb)
             setting -= 2
             cb = None
         else:
-            self.currentState['spiThread'].queue_command(stand, order[3][1], cb)
+            if order[3][1] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[3][1], cb)
+            cb = None
+            
+        if setting >= 1:
+            if order[4][0] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[4][0], cb)
+            setting -= 1
+        else:
+            if order[4][1] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[4][1], cb)
+            cb = None
+        if setting >= 0.5:
+            if order[5][0] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[5][0], cb)
+            setting -= 0.5
+        else:
+            if order[5][1] is not None:
+                self.currentState['spiThread'].queue_command(stand, order[5][1], cb)
             cb = None
             
         self.currentState['lastLog'] = '%s: Set attenuator to %02i for stand %i' % (modeDict[mode], attenSetting, stand)
@@ -542,10 +607,21 @@ class AnalogProcessor(object):
             return False, 0x06
             
         # Process in the background
-        thread = threading.Thread(target=self.__fpwProcess, args=(stand, pol, state))
-        thread.setDaemon(1)
-        thread.start()
-        
+        if pol == 0:
+            ## Pol 0 = set both pot 1 and pol 2
+            thread0 = threading.Thread(target=self.__fpwProcess, args=(stand, 0, state))
+            thread0.setDaemon(1)
+            thread0.start()
+            
+            thread1 = threading.Thread(target=self.__fpwProcess, args=(stand, 1, state))
+            thread1.setDaemon(1)
+            thread1.start()
+            
+        else:
+            thread = threading.Thread(target=self.__fpwProcess, args=(stand, pol, state))
+            thread.setDaemon(1)
+            thread.start()
+            
         return True, 0
         
     def __fpwProcess(self, stand, pol, state):
@@ -629,6 +705,47 @@ class AnalogProcessor(object):
             
         return True, 0
         
+    def setLocate(self, stand, locSetting):
+        """
+        Set the locate LED on the specified stand
+        """
+
+        # Check the operational status of the system
+        if self.currentState['status'] == 'SHUTDWN'or not self.currentState['ready']:
+            self.currentState['lastLog'] = 'LOC: %s' % commandExitCodes[0x0A]
+            return False, 0x0A
+
+        # Validate inputs
+        if stand < 0 or stand > self.num_stands:
+            self.currentState['lastLog'] = 'LOC: %s' % commandExitCodes[0x02]
+            return False, 0x02
+        if locSetting not in (0, 11):
+            self.currentState['lastLog'] = 'LOC: %s' % commandExitCodes[0x05]
+            return False, 0x05
+
+        # Process in the background
+        thread = threading.Thread(target=self.__locProcess, args=(stand, locSetting))
+        thread.setDaemon(1)
+        thread.start()
+
+        return True, 0
+
+    def __locProcess(self, stand, locSetting):
+        """
+        Background process for LOC commands so that other commands can keep on running.
+        """
+
+        # Do SPI bus stuff
+        if locSetting == 11:
+            self.currentState['spiThread'].queue_command(stand, SPI_P12_on)
+        else:
+            self.currentState['spiThread'].queue_command(stand, SPI_P12_off)
+
+        self.currentState['lastLog'] = '%s: Set locate state to %i for stand %i' % (locSetting, stand)
+        aspFunctionsLogger.debug('%s - Set locate state to %i for stand %i', locSetting, stand)
+
+        return True, 0
+        
     def setFPWPowerState(self, state):
         """
         Set the FEE power supply power state.
@@ -704,7 +821,7 @@ class AnalogProcessor(object):
     
     def getAttenuators(self, stand):
         """
-        Return the attenuator settings (AT1, AT2, ATS) for a given stand as a two-element 
+        Return the attenuator settings (AT1, AT2, AT3) for a given stand as a two-element 
         tuple (success, values) where success is a boolean related to if the attenuator 
         values were found.  See the currentState['lastLog'] entry for the reason for 
         failure if the returned success value is False.
@@ -713,8 +830,8 @@ class AnalogProcessor(object):
         if  stand > 0 and stand <= self.num_stands:
             at1 = self.currentState['at1'][stand]
             at2 = self.currentState['at2'][stand]
-            ats = self.currentState['ats'][stand]
-            return True, (at1, at2, ats)
+            at3 = self.currentState['at3'][stand]
+            return True, (at1, at2, at3)
             
         else:
             self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
@@ -732,6 +849,65 @@ class AnalogProcessor(object):
             return True, (self.currentState['power1'][stand],
                           self.currentState['power2'][stand])
             
+        else:
+            self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
+            return False, ()
+            
+    def getFEECurrentDraw(self, stand):
+        """
+        Return the FEE current draw (pol 1, pol 2) for a given stand as a two-element tuple 
+        (success, values) where success is a boolean related to if the current values were 
+        found.  See the currentState['lastLog'] entry for the reason for failure if the 
+        returned success value is False.
+        """
+        
+        if stand > 0 and stand <= self.num_stands:
+            if self.currentState['chassisThreads'] is None:
+                self.currentState['lastLog'] = 'FEEPOL1CUR: Monitoring processes are not running'
+                return False, ()
+                
+            fees = self.currentState['chassisThreads'][0].getFEECurrent(stand)
+            return True, tuple(fees)
+        else:
+            self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
+            return False, ()
+            
+    def getAllFEECurrentDraws(self):
+        """
+        Return all FEE current draws as a two-element tuple (success, values) where
+        success is a boolean related to if the current values were  found.  See the currentState['lastLog'] entry for the reason for failure if the 
+        returned success value is False.
+        """
+        
+        if self.currentState['chassisThreads'] is None:
+            self.currentState['lastLog'] = 'FEEPOLCUR: Monitoring processes are not running'
+            return False, ()
+            
+        fees = self.currentState['chassisThreads'][0].getAllFEECurrents()
+        if fees:
+            return True, tuple(fees)
+        else:
+            return False, ()
+            
+    def getRFPower(self, stand):
+        """
+        Returns the RF power into a 50 ohm load (pol 1, pol 2) for a given stand as a two-
+        element tuple (sucess, values) where success is a boolean related to if the RF powers
+        were found.  See the currentState['lastLog'] entry for the reason for failure if the 
+        returned success value is False.
+        """
+        
+        if not self.config.get('has_rf_power', False):
+            self.currentState['lastLog'] = 'RFPWR: Not available'
+            return False, ()
+            
+        if stand > 0 and stand <= self.num_stands:
+            if self.currentState['chassisThreads'] is None:
+                self.currentState['lastLog'] = 'RFPWR: Monitoring processes are not running'
+                return False, ()
+                
+            rf_power = self.currentState['chassisThreads'][0].getRFPower(stand)
+            return True, tuple(rf_power)
         else:
             self.currentState['lastLog'] = 'Invalid stand ID (%i)' % stand
             return False, ()
@@ -900,7 +1076,7 @@ class AnalogProcessor(object):
                 self.currentState['lastLog'] = 'Invalid ARX power supply (%i)' % psNumb
                 return False, None
             
-    def getFEECurrentDraw(self):
+    def getFEEPowerSupplyCurrentDraw(self):
         """
         Return the FEE power supply current draw (in mA) as a two-element tuple (success, values) 
         where success is a boolean related to if the current value was found.  See the 
@@ -920,7 +1096,7 @@ class AnalogProcessor(object):
                     
             return True, curr*1000.0
         
-    def getFEEVoltage(self):
+    def getFEEPowerSupplyVoltage(self):
         """
         Return the ARX output voltage (in V) as a two-element tuple (success, value) where
         success is a boolean related to if the current value was found.  See the 
@@ -1132,23 +1308,23 @@ class AnalogProcessor(object):
                     
         return True
         
-    def processMissingSUB20(self):
+    def processMissingCommBoard(self):
         """
-        Function to put the system into ERROR if the SUB-20 is missing or dead.
+        Function to put the system into ERROR if the communication board is missing or dead.
         """
         
         # Try it out
-        if os.system('lsusb -d 04d8: >/dev/null') == 0:
+        if os.system('lsusb -d 2886: >/dev/null') == 0:
             # Nope, it's really there
             return False
             
         else:
-            # Yep, the SUB-20 is gone
-            aspFunctionsLogger.critical('SUB-20 has disappeared from the list of USB devices')
+            # Yep, the communication board is gone
+            aspFunctionsLogger.critical('communication board has disappeared from the list of USB devices')
             
             self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'SUMMARY! 0x%02X %s - SUB-20 device not found' % (0x07, subsystemErrorCodes[0x07])
-            self.currentState['lastLog'] = 'SUB-20 device has disappeared'
+            self.currentState['info'] = 'SUMMARY! 0x%02X %s - communication board not found' % (0x07, subsystemErrorCodes[0x07])
+            self.currentState['lastLog'] = 'communication board has disappeared'
             self.currentState['ready'] = False
             
         return True

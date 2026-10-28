@@ -1,12 +1,12 @@
 #------------------------------------------------------------------------------
 # Main Targets
 #------------------------------------------------------------------------------
-all: LIBSUB sendARXDevice \
-     countBoards countPSUs countThermometers \
+all: sendARXDevice sendPICDevice \
+     countBoards countPSUs countThermometers countPICs \
      readPSU readThermometers \
      onoffPSU configPSU \
-     readARXDevice \
-		 sub20Config
+     readARXDevice setATmegaSN listATmegaSN locateATmega \
+     atmegaConfig
 
 #------------------------------------------------------------------------------
 # Config
@@ -17,8 +17,7 @@ OS = $(shell uname)
 # Compiler
 #------------------------------------------------------------------------------
 
-# C/C++ Compiler and Linker Executable
-CC      := $(CROSS)gcc
+# C++ Compiler and Linker Executable
 CXX     := $(CROSS)g++
 
 
@@ -30,83 +29,107 @@ LDLIB   :=
 #------------------------------------------------------------------------------
 # Compiler Flags 
 #------------------------------------------------------------------------------
-CFLAGS  := -O2 -Wall
+CXXFLAGS  := -O2 -Wall -std=c++17 
 
 #------------------------------------------------------------------------------
 # Linker Flags 
 #------------------------------------------------------------------------------
-LDFLAGS := -lsub -Llibsub
-CFLAGS += -Ilibsub
-LDFLAGS += -L/usr/local/lib -lusb-1.0 -lm
+LDFLAGS := -Llibatmega -latmega_static
+CXXFLAGS += -Ilibatmega
+LDFLAGS += -lm -lpthread
+ifeq ($(OS),Linux)
+  LDFLAGS += -ludev
+else ifeq ($(OS),Darwin)
+  LDFLAGS += -framework IOKit -framework CoreFoundation
+endif
+
+#------------------------------------------------------------------------------
+# libatmega dependencies
+#------------------------------------------------------------------------------
+LIBATMEGA_LIB := libatmega/libatmega_static.a
+LIBATMEGA_HDR := libatmega/libatmega.hpp
 
 #------------------------------------------------------------------------------
 # Common rules
 #------------------------------------------------------------------------------
-%.o:	%.c  
-	$(CC) -c $(CFLAGS) -o $@ $<
-%.o:	%.cpp 
-	$(CXX) -c $(CFLAGS) -std=c++11 -o $@ $<
+%.o: %.cpp $(LIBATMEGA_HDR)
+	./extract_help.sh $<
+	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
 
 #------------------------------------------------------------------------------
 # Target Builds
 # 
 #------------------------------------------------------------------------------
-LIBSUB: 
-	make -C libsub
+$(LIBATMEGA_LIB): libatmega/libatmega.cpp $(LIBATMEGA_HDR)
+	$(MAKE) -C libatmega
 
-sendARXDevice: sendARXDevice.o aspCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+sendARXDevice: sendARXDevice.o aspCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-countBoards: countBoards.o aspCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+sendPICDevice: sendPICDevice.o aspCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-countPSUs: countPSUs.o aspCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+countBoards: countBoards.o aspCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-countThermometers: countThermometers.o aspCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+countPSUs: countPSUs.o aspCommon.o ivsCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-readPSU: readPSU.o aspCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+countThermometers: countThermometers.o aspCommon.o ivsCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-readThermometers: readThermometers.o aspCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+countPICs: countPICs.o aspCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-onoffPSU: onoffPSU.o aspCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+readPSU: readPSU.o aspCommon.o ivsCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-configPSU: configPSU.o aspCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+readThermometers: readThermometers.o aspCommon.o ivsCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
 
-readARXDevice: readARXDevice.o aspCommon.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
-	
-sub20Config: sub20Config.cpp
+onoffPSU: onoffPSU.o aspCommon.o ivsCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
+
+configPSU: configPSU.o aspCommon.o ivsCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
+
+readARXDevice: readARXDevice.o aspCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
+
+setATmegaSN: setATmegaSN.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
+
+listATmegaSN: listATmegaSN.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
+
+locateATmega: locateATmega.o aspCommon.o $(LIBATMEGA_LIB)
+	$(CXX) -o $@ $(filter %.o,$^) $(LDFLAGS)
+
+atmegaConfig: atmegaConfig.cpp
 	python3 setup.py build_ext --inplace
 
 install:
+	rm -f /dev/shm/sem.* /dev/shm/arx_*.lock /tmp/arx_*.lock
 	cp sendARXDevice /usr/local/bin
+	cp sendPICDevice /usr/local/bin
 	cp countBoards /usr/local/bin
 	cp countPSUs /usr/local/bin
 	cp countThermometers /usr/local/bin
+	cp countPICs /usr/local/bin
 	cp readPSU /usr/local/bin
 	cp readThermometers /usr/local/bin
 	cp onoffPSU /usr/local/bin
 	cp configPSU /usr/local/bin
 	cp readARXDevice /usr/local/bin
-	chown root:root /usr/local/bin/sendARXDevice \
-                        /usr/local/bin/countBoards /usr/local/bin/countPSUs /usr/local/bin/countThermometers \
-                        /usr/local/bin/readPSU /usr/local/bin/readThermometers \
-                        /usr/local/bin/onoffPSU /usr/local/bin/configPSU \
-                        /usr/local/bin/readARXDevice
-	chmod +s /usr/local/bin/sendARXDevice \
-                 /usr/local/bin/countBoards /usr/local/bin/countPSUs /usr/local/bin/countThermometers \
-                 /usr/local/bin/readPSU /usr/local/bin/readThermometers \
-                 /usr/local/bin/onoffPSU /usr/local/bin/configPSU \
-                 /usr/local/bin/readARXDevice
+	cp locateATmega /usr/local/bin
+	cp listATmegaSN /usr/local/bin
 
 clean:
-	rm -f *.o *.out *.err *.exe *.a *.so
-	rm -f sendARXDevice countBoards countPSUs countThermometers readPSU readThermometers onoffPSU configPSU readARXDevice
-	make -C libsub clean
+	rm -f *.o *.out *.err *.exe *.a *.so *.dylib
+	rm -f *_help.h
+	rm -f sendARXDevice sendPICDevice \
+	countBoards countPSUs countThermometers countPICs \
+	readPSU readThermometers onoffPSU configPSU readARXDevice \
+	setATmegaSN listATmegaSN locateATmega
+	make -C libatmega clean

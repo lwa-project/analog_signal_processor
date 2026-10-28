@@ -17,37 +17,14 @@ except ImportError:
     
 from lwainflux import LWAInfluxClient
 
+from aspSUB20 import *
 
-__version__ = '0.6'
-__all__ = ['SUB20_LOCKS', 'TemperatureSensors', 'PowerStatus', 'ChassisStatus']
+
+__version__ = '0.7'
+__all__ = ['TemperatureSensors', 'PowerStatus', 'ChassisStatus']
 
 
 aspThreadsLogger = logging.getLogger('__main__')
-
-
-class LockLocker(dict):
-    """
-    Class to automatically generate threading.Lock objects for any key that
-    might be requested.
-    """
-    
-    _access_lock = threading.RLock()
-    
-    def __getitem__(self, name):
-        with self._access_lock:
-            try:
-                lock = dict.__getitem__(self, name)
-            except KeyError:
-                lock = threading.Lock()
-                dict.__setitem__(self, name, lock)
-        return lock
-        
-    def __setitem__(self, name, value):
-        with self._access_lock:
-            dict.__setitem__(self, name, value)
-
-
-SUB20_LOCKS = LockLocker()
 
 
 class TemperatureSensors(object):
@@ -98,7 +75,7 @@ class TemperatureSensors(object):
         if self.thread is not None:
             self.stop()
             
-        self.nTemps = os.system("/usr/local/bin/countThermometers %s" % self.sub20SN) // 256
+        self.nTemps = psuCountTemperature(self.sub20SN)
         self.description = ["UNK" for i in range(self.nTemps)]
         self.temp = [0.0 for i in range(self.nTemps)]
         self.coldCount = 0
@@ -125,47 +102,49 @@ class TemperatureSensors(object):
             self.nTemps = 0
             self.lastError = None
             
+    def is_alive(self):
+        """
+        Check the current state of the threading.Event()s that control the this
+        monitor.
+        """
+        
+        status = self.alive.is_set()
+        if self.ASPCallbackInstance is not None:
+            status &= self.ASPCallbackInstance.currentState['alive'].is_set()
+        return status
+        
+    def is_set(self):
+        """
+        Alias for is_alive() to provide a minimal threading.Event-like interface.
+        """
+        
+        return self.is_alive()
+        
     def monitorThread(self):
         """
         Create a monitoring thread for the temperature.
         """
         
-        while self.alive.isSet():
+        while self.is_alive():
             tStart = time.time()
             
             try:
-                missingSUB20 = False
-                
-                with SUB20_LOCKS[self.sub20SN]:
-                    p = subprocess.Popen('/usr/local/bin/readThermometers %s' % self.sub20SN, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
-                if p.returncode != 0:
-                    aspThreadsLogger.warning("readThermometers: command returned %i; '%s;%s'", p.returncode, output, output2)
-                    self.lastError = str(output2)
+                temps = psuTemperature(self.sub20SN, threadingEvent=self)
+                if temps:
+                    missingSUB20 = False
                     
+                    for i,entry in enumerate(temps):
+                        self.description[i] = '%s %s' % (entry['address'], entry['description'])
+                        self.temp[i] = entry['temp_C']
+                else:
                     missingSUB20 = True
                     
-                else:
-                    for i,line in enumerate(output.split('\n')):
-                        if len(line) < 4:
-                            continue
-                        psu, desc, tempC = line.split(None, 2)
-                        self.description[i] = '%s %s' % (psu, desc)
-                        self.temp[i] = float(tempC)
-                        
                 # Open the log file and save the temps
                 try:
-                    log = open(self.logfile, 'a+')
-                    log.write('%s,' % time.time())
-                    log.write('%s\n' % ','.join(["%.2f" % t for t in self.temp]))
-                    log.flush()
-                    log.close()
+                    with open(self.logfile, 'a+') as log:
+                        log.write('%s,' % time.time())
+                        log.write('%s\n' % ','.join(["%.2f" % t for t in self.temp]))
+                        log.flush()
                 except IOError:
                     aspThreadsLogger.error("%s: could not open flag logfile %s for writing", type(self).__name__, self.logfile)
                     pass
@@ -188,9 +167,9 @@ class TemperatureSensors(object):
                     aspThreadsLogger.warning('%s: monitorThread max. temperature is %.1f C', type(self).__name__, max(self.temp))
                     
                 # Make sure we aren't critical (on either side of good)
-                if self.ASPCallbackInstance is not None and self.temp is not None:
+                if self.is_alive() and self.ASPCallbackInstance is not None and self.temp is not None:
                     if missingSUB20:
-                        self.ASPCallbackInstance.processMissingSUB20()
+                        self.ASPCallbackInstance.processMissingCommBoard()
                         
                     if self.hotCount >= 3:
                         aspThreadsLogger.critical('%s: monitorThread max. temperature is %.1f C, notifying the system', type(self).__name__, max(self.temp))
@@ -239,7 +218,7 @@ class TemperatureSensors(object):
             # Sleep for a bit
             sleepCount = 0
             sleepTime = self.monitorPeriod - (tStop - tStart)
-            while (self.alive.isSet() and sleepCount < sleepTime):
+            while (self.is_alive() and sleepCount < sleepTime):
                 time.sleep(0.2)
                 sleepCount += 0.2
                 
@@ -373,59 +352,65 @@ class PowerStatus(object):
             self.nPSUs = 0
             self.lastError = None
             
+    def is_alive(self):
+        """
+        Check the current state of the threading.Event()s that control the this
+        monitor.
+        """
+        
+        status = self.alive.is_set()
+        if self.ASPCallbackInstance is not None:
+            status &= self.ASPCallbackInstance.currentState['alive'].is_set()
+        return status
+        
+    def is_set(self):
+        """
+        Alias for is_alive() to provide a minimal threading.Event-like interface.
+        """
+        
+        return self.is_alive()
+        
     def monitorThread(self):
         """
         Create a monitoring thread for the temperature.
         """
         
-        while self.alive.isSet():
+        while self.is_alive():
             tStart = time.time()
             
             try:
-                missingSUB20 = False
-                
-                with SUB20_LOCKS[self.sub20SN]:
-                    p = subprocess.Popen('/usr/local/bin/readPSU %s 0x%02X' % (self.sub20SN, self.deviceAddress), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
-                if p.returncode != 0:
-                    aspThreadsLogger.warning("readPSU: command returned %i; '%s;%s'", p.returncode, output, output2)
+                data = psuRead(self.sub20SN, self.deviceAddress, threadingEvent=self)
+                if data:
+                    missingSUB20 = False
+                    
+                    self.description = '%s - %s' % (data['address'], data['description'])
+                    self.voltage = data['voltage']
+                    self.current = data['current']
+                    self.onoff = data['onoff']
+                    self.status = data['status']
+                else:
+                    missingSUB20 = True
+                    
                     self.voltage = 0.0
                     self.current = 0.0
                     self.onoff = "UNK"
                     self.status = "UNK"
-                    self.lastError = str(output2)
-                    
-                    missingSUB20 = True
-                    
-                else:
-                    psu, desc, onoffHuh, statusHuh, voltageV, currentA, = output.replace('\n', '').split(None, 5)
-                    self.description = '%s - %s' % (psu, desc)
-                    self.voltage = float(voltageV)
-                    self.current = float(currentA)
-                    self.onoff = '%-3s' % onoffHuh
-                    self.status = statusHuh
+                    self.lastError = 'No data returned'
                     
                 try:
-                    log = open(self.logfile, 'a+')
-                    log.write('%s,' % time.time())
-                    log.write('%s\n' % ','.join(["%.2f" % self.voltage, "%.3f" % self.current, self.onoff, self.status]))
-                    log.flush()
-                    log.close()
+                    with open(self.logfile, 'a+') as log:
+                        log.write('%s,' % time.time())
+                        log.write('%s\n' % ','.join(["%.2f" % self.voltage, "%.3f" % self.current, self.onoff, self.status]))
+                        log.flush()
                 except IOError:
                     aspThreadsLogger.error("%s: could not open flag logfile %s for writing", type(self).__name__, self.logfile)
                     pass
                     
                 # Deal with power supplies that are over temperature, current, or voltage; 
                 # or under voltage; or has a module fault
-                if self.ASPCallbackInstance is not None:
+                if self.is_alive() and self.ASPCallbackInstance is not None:
                     if missingSUB20:
-                        self.ASPCallbackInstance.processMissingSUB20()
+                        self.ASPCallbackInstance.processMissingCommBoard()
                         
                     for modeOfFailure in ('OverTemperature', 'OverCurrent', 'OverVolt', 'UnderVolt', 'ModuleFault'):
                         if self.status.find(modeOfFailure) != -1:
@@ -468,7 +453,7 @@ class PowerStatus(object):
             # Sleep for a bit
             sleepCount = 0
             sleepTime = self.monitorPeriod - (tStop - tStart)
-            while (self.alive.isSet() and sleepCount < sleepTime):
+            while (self.is_alive() and sleepCount < sleepTime):
                 time.sleep(0.2)
                 sleepCount += 0.2
                 
@@ -523,15 +508,21 @@ class ChassisStatus(object):
     the configuration has been lost.
     """
     
-    def __init__(self, sub20SN, config, ASPCallbackInstance=None):
+    def __init__(self, sub20SN, config, temp_logfile='/data/board-temp.txt',
+                       fee_logfile='/data/fee-power.txt', pic_monitoring=True,
+                       ASPCallbackInstance=None):
         self.sub20SN = str(sub20SN)
         self.register = 0x000C
         self.updateConfig(config)
+        self.temp_logfile = temp_logfile
+        self.fee_logfile = fee_logfile
+        self.pic_monitoring = pic_monitoring
         
-        # Total number of devices on the chassis
-        dStart, dStop = config['sub20_antenna_mapping'][self.sub20SN]
-        self.totalDevs = dStop - dStart + 1
+        # SPI setup and data variables
+        self._spi = SPIProcessingThread(self.spi_mini_mapping)
         self.configured = False
+        self.fee_currents = []
+        self.rf_powers = []
         
         # Setup the callback
         self.ASPCallbackInstance = ASPCallbackInstance
@@ -547,7 +538,10 @@ class ChassisStatus(object):
         if config is None:
             return True
             
+        self.spi_mini_mapping = {self.sub20SN: config['sub20_antenna_mapping'][self.sub20SN]}
+        self.rs485_mapping = config['sub20_rs485_mapping']
         self.monitorPeriod = config['chassis_period']
+        self.poll_rf_power = config.get('has_rf_power', False)
         
     def start(self):
         """
@@ -576,55 +570,96 @@ class ChassisStatus(object):
             self.configured = False
             self.lastError = None
             
+    def is_alive(self):
+        """
+        Check the current state of the threading.Event()s that control the this
+        monitor.
+        """
+        
+        status = self.alive.is_set()
+        if self.ASPCallbackInstance is not None:
+            status &= self.ASPCallbackInstance.currentState['alive'].is_set()
+        return status
+        
+    def is_set(self):
+        """
+        Alias for is_alive() to provide a minimal threading.Event-like interface.
+        """
+        
+        return self.is_alive()
+        
     def monitorThread(self):
         """
         Create a monitoring thread for the temperature.
         """
         
-        while self.alive.isSet():
+        loop_counter = 0
+        
+        while self.is_alive():
             tStart = time.time()
             
             try:
-                missingSUB20 = False
-                
-                with SUB20_LOCKS[self.sub20SN]:
-                    p = subprocess.Popen('/usr/local/bin/readARXDevice %s %i 1 0x%04X' % (self.sub20SN, self.totalDevs, self.register), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    output, output2 = p.communicate()
-                    try:
-                        output = output.decode('ascii')
-                        output2 = output2.decode('ascii')
-                    except AttributeError:
-                        pass
-                        
-                if p.returncode != 0:
-                    aspThreadsLogger.warning("readARXDevice: command returned %i; '%s;%s'", p.returncode, output, output2)
-                    
-                    missingSUB20 = True
-                    if p.returncode == 3:
-                        self.configured = False
-                        
-                else:
-                    output = output.split('\n')[:-1]
-                    dev, resp = output[-1].split(': ', 1)
-                    resp = int(resp, 16)
+                resp = self._spi.read_register(1, self.register, threadingEvent=self)
+                if resp is not None:
+                    missingSUB20 = False
                     
                     if resp == (self.register | 0x5500):
                         self.configured = True
                     else:
                         self.configured = False
                         
-                        aspThreadsLogger.error("%s: SUB-20 S/N %s lost SPI port configuation", type(self).__name__, self.sub20SN)
-                        
-                if self.ASPCallbackInstance is not None:
+                        aspThreadsLogger.error("%s: communication board S/N %s lost SPI port configuation", type(self).__name__, self.sub20SN)
+                else:
+                    missingSUB20 = True
+                    
+                    self.configured = False
+                    
+                if self.is_alive() and self.ASPCallbackInstance is not None:
                     if missingSUB20:
-                        self.ASPCallbackInstance.processMissingSUB20()
+                        self.ASPCallbackInstance.processMissingCommBoard()
                         
                     if not self.configured:
                         self.ASPCallbackInstance.processUnconfiguredChassis(self.sub20SN)
                         
+                ## Record the board temperatures and power consumption while we are at it
+                if self.pic_monitoring and loop_counter == 0:
+                    #status, temps = rs485Temperature(self.rs485_mapping, maxRetry=MAX_RS485_RETRY,
+                    #                                 threadingEvent=self)
+                    status, temps = False, []
+                    
+                    if status:
+                        try:
+                            with open(self.temp_logfile, 'a') as log:
+                                log.write('%s,' % time.time())
+                                log.write('%s\n' % ','.join(['%.2f' % t for t in temps]))
+                                log.flush()
+                        except Exception as e:
+                            aspThreadsLogger.error("%s: monitorThread failed to update board temperature log - %s", type(self).__name__, str(e))
+                            
+                    status, fees = rs485Power(self.rs485_mapping, maxRetry=MAX_RS485_RETRY,
+                                              threadingEvent=self)
+                        
+                    if status:
+                        self.fee_currents = fees
+                        
+                        try:
+                            with open(self.fee_logfile, 'a') as log:
+                                log.write('%s,' % time.time())
+                                log.write('%s\n' % ','.join(['%.3f' % v for v in self.fee_currents]))
+                                log.flush()
+                        except Exception as e:
+                            aspThreadsLogger.error("%s: monitorThread failed to update FEE power log - %s", type(self).__name__, str(e))
+                            
+                    if self.poll_rf_power:
+                        status, powers = rs485RFPower(self.rs485_mapping, maxRetry=MAX_RS485_RETRY,
+                                                      threadingEvent=self)
+                            
+                        if status:
+                            self.rf_powers = powers
+                            
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                aspThreadsLogger.error("%s: monitorThread SUB-20 S/N %s failed with: %s at line %i", type(self).__name__, self.sub20SN, str(e), exc_traceback.tb_lineno)
+                aspThreadsLogger.error("%s: monitorThread communication board S/N %s failed with: %s at line %i", type(self).__name__, self.sub20SN, str(e), exc_traceback.tb_lineno)
                 
                 ## Grab the full traceback and save it to a string via StringIO
                 fileObject = StringIO()
@@ -637,14 +672,17 @@ class ChassisStatus(object):
                     
                 self.lastError = str(e)
                 
+            loop_counter += 1
+            loop_counter %= 3
+            
             # Stop time
             tStop = time.time()
-            aspThreadsLogger.debug('Finished updating chassis status for SUB-20 S/N %s in %.3f seconds', self.sub20SN, tStop - tStart)
+            aspThreadsLogger.debug('Finished updating chassis status for communication board S/N %s in %.3f seconds', self.sub20SN, tStop - tStart)
             
             # Sleep for a bit
             sleepCount = 0
             sleepTime = self.monitorPeriod - (tStop - tStart)
-            while (self.alive.isSet() and sleepCount < sleepTime):
+            while (self.is_alive() and sleepCount < sleepTime):
                 time.sleep(0.2)
                 sleepCount += 0.2
                 
@@ -657,3 +695,34 @@ class ChassisStatus(object):
             return "Configured"
         else:
             return "Unconfigured"
+            
+    def getFEECurrent(self, stand):
+        """
+        Convenience function to get the current draw of a FEE in mA.
+        """
+        
+        try:
+            return self.fee_currents[2*(stand-1):2*(stand-1)+2]
+        except IndexError:
+            return (None, None)
+            
+    def getAllFEECurrents(self):
+        """
+        Convenience function to get all FEE current draws in mA in one go.
+        """
+        
+        try:
+            return self.fee_currents
+        except AttributeError:
+            return None
+            
+    def getRFPower(self, stand):
+        """
+        Convenience function to get the RF power from the square law detector in
+        Watts.
+        """
+        
+        try:
+            return self.rf_powers[2*(stand-1):2*(stand-1)+2]
+        except IndexError:
+            return (None, None)

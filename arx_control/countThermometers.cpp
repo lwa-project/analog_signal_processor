@@ -7,46 +7,62 @@ Note:  There can be more than one temperature sensor
        per power supply.
  
 Usage:
-  countThermometers
+  countThermometers [-h|--help] <ATmega S/N>
 
 Options:
-  None
+  -h, --help  Show this help message and exit
 *****************************************************/
 
 #include <iostream>
 #include <string>
 #include <cstring>
+#include <cstdint>
 
-#include "libsub.h"
+#include "libatmega.hpp"
 #include "aspCommon.hpp"
+#include "ivsCommon.hpp"
+
+static const char cmdHelp[] =
+#include "countThermometers_help.h"
+;
+
 
 int main(int argc, char** argv) {
   /*************************
   * Command line parsing   *
   *************************/
   // Make sure we have the right number of arguments to continue
+  for(int i=1; i<argc; i++) {
+    std::string temp = std::string(argv[i]);
+    if( temp[0] == '-' ) {
+      if( (temp == "-h") || (temp == "--help") ) {
+        std::cout << cmdHelp << std::endl;
+        std::exit(EXIT_SUCCESS);
+      }
+    }
+  }
   if( argc < 1+1 ) {
-    std::cerr << "countThermometers - Need 1 argument, %i provided, " << argc-1 << " provided" << std::endl;
+    std::cerr << "countThermometers - Need 1 argument, " << argc-1 << " provided" << std::endl;
     return 0;
   }
   
   std::string requestedSN = std::string(argv[1]);
   
   /************************************
-  * SUB-20 device selection and ready *
+  * ATmega device selection and ready *
   ************************************/
-  Sub20 *sub20 = new Sub20(requestedSN);
+  ATmega *atm = new ATmega(requestedSN);
   
-  bool success = sub20->open();
+  bool success = atm->open();
   if( !success ) {
     std::cerr << "countThermometers - failed to open " << requestedSN << std::endl;
-	  return 0;
+    return 0;
   }
   
   /********************
-	* Read from the I2C *
-	********************/
-  std::list<uint8_t> i2c_devices = sub20->list_i2c_devices();
+  * Read from the I2C *
+  ********************/
+  std::list<uint8_t> i2c_devices = atm->list_i2c_devices();
   
   int num = 0;
   for(uint8_t& addr: i2c_devices) {
@@ -55,30 +71,21 @@ int main(int argc, char** argv) {
     }
 
 #ifdef __INCLUDE_MODULE_TEMPS__
-			// Get a list of smart modules for polling
-      uint16_t data;
-      success = sub20->read_i2c(addr, 0xD3, (char *) &data, 2);
-			if( !success ) {
-				std::cerr << "countThermometers - module status - " << sub_strerror(sub_errno) << std::endl;
-				continue;
-			}
-			
-			// Each module has a temperature sensor
-      for(int j=0; j<16; j++) {
-				num += ((data >> j) & 1);
-			}
+      // Get a list of smart modules for polling
+      std::list<uint8_t> modules = ivs_get_smart_modules(atm, addr);
+      num += modules.size();
 #endif
   
-		// And there are two overall sensors per PSU
-		num += 2;
-	}
-	
-	std::cout << "Found " << num << " PSU thermometers" << std::endl;
-	
-	/*******************
-	* Cleanup and exit *
-	*******************/
-	delete sub20;
+    // And there are two overall sensors per PSU
+    num += 2;
+  }
+  
+  std::cout << "Found " << num << " PSU thermometers" << std::endl;
+  
+  /*******************
+  * Cleanup and exit *
+  *******************/
+  delete atm;
 
-	return num;
+  return num;
 }

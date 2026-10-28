@@ -1,56 +1,78 @@
 #------------------------------------------------------------------------------
 # Main Targets
 #------------------------------------------------------------------------------
-all: LIBSUB 
+all: LIBATMEGA
 
 #------------------------------------------------------------------------------
 # Config
 #------------------------------------------------------------------------------
 OS=$(shell uname)
 
+ifeq ($(OS),Linux)
+  SO_EXT      = .so
+  SHARED_FLAG = -shared
+  SONAME_FLAG = -soname
+else ifeq ($(OS),Darwin)
+  SO_EXT      = .dylib
+  SHARED_FLAG = -dynamiclib
+  SONAME_FLAG = -install_name
+else
+  $(error Unsupported OS)
+endif
+
+LIBATMEGA_SO         = libatmega$(SO_EXT)
+	
 #------------------------------------------------------------------------------
 # Compiler
 #------------------------------------------------------------------------------
 
-# C Compiler and Linker Executable
-CC      := $(CROSS)gcc
+# C++ Compiler and Linker Executable
+CXX     := $(CROSS)g++
 
 
 #------------------------------------------------------------------------------
 # Inc && Lib 
 #------------------------------------------------------------------------------
-LDLIB   := 
+ifeq ($(OS),Linux)
+  LDLIB += -ludev
+else ifeq ($(OS),Darwin)
+  LDLIB += -framework IOKit -framework CoreFoundation
+endif
 
 #------------------------------------------------------------------------------
 # Compiler Flags 
 #------------------------------------------------------------------------------
-CFLAGS  := -O2 -Wall -Werror -g -I../src -I../boot/vnd/fw -I.
-CFLAGS += -DLIBUSB_1_0 -I/usr/include/libusb-1.0
+CXXFLAGS  := -O2 -Wall -std=c++17 -Werror -g -fPIC -I.
 
 #------------------------------------------------------------------------------
 # Linker Flags 
 #------------------------------------------------------------------------------
-LFLAGS  :=  
+LFLAGS  := -fPIC
+ifeq ($(OS),Linux)
+  LFLAGS += -ludev
+else ifeq ($(OS),Darwin)
+  LFLAGS += -framework IOKit -framework CoreFoundation
+endif
 
+WLFLAGS ?= $(SONAME_FLAG),$(LIBATMEGA_SO)
 
 #------------------------------------------------------------------------------
 # Common rules
 #------------------------------------------------------------------------------
-%.o:	%.c  
-	$(CC) -c $(CFLAGS) -o $@ $<
+%.o:	%.cpp 
+	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
 
 #------------------------------------------------------------------------------
 # Target Builds
 # 
 #------------------------------------------------------------------------------
-LIBSUB : libsub.a ###libsub.so
-libsub.a : libsub.o
+LIBATMEGA : libatmega_static.a $(LIBATMEGA_SO)
+libatmega_static.a : libatmega.o
 	ar -rcsv $@ $^
-libsub.so: libsub.o
-	$(CC) -shared -Wl,-soname,$@ -o $@ libsub.o
+$(LIBATMEGA_SO): libatmega.o
+	$(CXX) $(SHARED_FLAG) -Wl,$(WLFLAGS) -o $@ libatmega.o $(LFLAGS)
 
 clean:
 	@echo $(OS) Clean
-	rm -f *.o *.out *.err *.exe *.a *.so
-
+	rm -f *.o *.a *.so *.dylib

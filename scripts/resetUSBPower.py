@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+
+import json
+import sys
+import time
+import argparse
+
+import serial
+import serial.tools.list_ports
+
+try:
+    import json_minify
+except ImportError:
+    json_minify = None
+
+DEFAULTS_FILENAME = '/lwa/software/defaults.json'
+
+SEEED_VID = 0x2886
+BAUD = 9600
+TIMEOUT = 2.0
+VERSION_MARKER = "Compiled"
+
+
+def arx_serial_numbers():
+    sns = set()
+    try:
+        with open(DEFAULTS_FILENAME, 'r') as fh:
+            text = fh.read()
+            if json_minify is not None:
+                text = json_minify.json_minify(text)
+            config = json.loads(text)
+        i2c_sn = config.get('sub20_i2c_mapping', '')
+        if i2c_sn:
+            sns.add(i2c_sn)
+        sns.update(config.get('sub20_antenna_mapping', {}).keys())
+    except (OSError, ValueError, KeyError):
+        pass
+    return sns
+
+
+def candidate_ports():
+    exclude_sns = arx_serial_numbers()
+    candidates = []
+    for info in serial.tools.list_ports.comports():
+        # On macOS skip /dev/tty.* to avoid blocking on open
+        if sys.platform == "darwin" and info.device.startswith("/dev/tty."):
+            continue
+        if info.serial_number is not None and info.serial_number[:8] in exclude_sns:
+            continue
+        if info.vid is not None:
+            if info.vid == SEEED_VID:
+                candidates.append(info.device)
+        elif "usbmodem" in info.device.lower():
+            candidates.append(info.device)
+    return sorted(candidates)
+
+
+def send_command(ser, cmd, retries=1, retry_sleep=TIMEOUT):
+    for attempt in range(retries):
+        ser.write((cmd.strip() + "\n").encode("ascii"))
+        ser.flush()
+        deadline = time.time() + TIMEOUT
+        lines = []
+        while time.time() < deadline:
+            line = ser.readline().decode("ascii", errors="replace").strip()
+            if line:
+                lines.append(line)
+                deadline = time.time() + 0.5
+        if lines:
+            return "\n".join(lines)
+        ser.reset_input_buffer()
+        if attempt < retries - 1:
+            time.sleep(retry_sleep)
+    return ""
+
+
+def find_device():
+    for port in candidate_ports():
+        try:
+            with serial.Serial(port, BAUD, timeout=TIMEOUT) as ser:
+                time.sleep(0.3)
+                ser.reset_input_buffer()
+                response = send_command(ser, "VERSION")
+                if VERSION_MARKER in response:
+                    return port
+        except (serial.SerialException, OSError):
+            continue
+    return None
+
+
+def main(args):
+    port = args.port
+    if port is None:
+        port = find_device()
+    if port is None:
+        print("USB Power Switch not found", file=sys.stderr)
+        sys.exit(1)
+        
+    if args.list:
+        print(port)
+    elif args.status:
+        with serial.Serial(port, BAUD, timeout=TIMEOUT) as ser:
+            time.sleep(0.3)
+            ser.reset_input_buffer()
+            print(send_command(ser, "STATUS"))
+    else:
+        cmd = "RESET"
+        if args.off_time is not None:
+            cmd += " %d" % args.off_time
+        with serial.Serial(port, BAUD, timeout=TIMEOUT) as ser:
+            time.sleep(0.3)
+            ser.reset_input_buffer()
+            print(send_command(ser, cmd))
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description='Reset USB power via the USB Power Switch device',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        )
+    parser.add_argument('off_time', type=int, nargs='?', default=None,
+                        help='time in ms to keep power off (default 250)')
+    parser.add_argument('-p', '--port', type=str, default=None,
+                        help='serial port path (auto-detected if omitted)')
+    parser.add_argument('-l', '--list', action='store_true',
+                        help='list the device port and exit')
+    parser.add_argument('-s', '--status', action='store_true',
+                        help='report device status and exit')
+    args = parser.parse_args()
+    main(args)
