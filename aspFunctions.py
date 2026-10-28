@@ -607,10 +607,21 @@ class AnalogProcessor(object):
             return False, 0x06
             
         # Process in the background
-        thread = threading.Thread(target=self.__fpwProcess, args=(stand, pol, state))
-        thread.setDaemon(1)
-        thread.start()
-        
+        if pol == 0:
+            ## Pol 0 = set both pot 1 and pol 2
+            thread0 = threading.Thread(target=self.__fpwProcess, args=(stand, 0, state))
+            thread0.setDaemon(1)
+            thread0.start()
+            
+            thread1 = threading.Thread(target=self.__fpwProcess, args=(stand, 1, state))
+            thread1.setDaemon(1)
+            thread1.start()
+            
+        else:
+            thread = threading.Thread(target=self.__fpwProcess, args=(stand, pol, state))
+            thread.setDaemon(1)
+            thread.start()
+            
         return True, 0
         
     def __fpwProcess(self, stand, pol, state):
