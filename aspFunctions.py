@@ -516,7 +516,7 @@ class AnalogProcessor(object):
         if stand < 0 or stand > self.num_stands:
             self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x02]
             return False, 0x02
-        if pol < 1 or pol > 2:
+        if pol < 0 or pol > 2:
             self.currentState['lastLog'] = 'FPW: %s' % commandExitCodes[0x03]
             return False, 0x03
         if state not in (0, 11):
@@ -527,10 +527,19 @@ class AnalogProcessor(object):
         self.currentState['activeProcess'].append('FPW')
         
         # Process in the background
-        thread = threading.Thread(target=self.__fpwProcess, args=(stand, pol, state))
-        thread.setDaemon(1)
-        thread.start()
-        
+        if pol == 0:
+            thread0 = threading.Thread(target=self.__fpwProcess, args=(stand, 1, state))
+            thread0.setDaemon(1)
+            thread0.start()
+            thread1 = threading.Thread(target=self.__fpwProcess, args=(stand, 2, state))
+            thread1.setDaemon(1)
+            thread1.start()
+            
+        else:
+            thread = threading.Thread(target=self.__fpwProcess, args=(stand, pol, state))
+            thread.setDaemon(1)
+            thread.start()
+            
         return True, 0
         
     def __fpwProcess(self, stand, pol, state, internal=False):
