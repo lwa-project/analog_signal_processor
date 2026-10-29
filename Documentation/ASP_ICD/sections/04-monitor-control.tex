@@ -566,14 +566,14 @@ The \cmd{FPW} command controls the FEE power for a specified stand and polarizat
         \textbf{Field} & \textbf{Value} \\
         \midrule
         Command & \cmd{FPW} \\
-        Data & Stand number + polarization (1 or 2) + state (2 digits) \\
+        Data & Stand number + polarization (1 or 2, or 0 for both 1 and 2) + state (2 digits) \\
         Response & Status; on failure: exit code and message \\
         \bottomrule
     \end{tabular}
 \end{table}
 
 \begin{itemize}
-    \item Polarization: 1 (X) or 2 (Y)
+    \item Polarization: 1 (X) or 2 (Y), or 0 (both 1/X and 2/Y)
     \item State 00: Power off
     \item State 11: Power on
 \end{itemize}
