@@ -61,7 +61,7 @@ The NDP signal output connector specifications are listed in Table~\ref{tab:ndp-
 
 \section{Control Interface}
 
-The ASP uses a custom ARX Control Board based on an SAMD21 microcontroller for communication. The control board provides:
+The ASP uses a custom ARX Control Board based on an RP2040 microcontroller for communication. The control board provides:
 \begin{itemize}
     \item SPI bus for ARX board control
     \item I2C bus for power supply monitoring
@@ -89,7 +89,7 @@ The ARX Control Board provides USB connectivity to the control computer and mana
         \toprule
         \textbf{Parameter} & \textbf{Value} \\
         \midrule
-        Microcontroller & SAMD21 \\
+        Microcontroller & RP2040 \\
         Interface & USB 2.0 (via USB-over-Ethernet) \\
         SPI Clock & Configurable \\
         I2C Address (FEE PSU) & \texttt{0x1E} (30) \\

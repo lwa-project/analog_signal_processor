@@ -28,7 +28,7 @@ The ASP subsystem performs the following functions:
     \item Temperature and power supply monitoring
 \end{itemize}
 
-The standard ASP implementation uses a custom ARX Control Board based on an SAMD21 microcontroller for communication via SPI and I2C buses. Each chassis contains up to 8 Revision I ARX boards that are controlled through this interface. Up to 4 chassis (32 boards) can be controlled. The system also includes RS-485 communication for board-level monitoring.
+The standard ASP implementation uses a custom ARX Control Board based on an RP2040 microcontroller for communication via SPI and I2C buses. Each chassis contains up to 8 Revision I ARX boards that are controlled through this interface. Up to 4 chassis (32 boards) can be controlled. The system also includes RS-485 communication for board-level monitoring.
 
 \begin{calloutBox}{Rev H System Difference}{orange}
 One legacy system uses the Rev H hardware and software branch with Revision H ARX boards. The Rev H system uses a commercial USB-to-RS485 adapter with RS-485 serial communication as the primary control interface instead of SPI. Temperature monitoring is performed via three sensors per board rather than power supply unit sensors. Where behavior differs, this document notes the Rev H differences.
