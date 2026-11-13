@@ -31,7 +31,7 @@ commandExitCodes = {0x00: 'Process accepted without error',
                     0x06: 'Invalid power setting', 
                     0x07: 'Invalid command arguments', 
                     0x08: 'Blocking operation in progress', 
-                    0x09: 'Subsytem already initalized', 
+                    0x09: 'Subsystem already initialized', 
                     0x0A: 'Subsystem needs to be initialized', 
                     0x0B: 'Command not implemented'}
 
@@ -720,8 +720,8 @@ class AnalogProcessor(object):
             self.currentState['lastLog'] = 'LOC: %s' % commandExitCodes[0x02]
             return False, 0x02
         if locSetting not in (0, 11):
-            self.currentState['lastLog'] = 'LOC: %s' % commandExitCodes[0x05]
-            return False, 0x05
+            self.currentState['lastLog'] = 'LOC: %s' % commandExitCodes[0x07]
+            return False, 0x07
 
         # Process in the background
         thread = threading.Thread(target=self.__locProcess, args=(stand, locSetting))
@@ -741,8 +741,8 @@ class AnalogProcessor(object):
         else:
             self.currentState['spiThread'].queue_command(stand, SPI_P12_off)
 
-        self.currentState['lastLog'] = '%s: Set locate state to %i for stand %i' % (locSetting, stand)
-        aspFunctionsLogger.debug('%s - Set locate state to %i for stand %i', locSetting, stand)
+        self.currentState['lastLog'] = 'LOC: Set locate state to %i for stand %i' % (locSetting, stand)
+        aspFunctionsLogger.debug('LOC - Set locate state to %i for stand %i', locSetting, stand)
 
         return True, 0
         
@@ -1277,7 +1277,7 @@ class AnalogProcessor(object):
                 self.__fepProcess(00, internal=True)
             
             self.currentState['status'] = 'ERROR'
-            self.currentState['info'] = 'FEPPWRUNIT_1! 0x%02X %s - %s' % (code, subsystemErrorCodes[code], reason)
+            self.currentState['info'] = 'FEEPWRUNIT_1! 0x%02X %s - %s' % (code, subsystemErrorCodes[code], reason)
             self.currentState['lastLog'] = 'FEE power supply critical - %s - powered off' % reason
             self.currentState['ready'] = False
         
