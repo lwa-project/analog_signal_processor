@@ -253,6 +253,8 @@ On the legacy Rev H system, each ARX board has three dedicated temperature senso
 \section{Control Commands}
 \label{sec:commands}
 
+For the per-stand commands (\cmd{FIL}, \cmd{AT1}, \cmd{AT2}, \cmd{AT3}, \cmd{LOC}, and \cmd{FPW}), a stand number of 0 applies the setting to all stands. For example, \cmd{FPW 000011} turns on FEE power for both polarizations of every stand. Stand 0 is not valid for the per-stand MIB entries queried with \cmd{RPT}.
+
 \subsection{PNG --- Ping}
 
 The \cmd{PNG} command tests connectivity with the ASP subsystem (Table~\ref{tab:cmd-png}).
@@ -304,10 +306,11 @@ Earlier revisions of this ICD specified that \cmd{INI} took the number of ARX bo
 
 The initialization sequence:
 \begin{enumerate}
-    \item Verify ARX Control Board is present
+    \item Verify ARX Control Board is present (resetting it once if not found)
     \item Turn off power supplies
     \item Wait 5 seconds
     \item Turn on power supplies
+    \item Verify that the number of ARX boards found on both the SPI and RS-485 buses matches the configuration file; if not, the system enters ERROR state with error code \hex{09}
     \item Initialize SPI port configuration
     \item Start monitoring threads (power, temperature, chassis)
 \end{enumerate}
@@ -541,7 +544,7 @@ Example: \cmd{LOC 12311} turns on the locate LED for stand 123.
 \begin{tabular}{cl}
     \hex{00} & Process accepted without error \\
     \hex{02} & Invalid stand \\
-    \hex{05} & Invalid locate setting \\
+    \hex{07} & Invalid command arguments \\
     \hex{0A} & Subsystem needs to be initialized \\
 \end{tabular}
 
