@@ -82,7 +82,7 @@ The system periodically verifies that the ARX Control Board USB device is presen
 
 \section{Board Configuration Monitoring}
 
-The chassis status monitoring thread periodically verifies that ARX boards maintain their SPI port configuration. The thread reads a known configuration register from the RS485 bus and checks that its value matches the expected configuration pattern. If the bus has lost its SPI port setup (e.g., from a USB reset or power glitch), the register value will differ, indicating that communication with the boards is no longer possible. If a board loses configuration:
+The chassis status monitoring thread periodically verifies that ARX boards maintain their SPI port configuration. The thread reads back a known configuration register over the SPI bus and checks that its value matches the expected configuration pattern. If the bus has lost its SPI port setup (e.g., from a USB reset or power glitch), the register value will differ, indicating that communication with the boards is no longer possible. If a board loses configuration:
 \begin{itemize}
     \item System enters ERROR state
     \item INFO field reports which antennas are affected
@@ -90,7 +90,7 @@ The chassis status monitoring thread periodically verifies that ARX boards maint
 \end{itemize}
 
 \begin{calloutBox}{Rev H System Difference}{orange}
-On the legacy Rev H system, board configuration monitoring uses a timestamp-based mechanism rather than SPI register checks. During initialization, a reference timestamp is written to all boards via the RS-485 \cmd{STIM} command. The monitoring thread periodically queries each board for its stored time using the \cmd{GTIM} command. If any board has reset or lost power, its stored time will differ from the reference. This approach can identify exactly which individual board(s) have failed, rather than detecting a whole RS485 bus failure.
+On the legacy Rev H system, board configuration monitoring uses a timestamp-based mechanism rather than SPI register checks. During initialization, a reference timestamp is written to all boards via the RS-485 \cmd{STIM} command. The monitoring thread periodically queries each board for its stored time using the \cmd{GTIM} command. If any board has reset or lost power, its stored time will differ from the reference. This approach can identify exactly which individual board(s) have failed, rather than detecting a whole SPI bus failure.
 \end{calloutBox}
 
 \section{Error Recovery}
