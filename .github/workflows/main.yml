@@ -7,6 +7,13 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python-version: ['3.8', '3.10', '3.12']
+        exclude:
+          # Python 3.8 is not available for ubuntu-latest (26.04)
+          - os: ubuntu-latest
+            python-version: '3.8'
+        include:
+          - os: ubuntu-22.04
+            python-version: '3.8'
       fail-fast: false
     steps:
       - name: "Software Install - Ubuntu"
